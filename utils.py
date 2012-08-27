@@ -1,9 +1,10 @@
-import os, errno
+import os, errno, socket
 import time
 import re
 import iso8601
 from dateutil import tz
 import datetime
+from lxml import html
 
 import urllib
 import urllib2
@@ -61,13 +62,17 @@ def download(url, destination, force=False):
     f.write(body)
     f.close()
 
+    # rate-limit but only if network activity
+    time.sleep(0.5)
+
   return body
 
-def fetch(url):
+def fetch_html(url):
   try:
     log("Fetching: %s" % url)
     response = urllib2.urlopen(url)
-    return response.read()
+    body = response.read()
+    return html.document_fromstring(body)
   except URLError, e:
     log(e.reason)
     return None
@@ -91,3 +96,19 @@ def mkdir_p(path):
       pass
     else: 
       raise
+
+def xpath_regex(doc, element, pattern):
+  return doc.xpath(
+    "//%s[re:match(text(), '%s')]" % (element, pattern), 
+    namespaces={"re": "http://exslt.org/regular-expressions"})
+
+thomas_types = {
+  'hr': ('HR', 'H.R.'),
+  'hres': ('HE', 'H.RES.'),
+  'hjres': ('HJ', 'H.J.RES.'),
+  'hconres': ('HC', 'H.CON.RES.'),
+  's': ('SN', 'S.'),
+  'sres': ('SE', 'S.RES.'),
+  'sjres': ('SJ', 'S.J.RES.'),
+  'sconres': ('SC', 'S.CON.RES.'),
+}
