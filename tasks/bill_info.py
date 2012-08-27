@@ -25,9 +25,12 @@ def fetch_bill(bill_id, options):
   doc = pq(body, parser='html')
   
   sponsor = sponsor_for(body)
-  summary = summary_for(doc)
+  summary = summary_for(body)
 
+  print
   print summary
+  print
+  
 
 
 def sponsor_for(body):
@@ -40,31 +43,27 @@ def sponsor_for(body):
   else:
     raise Exception("Choked finding sponsor information.")
 
-def summary_for(doc):
-  selector = doc("b a")
-  for i, elem in enumerate(selector):
-    if elem.text == "SUMMARY AS OF:":
-      parent = selector.eq(i).parent()
-      
-      summary = []
+def summary_for(body):
+  match = re.search("SUMMARY AS OF:</a></b>(.*?)<hr", body, re.S)
+  if not match:
+    return None
 
-      next = parent.next()
-      while len(next) > 0:
-        if next[0].tag == "hr":
-          break
-        elif (next[0].tag == "p") or (next[0].tag == "ul"):
-          if next[0].find("b") is None:
-            fragment = next.text().strip()
-            if fragment:
-              summary.append(fragment)
-        next = next.next()
+  text = match.group(1).strip()
 
-      if len(summary) == 0:
-        raise Exception("Choked finding summary.")
+  # strip out the bold explanation of a new summary, if present
+  text = re.sub("\s*<p><b>\(This measure.*?</b></p>\s*", "", text)
 
-      return str.join("\n\n", summary)
+  # strip out the intro date thing
+  text = re.sub("\d+/\d+/\d+--[^\s].*?(\n|<p>)", "", text)
 
+  # naive stripping of tags, should work okay in this limited context
+  text = re.sub("<[^>]+>", "", text)
 
+  # compress and strip whitespace artifacts
+  text = re.sub("\s{2,}", " ", text).strip()
+  
+  return text
+  
 
 # "All Information" page for a bill
 def bill_url_for(bill_id):
