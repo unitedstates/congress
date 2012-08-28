@@ -3,6 +3,8 @@ from utils import log
 import re
 from pyquery import PyQuery as pq
 import json
+from lxml import etree
+import time
 
 # can be run on its own, just require a bill_id
 def run(options):
@@ -47,6 +49,18 @@ def output_bill(bill, options):
   utils.write(
     json.dumps(bill, sort_keys=True, indent=2), 
     output_for_bill(bill['bill_id'], "json")
+  )
+
+  # output XML
+  root = etree.Element("bill")
+  root.set("session", bill['session'])
+  root.set("type", bill['bill_type'])
+  root.set("number", bill['number'])
+  root.set("updated", utils.format_datetime(time.time()))
+
+  utils.write(
+    etree.tostring(root, pretty_print=True),
+    output_for_bill(bill['bill_id'], "xml")
   )
   
 

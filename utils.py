@@ -3,7 +3,8 @@ import time
 import re
 import iso8601
 from dateutil import tz
-import datetime
+from pytz import timezone
+import datetime, time
 from lxml import html
 
 import urllib
@@ -105,6 +106,14 @@ def xpath_regex(doc, element, pattern):
   return doc.xpath(
     "//%s[re:match(text(), '%s')]" % (element, pattern), 
     namespaces={"re": "http://exslt.org/regular-expressions"})
+
+def format_datetime(v):
+  if type(v) == float:
+    v = datetime.datetime.fromtimestamp(v)
+  if type(v) == datetime.datetime:
+    v = v.replace(microsecond=0, tzinfo=timezone("US/Eastern"))
+  return v.isoformat()
+
 
 thomas_types = {
   'hr': ('HR', 'H.R.'),
