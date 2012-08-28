@@ -58,15 +58,18 @@ def download(url, destination, force=False):
       return None
 
     # cache content to disk
-    mkdir_p(os.path.dirname(cache))
-    f = open(cache, 'w')
-    f.write(body)
-    f.close()
+    write(body, cache)
 
-    # rate-limit but only if network activity
+    # rate-limit but only if we used the network
     time.sleep(0.5)
 
   return body
+
+def write(content, destination):
+  mkdir_p(os.path.dirname(destination))
+  f = open(destination, 'w')
+  f.write(content)
+  f.close()
 
 def fetch_html(url):
   try:

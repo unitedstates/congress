@@ -2,7 +2,9 @@ import utils
 from utils import log
 import re
 from pyquery import PyQuery as pq
+import json
 
+# can be run on its own, just require a bill_id
 def run(options):
   bill_id = options.get('bill_id', None)
   
@@ -24,9 +26,28 @@ def fetch_bill(bill_id, options):
 
   doc = pq(body, parser='html')
   
+  bill_type, number, session = utils.split_bill_id(bill_id)
   sponsor = sponsor_for(body)
   summary = summary_for(body)
 
+  output_bill({
+    'bill_id': bill_id,
+    'bill_type': bill_type,
+    'number': number,
+    'session': session,
+    'sponsor': sponsor,
+    'summary': summary
+  }, options)
+
+
+def output_bill(bill, options):
+  log("[%s] Writing to disk..." % bill['bill_id'])
+
+  # output JSON
+  utils.write(
+    json.dumps(bill, sort_keys=True, indent=2), 
+    output_for_bill(bill['bill_id'], "json")
+  )
   
 
 
@@ -62,6 +83,10 @@ def summary_for(body):
   return text
 
 
+def output_for_bill(bill_id, format):
+  bill_type, number, session = utils.split_bill_id(bill_id)
+  return "data/bills/%s/%s/%s%s/%s" % (session, bill_type, bill_type, number, "data.%s" % format)
+
 # "All Information" page for a bill
 def bill_url_for(bill_id):
   bill_type, number, session = utils.split_bill_id(bill_id)
@@ -70,4 +95,4 @@ def bill_url_for(bill_id):
 
 def bill_cache_for(bill_id, file):
   bill_type, number, session = utils.split_bill_id(bill_id)
-  return "bills/%s/%s%s/%s" % (session, bill_type, number, file)
+  return "bills/%s/%s/%s%s/%s" % (session, bill_type, bill_type, number, file)
