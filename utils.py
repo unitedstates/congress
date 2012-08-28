@@ -1,6 +1,6 @@
 import os, errno, socket
 import time
-import re
+import re, htmlentitydefs
 import iso8601
 from dateutil import tz
 from pytz import timezone
@@ -113,6 +113,28 @@ def format_datetime(v):
   if type(v) == datetime.datetime:
     v = v.replace(microsecond=0, tzinfo=timezone("US/Eastern"))
   return v.isoformat()
+
+# taken from http://effbot.org/zone/re-sub.htm#unescape-html
+def unescape(text):
+  def fixup(m):
+    text = m.group(0)
+    if text[:2] == "&#":
+      # character reference
+      try:
+        if text[:3] == "&#x":
+          return unichr(int(text[3:-1], 16))
+        else:
+          return unichr(int(text[2:-1]))
+      except ValueError:
+        pass
+    else:
+      # named entity
+      try:
+        text = unichr(htmlentitydefs.name2codepoint[text[1:-1]])
+      except KeyError:
+        pass
+    return text # leave as is
+  return re.sub("&#?\w+;", fixup, text)
 
 
 thomas_types = {
