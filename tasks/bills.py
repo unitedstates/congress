@@ -92,4 +92,4 @@ def page_for(session, bill_type, offset):
   return "http://thomas.loc.gov/cgi-bin/bdquery/d?d%s:%s:./list/bss/d%s%s.lst:[[o]]" % (session, offset, session, thomas_type)
 
 def page_cache_for(session, bill_type, offset):
-  return "data/bills/%s/pages/%s/%i.html" % (session, bill_type, offset)
+  return "bills/%s/pages/%s/%i.html" % (session, bill_type, offset)

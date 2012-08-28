@@ -33,9 +33,10 @@ def split_bill_id(bill_id):
   return re.match("^([a-z]+)(\d+)-(\d+)$", bill_id).groups()
 
 def download(url, destination, force=False):
-  if not force and os.path.exists(destination):
-    log("Cached: (%s, %s)" % (destination, url))
-    with open(destination, 'r') as f:
+  cache = "cache/%s" % destination
+  if not force and os.path.exists(cache):
+    log("Cached: (%s, %s)" % (cache, url))
+    with open(cache, 'r') as f:
       body = f.read()
   else:
     try:
@@ -57,8 +58,8 @@ def download(url, destination, force=False):
       return None
 
     # cache content to disk
-    mkdir_p(os.path.dirname(destination))
-    f = open(destination, 'w')
+    mkdir_p(os.path.dirname(cache))
+    f = open(cache, 'w')
     f.write(body)
     f.close()
 

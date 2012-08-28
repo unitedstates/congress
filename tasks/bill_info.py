@@ -27,9 +27,6 @@ def fetch_bill(bill_id, options):
   sponsor = sponsor_for(body)
   summary = summary_for(body)
 
-  print
-  print summary
-  print
   
 
 
@@ -63,7 +60,7 @@ def summary_for(body):
   text = re.sub("\s{2,}", " ", text).strip()
   
   return text
-  
+
 
 # "All Information" page for a bill
 def bill_url_for(bill_id):
@@ -73,4 +70,4 @@ def bill_url_for(bill_id):
 
 def bill_cache_for(bill_id, file):
   bill_type, number, session = utils.split_bill_id(bill_id)
-  return "data/bills/%s/%s%s/%s" % (session, bill_type, number, file)
+  return "bills/%s/%s%s/%s" % (session, bill_type, number, file)
