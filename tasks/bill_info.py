@@ -107,7 +107,10 @@ def summary_for(body):
 def actions_for(body):
   match = re.search(">ALL ACTIONS:<.*?<dl>(.*?)<hr", body, re.S)
   if not match:
-    raise Exception("Couldn't find action section.")
+    if re.search("ALL ACTIONS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.I | re.S):
+      return []
+    else:
+      raise Exception("Couldn't find action section.")
 
   actions = []
 
@@ -167,7 +170,7 @@ def action_for(text):
   return (text, "action", considerations, {})
 
 def cosponsors_for(body):
-  match = re.search("COSPONSORS\((\d+)\).*?<p>(.*?)<hr", body, re.S)
+  match = re.search("COSPONSORS\((\d+)\).*?<p>(.*?)(?:</br>)?<hr", body, re.S)
   if not match:
     none = re.search("COSPONSOR\(S\):</b></a><p>\*\*\*NONE\*\*\*", body)
     if none:
@@ -183,10 +186,11 @@ def cosponsors_for(body):
 
   cosponsors = []
 
-  for line in re.compile("<br ?/>").split(text):
+  lines = re.compile("<br ?/>").split(text)
+  for line in lines:
     m = re.search(r"<a href=[^>]+>(Rep|Sen) (.+?)</a> \[([A-Z\d\-]+)\]\s*- (\d\d?/\d\d?/\d\d\d\d)(?:\(withdrawn - (\d\d?/\d\d?/\d\d\d\d)\))?", line, re.I)
     if not m:
-      raise Exception("Choked scanning action line: %s" % line)
+      raise Exception("Choked scanning cosponsor line: %s" % line)
     
     title, name, district, join_date, withdrawn_date = m.groups()
 
