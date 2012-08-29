@@ -32,6 +32,7 @@ def fetch_bill(bill_id, options):
   
   bill_type, number, session = utils.split_bill_id(bill_id)
   sponsor = sponsor_for(body)
+  cosponsors = cosponsors_for(body)
   summary = summary_for(body)
   actions = actions_for(body)
 
@@ -42,7 +43,10 @@ def fetch_bill(bill_id, options):
     'session': session,
     'sponsor': sponsor,
     'summary': summary,
-    'actions': actions
+    'actions': actions,
+    'cosponsors': cosponsors,
+
+    'updated_at': datetime.datetime.fromtimestamp(time.time())
   }, options)
 
 
@@ -51,7 +55,7 @@ def output_bill(bill, options):
 
   # output JSON
   utils.write(
-    json.dumps(bill, sort_keys=True, indent=2), 
+    json.dumps(bill, sort_keys=True, indent=2, default=utils.format_datetime), 
     output_for_bill(bill['bill_id'], "json")
   )
 
@@ -60,7 +64,7 @@ def output_bill(bill, options):
   root.set("session", bill['session'])
   root.set("type", bill['bill_type'])
   root.set("number", bill['number'])
-  root.set("updated", utils.format_datetime(time.time()))
+  root.set("updated", utils.format_datetime(bill['updated_at']))
 
   utils.write(
     etree.tostring(root, pretty_print=True),
@@ -131,6 +135,7 @@ def actions_for(body):
     action = {
       'text': cleaned_text,
       'type': action_type,
+      'acted_at': action_time,
       'considerations': considerations
     }
     action.update(other)
@@ -161,6 +166,43 @@ def action_for(text):
 
   return (text, "action", considerations, {})
 
+def cosponsors_for(body):
+  match = re.search("COSPONSORS\((\d+)\).*?<p>(.*?)<hr", body, re.S)
+  if not match:
+    none = re.search("COSPONSOR\(S\):</b></a><p>\*\*\*NONE\*\*\*", body)
+    if none:
+      return [] # no cosponsors, it happens, nothing to be ashamed of
+    else:
+      raise Exception("Choked finding cosponsors section")
+
+  count = match.group(1)
+  text = match.group(2)
+
+  # fix some bad line breaks
+  text = re.sub("</br>", "<br/>", text)
+
+  cosponsors = []
+
+  for line in re.compile("<br ?/>").split(text):
+    m = re.search(r"<a href=[^>]+>(Rep|Sen) (.+?)</a> \[([A-Z\d\-]+)\]\s*- (\d\d?/\d\d?/\d\d\d\d)(?:\(withdrawn - (\d\d?/\d\d?/\d\d\d\d)\))?", line, re.I)
+    if not m:
+      raise Exception("Choked scanning action line: %s" % line)
+    
+    title, name, district, join_date, withdrawn_date = m.groups()
+
+    join_date = datetime.datetime.strptime(join_date, "%m/%d/%Y")
+    if withdrawn_date:
+      withdrawn_date = datetime.datetime.strptime(withdrawn_date, "%m/%d/%Y")
+
+    cosponsors.append({
+      'title': title,
+      'name': name,
+      'district': district,
+      'sponsored_at': join_date,
+      'withdrawn_at': withdrawn_date
+    })
+
+  return cosponsors
 
 
 
