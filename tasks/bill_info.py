@@ -35,6 +35,7 @@ def fetch_bill(bill_id, options):
   cosponsors = cosponsors_for(body)
   summary = summary_for(body)
   actions = actions_for(body)
+  titles = titles_for(body)
 
   output_bill({
     'bill_id': bill_id,
@@ -45,6 +46,7 @@ def fetch_bill(bill_id, options):
     'summary': summary,
     'actions': actions,
     'cosponsors': cosponsors,
+    # 'titles': titles,
 
     'updated_at': datetime.datetime.fromtimestamp(time.time())
   }, options)
@@ -104,11 +106,26 @@ def summary_for(body):
   
   return text
 
+
+def titles_for(body):
+  match = re.search("TITLE\(S\):<.*?<ul>(.*?)<hr", body, re.I | re.S)
+  if not match:
+    raise Exception("Couldn't find titles section.")
+
+  titles = []
+
+  text = match.group(1).strip()
+
+  # print text
+
+  return titles
+
+
 def actions_for(body):
-  match = re.search(">ALL ACTIONS:<.*?<dl>(.*?)<hr", body, re.S)
+  match = re.search(">ALL ACTIONS:<.*?<dl>(.*?)<hr", body, re.I | re.S)
   if not match:
     if re.search("ALL ACTIONS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.I | re.S):
-      return []
+      return [] # no actions, can happen for bills reserved for the Speaker
     else:
       raise Exception("Couldn't find action section.")
 
@@ -159,7 +176,10 @@ def action_for(text):
     # remove the matched section
     text = text[0:match.start()] + text[match.end():]
 
-    for consideration in match.group(1).split("; "):
+    # fix occasional use of comma instead of a colon between consideration types
+    types = re.sub("[,:] ([a-z])", r"; \1", match.group(1))
+
+    for consideration in types.split("; "):
       if ": " not in consideration:
         type, reference = None, consideration
       else:
@@ -170,7 +190,7 @@ def action_for(text):
   return (text, "action", considerations, {})
 
 def cosponsors_for(body):
-  match = re.search("COSPONSORS\((\d+)\).*?<p>(.*?)(?:</br>)?<hr", body, re.S)
+  match = re.search("COSPONSORS\((\d+)\).*?<p>(?:</br>)?(.*?)(?:</br>)?<hr", body, re.S)
   if not match:
     none = re.search("COSPONSOR\(S\):</b></a><p>\*\*\*NONE\*\*\*", body)
     if none:
