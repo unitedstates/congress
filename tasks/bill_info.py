@@ -26,6 +26,9 @@ def fetch_bill(bill_id, options):
     bill_cache_for(bill_id, "information.html"),
     options.get('force', False))
 
+  if options.get("download_only", False):
+    return
+
   body = utils.unescape(body)
 
   doc = pq(body, parser='html')
@@ -115,8 +118,14 @@ def titles_for(body):
   titles = []
 
   text = match.group(1).strip()
+  sections = text.split("<p><li>")
+  for section in sections:
+    if section.strip() == "":
+      continue
+    m = re.search
 
-  # print text
+  if len(titles) == 0:
+    raise Exception("No titles found.")
 
   return titles
 
