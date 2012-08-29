@@ -49,7 +49,7 @@ def fetch_bill(bill_id, options):
     'summary': summary,
     'actions': actions,
     'cosponsors': cosponsors,
-    # 'titles': titles,
+    'titles': titles,
 
     'updated_at': datetime.datetime.fromtimestamp(time.time())
   }, options)
@@ -122,7 +122,44 @@ def titles_for(body):
   for section in sections:
     if section.strip() == "":
       continue
-    m = re.search
+
+    # ensure single newlines between each title in the section
+    section = re.sub("\n?<br ?/>", "\n", section)
+    section = re.sub("<[^>]+>", "", section) # strip tags
+
+    pieces = section.split("\n")
+
+    full_type, type_titles = pieces[0], pieces[1:]
+    if " AS " in full_type:
+      type, state = full_type.split(" AS ")
+    else:
+      type, state = full_type, None
+
+    if "POPULAR TITLE" in type:
+      type = "popular"
+    elif "SHORT TITLE" in type:
+      type = "short"
+    elif "OFFICIAL TITLE" in type:
+      type = "official"
+    else:
+      raise Exception("Unknown title type: " + type)
+
+    for title in type_titles:
+      if title.strip() == "":
+        continue
+
+      if type == "popular":
+        title = re.sub(ur"[\s\u00a0]\(identified.+?$", "", title)
+
+      titles.append({
+        'title': title.strip(),
+        'as': state,
+        'type': type
+      })
+
+
+  return titles
+
 
   if len(titles) == 0:
     raise Exception("No titles found.")
