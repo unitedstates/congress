@@ -12,7 +12,7 @@ def run(options):
   
   if bill_id:
     result = fetch_bill(bill_id, options)
-    log(result)
+    log("\n%s" % result)
   else:
     log("To run this task directly, supply a bill_id.")
 
@@ -234,6 +234,9 @@ def action_for(text):
     types = re.sub("[,:] ([a-z])", r"; \1", types)
     # fix "CR:"
     types = re.sub("CR:", "CR", types)
+    # fix a missing semicolon altogether between considerations
+    # e.g. sres107-112, "consideration: CR S1877-1878 text as"
+    types = re.sub("(\d+) ([a-z])", r"\1; \2", types)
 
     for consideration in types.split("; "):
       if ": " not in consideration:
