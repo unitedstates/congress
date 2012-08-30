@@ -23,6 +23,8 @@ def run(options):
     if limit:
       to_fetch = to_fetch[:int(limit)]
 
+  if options.get('pages_only', False):
+    return None
 
   print "Going to fetch %i bills from session #%s" % (len(to_fetch), session)
 
