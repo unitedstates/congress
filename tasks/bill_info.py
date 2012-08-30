@@ -20,7 +20,7 @@ def run(options):
 # download and cache landing page for bill
 # can raise an exception under various conditions
 def fetch_bill(bill_id, options):
-  log("[%s] Fetching..." % bill_id)
+  log("\n[%s] Fetching..." % bill_id)
 
   body = utils.download(
     bill_url_for(bill_id), 

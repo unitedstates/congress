@@ -32,7 +32,7 @@ def run(options):
 
   for bill_id in to_fetch:
     results = bill_info.fetch_bill(bill_id, options)
-    
+
     if results.get('ok', False):
       if results.get('saved', False):
         saved.append(bill_id)
@@ -41,16 +41,18 @@ def run(options):
         skips.append(bill_id)
         log("[%s] Skipping bill: %s" % (bill_id, results['reason']))
     else:
+      results.update({'bill_id': bill_id})
       errors.append(results)
       log("[%s] Error: %s" % (bill_id, results['reason']))
 
   if len(errors) > 0:
-    log("Errors:")
+    log("\nErrors for %s bills:" % len(errors))
     for error in errors:
-      log("[%s] Error: %s" % (bill_id, results['reason']))
+      print error
+      log("[%s] Error: %s" % (error['bill_id'], error['reason']))
 
-  log("Skipped %s bills." % len(skips))
-  log("Saved data for %s bills." % len(successes))
+  log("\nSkipped %s bills." % len(skips))
+  log("Saved data for %s bills." % len(saved))
 
 
 # page through listings for bills of a particular session
