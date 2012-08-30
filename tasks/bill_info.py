@@ -233,7 +233,9 @@ def action_for(text):
     types = match.group(1)
 
     # fix use of comma or colon instead of a semi colon between consideration types
-    types = re.sub("[,:] ([a-z])", r"; \1", types)
+    # have seen some accidental capitalization combined with accidental comma, thus the 'T'
+    # e.g. "text of Title VII as reported in House: CR H3075-3077, Text omission from Title VII:" (hr5384-109)
+    types = re.sub("[,:] ([a-zT])", r"; \1", types)
     # fix "CR:"
     types = re.sub("CR:", "CR", types)
     # fix a missing semicolon altogether between considerations
