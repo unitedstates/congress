@@ -26,10 +26,31 @@ def run(options):
 
   print "Going to fetch %i bills from session #%s" % (len(to_fetch), session)
 
+  errors = []
+  saved = []
+  skips = []
 
   for bill_id in to_fetch:
-    bill_info.fetch_bill(bill_id, options)
-    log("Updated bill %s" % bill_id)
+    results = bill_info.fetch_bill(bill_id, options)
+    
+    if results.get('ok', False):
+      if results.get('saved', False):
+        saved.append(bill_id)
+        log("[%s] Updated bill" % bill_id)
+      else:
+        skips.append(bill_id)
+        log("[%s] Skipping bill" % bill_id)
+    else:
+      errors.append(results)
+      log("[%s] Error: %s" % (bill_id, results['reason']))
+
+  if len(errors) > 0:
+    log("Errors:")
+    for error in errors:
+      log("[%s] Error: %s" % (bill_id, results['reason']))
+
+  log("Skipped %s bills." % len(skips))
+  log("Saved data for %s bills." % len(successes))
 
 
 # page through listings for bills of a particular session

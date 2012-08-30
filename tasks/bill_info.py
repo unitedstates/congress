@@ -11,7 +11,8 @@ def run(options):
   bill_id = options.get('bill_id', None)
   
   if bill_id:
-    fetch_bill(bill_id, options)
+    result = fetch_bill(bill_id, options)
+    log(result)
   else:
     log("To run this task directly, supply a bill_id.")
 
@@ -27,11 +28,14 @@ def fetch_bill(bill_id, options):
     options.get('force', False))
 
   if options.get("download_only", False):
-    return
+    return {'saved': False, 'ok': True}
+
+  skipped, error = False, False
 
   body = utils.unescape(body)
 
-  doc = pq(body, parser='html')
+  if "</html>" not in body:
+    return {'saved': False, 'ok': False, 'reason': "page was truncated"}
   
   bill_type, number, session = utils.split_bill_id(bill_id)
   sponsor = sponsor_for(body)
@@ -53,6 +57,8 @@ def fetch_bill(bill_id, options):
 
     'updated_at': datetime.datetime.fromtimestamp(time.time())
   }, options)
+
+  return {'ok': True}
 
 
 def output_bill(bill, options):
@@ -111,7 +117,7 @@ def summary_for(body):
 
 
 def titles_for(body):
-  match = re.search("TITLE\(S\):<.*?<ul>(.*?)<hr", body, re.I | re.S)
+  match = re.search("TITLE\(S\):<.*?<ul>.*?<p><li>(.*?)<hr", body, re.I | re.S)
   if not match:
     raise Exception("Couldn't find titles section.")
 
