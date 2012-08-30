@@ -240,7 +240,7 @@ def action_for(text):
     # e.g. sres107-112, "consideration: CR S1877-1878 text as"
     types = re.sub("(\d+) ([a-z])", r"\1; \2", types)
 
-    for consideration in types.split("; "):
+    for consideration in re.split("; ?", types):
       if ": " not in consideration:
         type, reference = None, consideration
       else:
