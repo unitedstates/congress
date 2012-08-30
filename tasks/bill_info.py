@@ -44,6 +44,9 @@ def fetch_bill(bill_id, options):
   actions = actions_for(body)
   titles = titles_for(body)
   related_bills = related_bills_for(body, session)
+  # committees = committees_for(body)
+  # amendments = amendments_for(body)
+  # subjects = subjects_for(body)
 
   output_bill({
     'bill_id': bill_id,
@@ -56,6 +59,9 @@ def fetch_bill(bill_id, options):
     'cosponsors': cosponsors,
     'titles': titles,
     'related_bills': related_bills,
+    # 'committees': committees,
+    # 'amendments': amendments,
+    # 'subjects': subjects,
 
     'updated_at': datetime.datetime.fromtimestamp(time.time())
   }, options)
