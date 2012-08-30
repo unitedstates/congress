@@ -28,7 +28,7 @@ def fetch_bill(bill_id, options):
     options.get('force', False))
 
   if options.get("download_only", False):
-    return {'saved': False, 'ok': True}
+    return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
   skipped, error = False, False
 
@@ -58,7 +58,7 @@ def fetch_bill(bill_id, options):
     'updated_at': datetime.datetime.fromtimestamp(time.time())
   }, options)
 
-  return {'ok': True}
+  return {'ok': True, 'saved': True}
 
 
 def output_bill(bill, options):
@@ -228,8 +228,12 @@ def action_for(text):
     # remove the matched section
     text = text[0:match.start()] + text[match.end():]
 
-    # fix occasional use of comma instead of a colon between consideration types
-    types = re.sub("[,:] ([a-z])", r"; \1", match.group(1))
+    types = match.group(1)
+
+    # fix use of comma or colon instead of a semi colon between consideration types
+    types = re.sub("[,:] ([a-z])", r"; \1", types)
+    # fix "CR:"
+    types = re.sub("CR:", "CR", types)
 
     for consideration in types.split("; "):
       if ": " not in consideration:

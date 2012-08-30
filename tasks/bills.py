@@ -39,7 +39,7 @@ def run(options):
         log("[%s] Updated bill" % bill_id)
       else:
         skips.append(bill_id)
-        log("[%s] Skipping bill" % bill_id)
+        log("[%s] Skipping bill: %s" % (bill_id, results['reason']))
     else:
       errors.append(results)
       log("[%s] Error: %s" % (bill_id, results['reason']))
