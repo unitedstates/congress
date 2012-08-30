@@ -46,10 +46,9 @@ def run(options):
       log("[%s] Error: %s" % (bill_id, results['reason']))
 
   if len(errors) > 0:
-    log("\nErrors for %s bills:" % len(errors))
+    log("\nErrors for %s bills:\n" % len(errors))
     for error in errors:
-      print error
-      log("[%s] Error: %s" % (error['bill_id'], error['reason']))
+      log("[%s] %s" % (error['bill_id'], error))
 
   log("\nSkipped %s bills." % len(skips))
   log("Saved data for %s bills." % len(saved))
