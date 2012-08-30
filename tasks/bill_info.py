@@ -43,6 +43,7 @@ def fetch_bill(bill_id, options):
   summary = summary_for(body)
   actions = actions_for(body)
   titles = titles_for(body)
+  related_bills = related_bills_for(body, session)
 
   output_bill({
     'bill_id': bill_id,
@@ -54,6 +55,7 @@ def fetch_bill(bill_id, options):
     'actions': actions,
     'cosponsors': cosponsors,
     'titles': titles,
+    'related_bills': related_bills,
 
     'updated_at': datetime.datetime.fromtimestamp(time.time())
   }, options)
@@ -176,7 +178,7 @@ def titles_for(body):
 def actions_for(body):
   match = re.search(">ALL ACTIONS:<.*?<dl>(.*?)<hr", body, re.I | re.S)
   if not match:
-    if re.search("ALL ACTIONS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.I | re.S):
+    if re.search("ALL ACTIONS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
       return [] # no actions, can happen for bills reserved for the Speaker
     else:
       raise Exception("Couldn't find action section.")
@@ -287,7 +289,38 @@ def cosponsors_for(body):
 
   return cosponsors
 
+def related_bills_for(body, session):
+  match = re.search("RELATED BILL DETAILS.*?<p>.*?<table border=\"0\">(.*?)<hr", body, re.S)
+  if not match:
+    if re.search("RELATED BILL DETAILS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
+      return []
+    else:
+      raise Exception("Couldn't find related bills section.")
 
+  text = match.group(1).strip()
+
+  related_bills = []
+
+  for line in re.split("<tr><td", text):
+    if (line.strip() == "") or ("Bill:" in line):
+      continue
+
+    m = re.search("<a[^>]+>(.+?)</a>.*?<td>(.+?)</td>", line)
+    if not m:
+      raise Exception("Choked processing related bill line.")
+
+    bill_code, reason = m.groups()
+
+    bill_id = "%s-%s" % (bill_code.lower().replace(".", "").replace(" ", ""), session)
+    reason = re.sub("^Related bill (as )?", "", reason)
+
+    related_bills.append({
+      'bill_id': bill_id,
+      'reason': reason
+    })
+
+
+  return related_bills
 
 def output_for_bill(bill_id, format):
   bill_type, number, session = utils.split_bill_id(bill_id)
