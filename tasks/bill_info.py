@@ -38,7 +38,7 @@ def fetch_bill(bill_id, options):
     return {'saved': False, 'ok': False, 'reason': "page was truncated"}
   
   bill_type, number, session = utils.split_bill_id(bill_id)
-  member_id, sponsor, state, district = sponsor_for(body)
+  sponsor = sponsor_for(body)
   cosponsors = cosponsors_for(body)
   summary = summary_for(body)
   actions = actions_for(body)
@@ -54,9 +54,6 @@ def fetch_bill(bill_id, options):
     'number': number,
     'session': session,
     'sponsor': sponsor,
-    'member_id': member_id,
-    'state' : state,
-    'district': district,
     'summary': summary,
     'actions': actions,
     'cosponsors': cosponsors,
@@ -102,11 +99,18 @@ def sponsor_for(body):
       return None
     else:
       if len(match.group(4).split('-')) == 2:
-          state, district = match.group(4).split('-')
+        state, district = match.group(4).split('-')
       else:
-          state = match.group(4)
-          district = None
-      return [match.group(2), match.group(3), state, district]
+        state, district = match.group(4), None
+      
+      thomas_id = int(match.group(2))
+
+      return {
+        'name': match.group(3),
+        'thomas_id': thomas_id, 
+        'state': state, 
+        'district': district
+      }
   else:
     raise Exception("Choked finding sponsor information.")
 
@@ -289,20 +293,19 @@ def cosponsors_for(body):
     if not m:
       raise Exception("Choked scanning cosponsor line: %s" % line)
     
-    member_id, title, name, district, join_date, withdrawn_date = m.groups()
+    thomas_id, title, name, district, join_date, withdrawn_date = m.groups()
     
     if len(district.split('-')) == 2:
         state, district_number = district.split('-')
     else:
-        state = district
-        district_number = None
+        state, district_number = district, None
 
     join_date = datetime.datetime.strptime(join_date, "%m/%d/%Y")
     if withdrawn_date:
       withdrawn_date = datetime.datetime.strptime(withdrawn_date, "%m/%d/%Y")
 
     cosponsors.append({
-      'member_id': member_id,
+      'thomas_id': thomas_id,
       'title': title,
       'name': name,
       'state': state,
