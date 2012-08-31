@@ -38,7 +38,7 @@ def fetch_bill(bill_id, options):
     return {'saved': False, 'ok': False, 'reason': "page was truncated"}
   
   bill_type, number, session = utils.split_bill_id(bill_id)
-  sponsor = sponsor_for(body)
+  sponsor, state, district = sponsor_for(body)
   cosponsors = cosponsors_for(body)
   summary = summary_for(body)
   actions = actions_for(body)
@@ -54,6 +54,8 @@ def fetch_bill(bill_id, options):
     'number': number,
     'session': session,
     'sponsor': sponsor,
+    'state' : state,
+    'district': district,
     'summary': summary,
     'actions': actions,
     'cosponsors': cosponsors,
@@ -98,7 +100,12 @@ def sponsor_for(body):
     if match.group(1) == "No Sponsor":
       return None
     else:
-      return (match.group(2), match.group(3))
+      if len(match.group(3).split('-')) == 2:
+          state, district = match.group(3).split('-')
+      else:
+          state = match.group(3)
+          district = None
+      return [match.group(2), state, district]
   else:
     raise Exception("Choked finding sponsor information.")
 
@@ -282,6 +289,12 @@ def cosponsors_for(body):
       raise Exception("Choked scanning cosponsor line: %s" % line)
     
     title, name, district, join_date, withdrawn_date = m.groups()
+    
+    if len(district.split('-')) == 2:
+        state, district_number = district.split('-')
+    else:
+        state = district
+        district_number = 'At Large'
 
     join_date = datetime.datetime.strptime(join_date, "%m/%d/%Y")
     if withdrawn_date:
@@ -290,7 +303,8 @@ def cosponsors_for(body):
     cosponsors.append({
       'title': title,
       'name': name,
-      'district': district,
+      'state': state,
+      'district': district_number,
       'sponsored_at': join_date,
       'withdrawn_at': withdrawn_date
     })
