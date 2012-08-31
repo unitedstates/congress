@@ -295,7 +295,7 @@ def cosponsors_for(body):
         state, district_number = district.split('-')
     else:
         state = district
-        district_number = 'At Large'
+        district_number = None
 
     join_date = datetime.datetime.strptime(join_date, "%m/%d/%Y")
     if withdrawn_date:
