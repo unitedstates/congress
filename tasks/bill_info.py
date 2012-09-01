@@ -325,7 +325,7 @@ def cosponsors_for(body):
       withdrawn_date = datetime.datetime.strptime(withdrawn_date, "%m/%d/%Y")
 
     cosponsors.append({
-      'thomas_id': thomas_id,
+      'thomas_id': int(thomas_id),
       'title': title,
       'name': name,
       'state': state,
