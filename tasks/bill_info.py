@@ -592,7 +592,7 @@ def parse_bill_action(line, prev_state, bill_type, title):
 def new_state_after_vote(vote_type, passed, chamber, bill_type, suspension, amended, title, prev_state):
   if vote_type == "vote": # vote in originating chamber
     if passed:
-      if bill_type in ("hr", "sr"):
+      if bill_type in ("hres", "sres"):
         return 'PASSED:SIMPLERES' # end of life for a simple resolution
       if chamber == "h":
         return 'PASS_OVER:HOUSE' # passed by originating chamber, now in second chamber
@@ -606,9 +606,9 @@ def new_state_after_vote(vote_type, passed, chamber, bill_type, suspension, amen
       return 'FAIL:ORIGINATING:SENATE' # outright failure
   if vote_type == "vote2": # vote in second chamber
     if passed:
-      if bill_type in ("hj", "sj") and title.startswith("Proposing an amendment to the Constitution of the United States"):
+      if bill_type in ("hjres", "sjres") and title.startswith("Proposing an amendment to the Constitution of the United States"):
         return 'PASSED:CONSTAMEND' # joint resolution that looks like an amendment to the constitution
-      if bill_type in ("hc", "sc"):
+      if bill_type in ("hconres", "sconres"):
         return 'PASSED:CONCURRENTRES' # end of life for concurrent resolutions
       if amended:
         # bills and joint resolutions not constitutional amendments, amended from Senate version.
