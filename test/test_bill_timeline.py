@@ -15,10 +15,6 @@ class BillTimeline(unittest.TestCase):
     self.assertEqual(new_action['roll'], "768")
     self.assertEqual(new_action['type'], "vote")
     self.assertEqual(new_action['vote_type'], "vote")
+    # TODO: these don't work yet - fix them once the rest of the tests are here
     # self.assertEqual(new_action['how'], "roll")
     # self.assertEqual(new_action['result'], "pass")
-
-  
-  # TODO: these should be run (prefixed with "test_") once the
-  # rest of the test suite is filled out and works
-  
