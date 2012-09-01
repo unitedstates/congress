@@ -379,11 +379,13 @@ def decipher_timeline(actions, bill_type, title):
   for action in actions:
     new_action, new_state = parse_bill_action(action['text'], state, bill_type, title)
 
-    action.update(new_action)
-    new_actions.append(action)
-
+    # only change/reflect state change if there was one
     if new_state:
       state = new_state
+      new_action['state'] = new_state
+
+    action.update(new_action)
+    new_actions.append(action)
 
   return new_actions, state
 
