@@ -38,21 +38,38 @@ def fetch_bill(bill_id, options):
     return {'saved': False, 'ok': False, 'reason': "page was truncated"}
   
   bill_type, number, session = utils.split_bill_id(bill_id)
+
+  # do all the raw html parsing
+
+  # introduced_at = introduced_at_for(body)
   sponsor = sponsor_for(body)
   cosponsors = cosponsors_for(body)
   summary = summary_for(body)
-  actions = actions_for(body)
   titles = titles_for(body)
+  actions = actions_for(body)
   related_bills = related_bills_for(body, session)
   # committees = committees_for(body)
   # amendments = amendments_for(body)
   # subjects = subjects_for(body)
 
-  output_bill({
+
+  # post-processing and normalization
+
+  # for convenience: extract out current title of each type
+  # current_title = current_title_for(titles)
+
+  # add metadata to each action, establish current state
+  actions, state = decipher_timeline(actions, bill_type, titles[-1])
+
+
+
+  bill = {
     'bill_id': bill_id,
     'bill_type': bill_type,
     'number': number,
     'session': session,
+    'state': state,
+    # 'introduced_at': introduced_at,
     'sponsor': sponsor,
     'summary': summary,
     'actions': actions,
@@ -64,7 +81,9 @@ def fetch_bill(bill_id, options):
     # 'subjects': subjects,
 
     'updated_at': datetime.datetime.fromtimestamp(time.time())
-  }, options)
+  }
+
+  output_bill(bill, options)
 
   return {'ok': True, 'saved': True}
 
@@ -158,6 +177,7 @@ def titles_for(body):
     full_type, type_titles = pieces[0], pieces[1:]
     if " AS " in full_type:
       type, state = full_type.split(" AS ")
+      state = state.replace(":", "").lower()
     else:
       type, state = full_type, None
 
@@ -348,6 +368,311 @@ def related_bills_for(body, session):
 
 
   return related_bills
+
+# given the parsed list of actions from actions_for, run each action
+# through metadata extraction and figure out what current state the bill is in
+def decipher_timeline(actions, bill_type, title):
+  # every bill is at least introduced
+  state = "INTRODUCED"
+
+  new_actions = []
+
+  for action in actions:
+    new_action, new_state = parse_bill_action(action['text'], state, bill_type, title)
+
+    action.update(new_action)
+    new_actions.append(action)
+
+    if new_state:
+      state = new_state
+
+  return new_actions, state
+
+
+
+def parse_bill_action(line, prev_state, bill_type, title):
+  """Parse a THOMAS bill action line. Returns attributes to be set in the XML file on the action line."""
+  
+  state = None
+  action = { }
+  
+  # If a line starts with an amendment number, this action is on the amendment and cannot
+  # be parsed yet.
+  m = re.match("r^(H|S)\.Amdt\.(\d+)", line, re.I)
+  if m != None:
+    # Process actions specific to amendments separately.
+    return {
+      "amendment": m.group(1).lower() + m.group(2)
+    }
+  
+  # Otherwise, parse the action line for key actions.
+      
+  # A House Vote.
+  line = re.sub(", the Passed", ", Passed", line); # 106 h4733 and others
+  m = re.search(r"(On passage|On motion to suspend the rules and pass the bill|On motion to suspend the rules and agree to the resolution|On motion to suspend the rules and pass the resolution|On agreeing to the resolution|On agreeing to the conference report|Two-thirds of the Members present having voted in the affirmative the bill is passed,?|On motion that the House agree to the Senate amendments?|On motion that the House suspend the rules and concur in the Senate amendments?|On motion that the House suspend the rules and agree to the Senate amendments?|On motion that the House agree with an amendment to the Senate amendments?|House Agreed to Senate Amendments.*?|Passed House)(, the objections of the President to the contrary notwithstanding.?)?(, as amended| \(Amended\))? (Passed|Failed|Agreed to|Rejected)? ?(by voice vote|without objection|by (the Yeas and Nays|Yea-Nay Vote|recorded vote)((:)? \(2/3 required\))?: \d+ - \d+(, \d+ Present)? [ \)]*\((Roll no\.|Record Vote No:) \d+\))", line, re.I)
+  if m != None:
+    motion, is_override, as_amended, pass_fail, how = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
+    
+    if re.search(r"Passed House|House Agreed to", motion, re.I):
+      pass_fail = 'pass'
+    elif re.search(r"Pass|Agreed", pass_fail, re.I):
+      pass_fail = 'pass'
+    else:
+      pass_fail = 'fail'
+    
+    if "Two-thirds of the Members present" in motion:
+      is_override = True
+    
+    if is_override:
+      vote_type = "override"
+    elif re.search(r"(agree (with an amendment )?to|concur in) the Senate amendment", line, re.I):
+      vote_type = "pingpong"
+    elif re.search("conference report", line, re.I):
+      vote_type = "conference"
+    elif bill_type[0] == "h":
+      vote_type = "vote"
+    else:
+      vote_type = "vote2"
+    
+    roll = None
+    m = re.search(r"\((Roll no\.|Record Vote No:) (\d+)\)", how, re.I)
+    if m != None:
+      roll = m.group(2)
+
+    suspension = None
+    if roll and "On motion to suspend the rules" in motion:
+      suspension = True
+
+    action["type"] = "vote"
+    action["vote_type"] = vote_type
+    action["how"] = how
+    if roll:
+      action["roll"] = roll
+
+    # get the new state of the bill after this vote
+    new_state = new_state_after_vote(vote_type, pass_fail=="pass", "h", bill_type, suspension, as_amended, title, prev_state)
+    if new_state:
+      state = new_state
+      
+  m = re.search(r"Passed House pursuant to", line, re.I)
+  if m != None:
+    vote_type = "vote" if (bill_type[0] == "h") else "vote2"
+    action["type"] = "vote"
+    action["vote_type"] = vote_type
+    action["how"] = "by special rule"
+
+    # get the new state of the bill after this vote
+    new_state = new_state_after_vote(vote_type, pass_fail=="pass", "h", bill_type, False, False, title, prev_state)
+    
+    if new_state:
+      state = new_state
+  
+  # A Senate Vote
+  m = re.search(r"(Passed Senate|Failed of passage in Senate|Resolution agreed to in Senate|Received in the Senate, considered, and agreed to|Submitted in the Senate, considered, and agreed to|Introduced in the Senate, read twice, considered, read the third time, and passed|Received in the Senate, read twice, considered, read the third time, and passed|Senate agreed to conference report|Cloture \S*\s?on the motion to proceed .*?not invoked in Senate|Cloture on the bill not invoked in Senate|Cloture on the bill invoked in Senate|Cloture on the motion to proceed to the bill invoked in Senate|Cloture on the motion to proceed to the bill not invoked in Senate|Senate agreed to House amendment|Senate concurred in the House amendment)(,?.*,?) (without objection|by Unanimous Consent|by Voice Vote|by Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)", line, re.I)
+  if m != None:
+    motion, extra, how = m.group(1), m.group(2), m.group(3)
+    roll = None
+    
+    if re.search("passed|agreed|concurred|bill invoked", motion, re.I):
+      pass_fail = "pass"
+    else:
+      pass_fail = "fail"
+      
+    voteaction_type = "vote"
+    if re.search("over veto", extra, re.I):
+      vote_type = "override"
+    elif re.search("conference report", motion, re.I):
+      vote_type = "conference"
+    elif re.search("cloture", motion, re.I):
+      vote_type = "cloture"
+      voteaction_type = "vote-aux" # because it is not a vote on passage
+    elif re.search("Senate agreed to House amendment|Senate concurred in the House amendment", motion, re.I):
+      vote_type = "pingpong"
+    elif bill_type[0] == "s":
+      vote_type = "vote"
+    else:
+      vote_type = "vote2"
+      
+    m = re.search(r"Record Vote (No|Number): (\d+)", how, re.I)
+    if m != None:
+      roll = m.group(2)
+      how = "roll"
+      
+    as_amended = False
+    if re.search(r"with amendments|with an amendment", extra, re.I):
+      as_amended = True
+      
+    action["type"] = voteaction_type
+    action["vote_type"] = vote_type
+    action["how"] = how
+    if roll:
+      action["roll"] = roll
+
+    # get the new state of the bill after this vote
+    new_state = new_state_after_vote(vote_type, pass_fail=="pass", "s", bill_type, False, as_amended, title, prev_state)
+    
+    if new_state:
+      state = new_state
+      
+  # TODO: Make a new state for this as pre-reported.
+  m = re.search(r"Placed on (the )?([\w ]+) Calendar( under ([\w ]+))?[,\.] Calendar No\. (\d+)\.|Committee Agreed to Seek Consideration Under Suspension of the Rules|Ordered to be Reported", line, re.I)
+  if m != None:
+    # TODO: This makes no sense.
+    if prev_state in ("INTRODUCED", "REFERRED"):
+      state = "REPORTED"
+    
+    action["type"] = "calendar"
+    
+    # TODO: Useless.
+    action["calendar"] = m.group(2)
+    action["under"] = m.group(4)
+    action["number"] = m.group(5)
+  
+  m = re.search(r"Committee on (.*)\. Reported by", line, re.I)
+  if m != None:
+    action["type"] = "reported"
+    action["committee"] = m.group(1)
+    if prev_state in ("INTRODUCED", "REFERRED"):
+      state = "REPORTED"
+    
+  m = re.search(r"Committee on (.*)\. Discharged (by Unanimous Consent)?", line, re.I)
+  if m != None:
+    action["committee"] = m.group(1)
+    action["type"] = "discharged"
+    if prev_state in ("INTRODUCED", "REFERRED"):
+      state = "REPORTED"
+      
+  m = re.search("Cleared for White House|Presented to President", line, re.I)
+  if m != None:
+    action["type"] = "topresident"
+    
+  m = re.search("Signed by President", line, re.I)
+  if m != None:
+    action["type"] = "signed"
+    
+  m = re.search("Pocket Vetoed by President", line, re.I)
+  if m != None:
+    action["type"] = "vetoed"
+    action["pocket"] = "1"
+    state = "VETOED:POCKET"
+    
+  m = re.search("Vetoed by President", line, re.I)
+  if m != None:
+    action["type"] = "vetod"
+    state = "PROV_KILL:VETO'"
+    
+  m = re.search("Became (Public|Private) Law No: ([\d\-]+)\.", line, re.I)
+  if m != None:
+    action["type"] = "enacted"
+    if prev_state != "PROV_KILL:VETO" and not prev_state.startswith("VETOED:"):       
+      state = "ENACTED:SIGNED"
+    else:
+      state = "ENACTED:VETO_OVERRIDE"
+    
+  m = re.search(r"Referred to (the )?((House|Senate|Committee) [^\.]+).?", line, re.I)
+  if m != None:
+    action["type"] = "referral"
+    action["committee"] = m.group(2)
+    if prev_state == "INTRODUCED":
+      state = "REFERRED"
+    
+  m = re.search(r"Referred to the Subcommittee on (.*[^\.]).?", line, re.I)
+  if m != None:
+    action["type"] = "referral"
+    action["subcommittee"] = m.group(1)
+    if prev_state == "INTRODUCED":
+      state = "REFERRED"
+    
+  m = re.search(r"Received in the Senate and referred to (the )?(.*[^\.]).?", line, re.I)
+  if m != None:
+    action["type"] = "referral"
+    action["committee"] = m.group(2)
+        
+  return action, state
+
+def new_state_after_vote(vote_type, passed, chamber, bill_type, suspension, amended, title, prev_state):
+  if vote_type == "vote": # vote in originating chamber
+    if passed:
+      if bill_type in ("hr", "sr"):
+        return 'PASSED:SIMPLERES' # end of life for a simple resolution
+      if chamber == "h":
+        return 'PASS_OVER:HOUSE' # passed by originating chamber, now in second chamber
+      else:
+        return 'PASS_OVER:SENATE' # passed by originating chamber, now in second chamber
+    if suspension:
+      return 'PROV_KILL:SUSPENSIONFAILED' # provisionally killed by failure to pass under suspension of the rules
+    if chamber == "h":
+      return 'FAIL:ORIGINATING:HOUSE' # outright failure
+    else:
+      return 'FAIL:ORIGINATING:SENATE' # outright failure
+  if vote_type == "vote2": # vote in second chamber
+    if passed:
+      if bill_type in ("hj", "sj") and title.startswith("Proposing an amendment to the Constitution of the United States"):
+        return 'PASSED:CONSTAMEND' # joint resolution that looks like an amendment to the constitution
+      if bill_type in ("hc", "sc"):
+        return 'PASSED:CONCURRENTRES' # end of life for concurrent resolutions
+      if amended:
+        # bills and joint resolutions not constitutional amendments, amended from Senate version.
+        # can go back to Senate, or conference committee
+        if chamber == "h":
+          return 'PASS_BACK:HOUSE' # passed by originating chamber, now in second chamber
+        else:
+          return 'PASS_BACK:SENATE' # passed by originating chamber, now in second chamber
+      else:
+        # bills and joint resolutions not constitutional amendments, not amended from Senate version
+        return 'PASSED:BILL' # passed by second chamber, now on to president
+    if suspension:
+      return 'PROV_KILL:SUSPENSIONFAILED' # provisionally killed by failure to pass under suspension of the rules
+    if chamber == "h":
+      return 'FAIL:SECOND:HOUSE' # outright failure
+    else:
+      return 'FAIL:SECOND:SENATE' # outright failure
+  if vote_type == "cloture":
+    if not passed:
+      return "PROV_KILL:CLOTUREFAILED"
+    else:
+      return None
+  if vote_type == "override":
+    if not passed:
+      if bill_type[0] == chamber:
+        if chamber == "h":
+          return 'VETOED:OVERRIDE_FAIL_ORIGINATING:HOUSE'
+        else:
+          return 'VETOED:OVERRIDE_FAIL_ORIGINATING:SENATE'
+      else:
+        if chamber == "h":
+          return 'VETOED:OVERRIDE_FAIL_SECOND:HOUSE'
+        else:
+          return 'VETOED:OVERRIDE_FAIL_SECOND:SENATE'
+    else:
+      if bill_type[0] == chamber:
+        if chamber == "h":
+          return 'VETOED:OVERRIDE_PASS_OVER:HOUSE'
+        else:
+          return 'VETOED:OVERRIDE_PASS_OVER:SENATE'
+      else:
+        return None # just wait for the enacted line
+  if vote_type == "pingpong":
+    # This is a motion to accept Senate amendments to the House's original bill
+    # or vice versa. If the motion fails, I suppose it is a provisional kill. If it passes,
+    # then pingpong is over and the bill has passed both chambers.
+    if passed:
+      return 'PASSED:BILL'
+    else:
+      return 'PROV_KILL:PINGPONGFAIL'
+  if vote_type == "conference":
+    # This is tricky to integrate into state because we have to wait for both
+    # chambers to pass the conference report.
+    if passed:
+      if prev_state.startswith("CONFERENCE:PASSED:"):
+        return 'PASSED:BILL'
+      else:
+        if chamber == "h":
+          return 'CONFERENCE:PASSED:HOUSE'
+        else:
+          return 'CONFERENCE:PASSED:SENATE'
+      
+  return None
 
 def output_for_bill(bill_id, format):
   bill_type, number, session = utils.split_bill_id(bill_id)
