@@ -13,9 +13,9 @@ class BillTimeline(unittest.TestCase):
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
     
     self.assertEqual(new_action['roll'], "768")
-    # self.assertEqual(new_action['how'], "roll")
     self.assertEqual(new_action['type'], "vote")
     self.assertEqual(new_action['vote_type'], "vote")
+    # self.assertEqual(new_action['how'], "roll")
     # self.assertEqual(new_action['result'], "pass")
 
   
