@@ -25,6 +25,6 @@ for arg in args:
     options[key.lower()] = value
 
 
-# depends on [task_name]/[task_name].py being present relative to this directory
+# depends on tasks/[task_name].py being present relative to this directory
 sys.path.append("tasks")
 __import__(task_name).run(options)
