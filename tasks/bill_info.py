@@ -372,9 +372,8 @@ def related_bills_for(body, session):
 # given the parsed list of actions from actions_for, run each action
 # through metadata extraction and figure out what current state the bill is in
 def decipher_timeline(actions, bill_type, title):
-  # every bill is at least introduced
-  state = "INTRODUCED"
-
+  
+  state = "INTRODUCED" # every bill is at least introduced
   new_actions = []
 
   for action in actions:
