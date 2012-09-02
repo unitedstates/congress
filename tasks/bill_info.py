@@ -395,7 +395,9 @@ def parse_bill_action(line, prev_state, bill_type, title):
   """Parse a THOMAS bill action line. Returns attributes to be set in the XML file on the action line."""
   
   state = None
-  action = { }
+  action = {
+    "type": "action"
+  }
   
   # If a line starts with an amendment number, this action is on the amendment and cannot
   # be parsed yet.

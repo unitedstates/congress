@@ -91,9 +91,34 @@ class BillTimelineVotes(unittest.TestCase):
     # self.assertEqual(new_state, None) # unchanged
 
   # from hr3590-111
-  def test_vote_cloture_voice(self):
+  def test_vote_process_voice_senate(self):
+    bill_type = "hr"
+    title = "An act entitled The Patient Protection and Affordable Care Act."
+    state = "PASS_OVER:HOUSE" # should not change
     line = "Motion to proceed to consideration of measure agreed to in Senate by Unanimous Consent."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
+
+    # self.assertEqual(new_action['type'], 'vote')
+    # self.assertEqual(new_action['vote_type'], 'other')
+    # self.assertEqual(new_action['how'], 'Unanimous Consent')
+    # self.assertEqual(new_action['where'], 's')
+    # self.assertEqual(new_action['result'], 'pass')
+    self.assertEqual(new_state, None)
 
   # from hr3590-111
   def test_vote_commit_roll_failure(self):
+    bill_type = "hr"
+    title = "An act entitled The Patient Protection and Affordable Care Act."
+    state = "PASS_OVER:HOUSE" # should not change
     line = "Motion by Senator McCain to commit to Senate Committee on Finance under the order of 12/2/2009, not having achieved 60 votes in the affirmative, the motion was rejected in Senate by Yea-Nay Vote. 42 - 58. Record Vote Number: 358."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
+
+    # self.assertEqual(new_action['type'], 'vote')
+    # self.assertEqual(new_action['vote_type'], 'other')
+    # self.assertEqual(new_action['how'], 'roll')
+    # self.assertEqual(new_action['where'], 's')
+    # self.assertEqual(new_action['result'], 'fail')
+    # self.assertEqual(new_action['roll'], "358")
+    self.assertEqual(new_state, None)
