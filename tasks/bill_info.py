@@ -559,8 +559,8 @@ def parse_bill_action(line, prev_state, bill_type, title):
     
   m = re.search("Vetoed by President", line, re.I)
   if m != None:
-    action["type"] = "vetod"
-    state = "PROV_KILL:VETO'"
+    action["type"] = "vetoed"
+    state = "PROV_KILL:VETO"
     
   m = re.search("Became (Public|Private) Law No: ([\d\-]+)\.", line, re.I)
   if m != None:
