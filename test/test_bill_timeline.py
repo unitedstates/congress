@@ -17,54 +17,6 @@ class BillTimeline(unittest.TestCase):
     self.assertEqual(new_action['type'], "vetoed")
     self.assertEqual(new_state, "PROV_KILL:VETO")
 
-  # from hjres64-111
-  def test_veto_override_fail(self):
-    bill_type = "hjres"
-    title = "Making further continuing appropriations for fiscal year 2010, and for other purposes."
-    state = "PROV_KILL:VETO"
-    line = "On passage, the objections of the President to the contrary notwithstanding Failed by the Yeas and Nays: (2/3 required): 143 - 245, 1 Present (Roll no. 2).On passage, the objections of the President to the contrary notwithstanding Failed by the Yeas and Nays: (2/3 required): 143 - 245, 1 Present (Roll no. 2)."
-
-    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
-    self.assertEqual(new_action['type'], "vote")
-    self.assertEqual(new_action['vote_type'], "override")
-    # self.assertEqual(new_action['where'], "h")
-    # self.assertEqual(new_action["result"], "fail")
-    # self.assertEqual(new_action["how"], "roll")
-    self.assertEqual(new_action["roll"], "2")
-    self.assertEqual(new_state, "VETOED:OVERRIDE_FAIL_ORIGINATING:HOUSE")
-
-  # from hr6331-110
-  def test_veto_override_success_once(self):
-    bill_type = "hr"
-    title = "Medicare Improvements for Patients and Providers Act of 2008"
-    state = "PROV_KILL:VETO"
-    line = "Two-thirds of the Members present having voted in the affirmative the bill is passed, Passed by the Yeas and Nays: (2/3 required): 383 - 41 (Roll no. 491)."
-
-    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
-    self.assertEqual(new_action['type'], "vote")
-    self.assertEqual(new_action['vote_type'], "override")
-    # self.assertEqual(new_action['where'], "h")
-    # self.assertEqual(new_action["result"], "pass")
-    # self.assertEqual(new_action["how"], "roll")
-    self.assertEqual(new_action["roll"], "491")
-    self.assertEqual(new_state, "VETOED:OVERRIDE_PASS_OVER:HOUSE")
-
-  # from hr6331-110
-  def test_veto_override_success_twice(self):
-    bill_type = "hr"
-    title = "Medicare Improvements for Patients and Providers Act of 2008"
-    state = "VETOED:OVERRIDE_PASS_OVER:HOUSE"
-    line = "Passed Senate over veto by Yea-Nay Vote. 70 - 26. Record Vote Number: 177."
-
-    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
-    self.assertEqual(new_action['type'], "vote")
-    self.assertEqual(new_action['vote_type'], "override")
-    # self.assertEqual(new_action['where'], "s")
-    # self.assertEqual(new_action["result"], "pass")
-    # self.assertEqual(new_action["how"], "roll")
-    self.assertEqual(new_action["roll"], "177")
-    # self.assertEqual(new_state, "VETOED:OVERRIDE_COMPLETE:SENATE")
-
   # from s968-112
   def test_reported_from_committee(self):
     bill_type = "s"
