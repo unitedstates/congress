@@ -4,7 +4,7 @@ import bill_info
 # parsing various kinds of action text to extract metadata and establish state
 # vote parsing is handled in test_bill_timeline_votes.py
 
-class BillTimeline(unittest.TestCase):
+class BillActions(unittest.TestCase):
 
   # non-voting tests
 
