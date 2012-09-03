@@ -89,8 +89,6 @@ class BillTimeline(unittest.TestCase):
     line = "Presented to President."
 
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)    
-    
-    # should not be marked as presented to president, since it hasn't been yet
     self.assertEqual(new_action['type'], 'topresident')
 
   # from hr3590-111
@@ -101,6 +99,4 @@ class BillTimeline(unittest.TestCase):
     line = "Signed by President."
 
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)    
-    
-    # should not be marked as presented to president, since it hasn't been yet
     self.assertEqual(new_action['type'], 'signed')
