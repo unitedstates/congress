@@ -259,4 +259,65 @@ class BillTimelineVotes(unittest.TestCase):
     # self.assertEqual(new_action["how"], "roll")
     self.assertEqual(new_action["roll"], "296")
     self.assertEqual(new_state, "PASSED:CONSTAMEND")
-  
+
+  # from hconres74-112
+  def test_passed_concurrent_resolution(self):
+    bill_type = "hconres"
+    title = "Providing for a joint session of Congress to receive a message from the President."
+    state = "PASS_OVER:HOUSE"
+    line = "Received in the Senate, considered, and agreed to without amendment by Unanimous Consent."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
+    self.assertEqual(new_action['type'], "vote")
+    self.assertEqual(new_action['vote_type'], "vote2")
+    # self.assertEqual(new_action['where'], "s")
+    # self.assertEqual(new_action["result"], "pass")
+    # self.assertEqual(new_action["how"], "by Unanimous Consent")
+    self.assertEqual(new_state, "PASSED:CONCURRENTRES")
+
+  # from hres9-112
+  def test_passed_simple_resolution_house(self):
+    bill_type = "hres"
+    title = "Instructing certain committees to report legislation replacing the job-killing health care law."
+    state = "REPORTED"
+    line = "On agreeing to the resolution, as amended Agreed to by the Yeas and Nays: 253 - 175 (Roll no. 16)."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
+    self.assertEqual(new_action['type'], "vote")
+    self.assertEqual(new_action['vote_type'], "vote")
+    # self.assertEqual(new_action['where'], "h")
+    # self.assertEqual(new_action["result"], "pass")
+    # self.assertEqual(new_action["how"], "roll")
+    self.assertEqual(new_action['roll'], "16")
+    self.assertEqual(new_state, "PASSED:SIMPLERES")
+
+  # from sres484-112
+  def test_passed_simple_resolution_senate(self):
+    bill_type = "sres"
+    title = "A resolution designating June 7, 2012, as \"National Hunger Awareness Day\"."
+    state = "REPORTED"
+    line = "Submitted in the Senate, considered, and agreed to without amendment and with a preamble by Unanimous Consent."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
+    self.assertEqual(new_action['type'], "vote")
+    self.assertEqual(new_action['vote_type'], "vote")
+    # self.assertEqual(new_action['where'], "s")
+    # self.assertEqual(new_action["result"], "pass")
+    # self.assertEqual(new_action["how"], "by Unanimous Consent")
+    self.assertEqual(new_state, "PASSED:SIMPLERES")
+
+  # from hr1954-112
+  def test_failed_suspension_vote(self):
+    bill_type = "hr"
+    title = "To implement the President's request to increase the statutory limit on the public debt."
+    state = "REFERRED"
+    line = "On motion to suspend the rules and pass the bill Failed by the Yeas and Nays: (2/3 required): 97 - 318, 7 Present (Roll no. 379)."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
+    self.assertEqual(new_action['type'], "vote")
+    self.assertEqual(new_action['vote_type'], "vote")
+    # self.assertEqual(new_action['where'], "h")
+    # self.assertEqual(new_action["result"], "fail")
+    # self.assertEqual(new_action["how"], "roll")
+    self.assertEqual(new_action['roll'], "379")
+    self.assertEqual(new_state, "PROV_KILL:SUSPENSIONFAILED")

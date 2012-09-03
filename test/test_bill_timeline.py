@@ -17,6 +17,18 @@ class BillTimeline(unittest.TestCase):
     self.assertEqual(new_action['type'], "vetoed")
     self.assertEqual(new_state, "PROV_KILL:VETO")
 
+  # from hr2415-106
+  def test_pocket_veto(self):
+    bill_type = "hr"
+    title = "United Nations Reform Act of 1999"
+    state = "PASSED:BILL"
+    line = "Pocket Vetoed by President."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
+    self.assertEqual(new_action['type'], "vetoed")
+    self.assertEqual(new_action['pocket'], "1")
+    self.assertEqual(new_state, "VETOED:POCKET")
+
   # from s968-112
   def test_reported_from_committee(self):
     bill_type = "s"
@@ -82,7 +94,7 @@ class BillTimeline(unittest.TestCase):
     self.assertEqual(new_action['type'], 'topresident')
 
   # from hr3590-111
-  def test_presented_to_president(self):
+  def test_signed_by_president(self):
     bill_type = "hr"
     title = "An act entitled The Patient Protection and Affordable Care Act." # won't matter
     state = "PASSED:BILL" # won't matter

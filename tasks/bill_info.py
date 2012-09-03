@@ -558,11 +558,13 @@ def parse_bill_action(line, prev_state, bill_type, title):
     action["type"] = "vetoed"
     action["pocket"] = "1"
     state = "VETOED:POCKET"
-    
-  m = re.search("Vetoed by President", line, re.I)
-  if m != None:
-    action["type"] = "vetoed"
-    state = "PROV_KILL:VETO"
+
+  # need to put this in an else, or this regex will match the pocket veto and override it
+  else: 
+    m = re.search("Vetoed by President", line, re.I)
+    if m != None:
+      action["type"] = "vetoed"
+      state = "PROV_KILL:VETO"
     
   m = re.search("Became (Public|Private) Law No: ([\d\-]+)\.", line, re.I)
   if m != None:
