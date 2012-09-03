@@ -1,0 +1,38 @@
+<bill session="112" type="hc" number="74" updated="2012-06-23T09:47:28-04:00">
+	<state datetime="2011-09-07">PASSED:CONCURRENTRES</state>
+	<status><vote2 datetime="2011-09-07" where="s" result="pass" how="by Unanimous Consent" roll=""/></status>
+
+	<introduced datetime="2011-09-07"/>
+	<titles>
+		<title type="official" as="introduced">Providing for a joint session of Congress to receive a message from the President.</title>
+	</titles>
+	<sponsor id="400652"/>
+	<cosponsors>
+
+	</cosponsors>
+	<actions>
+		<action datetime="2011-09-07T14:12:00-04:00" state="INTRODUCED"><text>Considered as privileged matter.</text><reference label="consideration" ref="CR H5942"/></action>
+		<vote how="without objection" type="vote" datetime="2011-09-07T14:12:00-04:00" where="h" result="pass"  state="PASS_OVER:HOUSE"><text>On agreeing to the resolution Agreed to without objection.</text><reference label="text" ref="CR H5942"/></vote>
+		<action datetime="2011-09-07T14:12:00-04:00"><text>Motion to reconsider laid on the table Agreed to without objection.</text></action>
+		<vote how="by Unanimous Consent" type="vote2" datetime="2011-09-07" where="s" result="pass"  state="PASSED:CONCURRENTRES"><text>Received in the Senate, considered, and agreed to without amendment by Unanimous Consent.</text><reference label="consideration" ref="CR S5392"/></vote>
+		<action datetime="2011-09-08"><text>Message on Senate action sent to the House.</text></action>
+	</actions>
+	<committees>
+
+	</committees>
+	<relatedbills>
+		<bill relation="unknown" session="112" type="hc" number="10" />
+	</relatedbills>
+	<subjects>
+		<term name="Congress"/>
+		<term name="Congressional operations and organization"/>
+		<term name="Presidents and presidential powers"/>
+	</subjects>
+	<amendments>
+
+	</amendments>
+	<summary>
+	9/7/2011--Passed Senate without amendment. (This measure has not been amended since it was introduced. The summary of that version is repeated here.) Provides for a joint session of Congress on September 8, 2011, to receive a message from the President.
+
+	</summary>
+</bill>

@@ -1,0 +1,61 @@
+<bill session="112" type="hr" number="9" updated="2012-06-23T09:50:48-04:00">
+	<state datetime="2011-01-20T11:08:00-05:00">PASSED:SIMPLERES</state>
+	<status><vote datetime="2011-01-20T11:08:00-05:00" where="h" result="pass" how="roll" roll="16"/></status>
+
+	<introduced datetime="2011-01-05"/>
+	<titles>
+		<title type="official" as="introduced">Instructing certain committees to report legislation replacing the job-killing health care law.</title>
+	</titles>
+	<sponsor id="400115"/>
+	<cosponsors>
+		<cosponsor id="400367" joined="2011-01-06"/>
+		<cosponsor id="412409" joined="2011-01-06"/>
+		<cosponsor id="412464" joined="2011-01-05"/>
+		<cosponsor id="400655" joined="2011-01-05"/>
+		<cosponsor id="400320" joined="2011-01-05"/>
+		<cosponsor id="412484" joined="2011-01-06"/>
+		<cosponsor id="400046" joined="2011-01-05"/>
+		<cosponsor id="412261" joined="2011-01-06"/>
+	</cosponsors>
+	<actions>
+		<action datetime="2011-01-05" state="REFERRED"><text>Referred to the House Committee on Rules.</text></action>
+		<action datetime="2011-01-06T23:52:00-05:00"><text>Reported by the Committee on Rules. H. Rept. 112-1.</text></action>
+		<calendar datetime="2011-01-06T23:52:00-05:00"  state="REPORTED"><text>Placed on the House Calendar, Calendar No. 1.</text></calendar>
+		<action datetime="2011-01-06T23:53:00-05:00"><text>Rules Committee Resolution H. Res. 26 Reported to House. Rule provides for consideration of H.R. 2 and H. Res. 9. Measure provides for consideration of H.R. 2, as amended, with the amendment printed in Part A of the report. H.R. 2, as amended, shall be debatable in the House for seven hours, equally divided and controlled. Measure provides for consideration of H. Res. 9 which shall be considered as read, debatable for one hour, equally divided and controlled, and makes in order the amendment printed in Part B of the report.</text></action>
+		<action datetime="2011-01-07T11:03:00-05:00"><text>Rule H. Res. 26 passed House.</text></action>
+		<action datetime="2011-01-20T09:14:00-05:00"><text>Considered under the provisions of rule H. Res. 26.</text><reference label="consideration" ref="CR H361-373"/><reference label="text of measure as reported in House" ref="CR H361"/></action>
+		<action datetime="2011-01-20T09:14:00-05:00"><text>Rule provides for consideration of H.R. 2 and H. Res. 9. Measure provides for consideration of H.R. 2, as amended, with the amendment printed in Part A of the report. H.R. 2, as amended, shall be debatable in the House for seven hours, equally divided and controlled. Measure provides for consideration of H. Res. 9 which shall be considered as read, debatable for one hour, equally divided and controlled, and makes in order the amendment printed in Part B of the report.</text></action>
+		<action datetime="2011-01-20T09:15:00-05:00"><text>DEBATE - The House proceeded with one hour of debate on H. Res. 9.</text></action>
+		<action datetime="2011-01-20T10:30:00-05:00"><text>DEBATE - Pursuant to the provisions of H.Res. 26, the House proceeded with 10 minutes of debate on the Matheson (UT) amendment.</text></action>
+		<vote how="roll" type="vote" roll="16" datetime="2011-01-20T11:08:00-05:00" where="h" result="pass"  state="PASSED:SIMPLERES"><text>On agreeing to the resolution, as amended Agreed to by the Yeas and Nays: 253 - 175 (Roll no. 16).</text></vote>
+		<action datetime="2011-01-20T11:08:00-05:00"><text>Motion to reconsider laid on the table Agreed to without objection.</text></action>
+	</actions>
+	<committees>
+		<committee code="HSRU" name="House Rules" activity="Referral, Reporting" />
+	</committees>
+	<relatedbills>
+		<bill relation="rule" session="112" type="hr" number="26" />
+	</relatedbills>
+	<subjects>
+		<term name="Congress"/>
+		<term name="Abortion"/>
+		<term name="Civil actions and liability"/>
+		<term name="Congressional committees"/>
+		<term name="Health care costs and insurance"/>
+		<term name="Health care coverage and access"/>
+		<term name="Health personnel"/>
+		<term name="House Committee on Education and the Workforce"/>
+		<term name="House Committee on Energy and Commerce"/>
+		<term name="House Committee on Ways and Means"/>
+		<term name="House Committee on the Judiciary"/>
+		<term name="Medicaid"/>
+		<term name="Religion"/>
+	</subjects>
+	<amendments>
+		<amendment number="h3"/>
+	</amendments>
+	<summary>
+	1/20/2011--Passed House amended. Requires each of the following House Committees to report to the House legislation, within its jurisdiction, proposing specified changes to existing law (including the Patient Protection and Affordable Care Act): (1) the Committee on Education and the Workforce; (2) the Committee on Energy and Commerce; (3) the Committee on the Judiciary; and (4) the Committee on Ways and Means.
+
+	</summary>
+</bill>

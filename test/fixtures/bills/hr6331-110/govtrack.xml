@@ -1,0 +1,235 @@
+<bill session="110" type="h" number="6331" updated="2010-04-11T19:15:19-04:00">
+	<state datetime="2008-07-15">ENACTED:VETO_OVERRIDE</state>
+	<status><enacted datetime="2008-07-15" /></status>
+
+	<introduced datetime="2008-06-20"/>
+	<titles>
+		<title type="short" as="introduced">Medicare Improvements for Patients and Providers Act of 2008</title>
+		<title type="short" as="passed house">Medicare Improvements for Patients and Providers Act of 2008</title>
+		<title type="short" as="passed senate">Medicare Improvements for Patients and Providers Act of 2008</title>
+		<title type="short" as="enacted">Medicare Improvements for Patients and Providers Act of 2008</title>
+		<title type="official" as="introduced">To amend titles XVIII and XIX of the Social Security Act to extend expiring provisions under the Medicare Program, to improve beneficiary access to preventive and mental health services, to enhance low-income benefit programs, and to maintain access to care in rural areas, including pharmacy access, and for other purposes.</title>
+	</titles>
+	<sponsor id="400333"/>
+	<cosponsors>
+		<cosponsor id="400110" joined="2008-06-20"/>
+	</cosponsors>
+	<actions>
+		<action datetime="2008-06-20"><text>Referred to the Committee on Energy and Commerce, and in addition to the Committee on Ways and Means, for a period to be subsequently determined by the Speaker, in each case for consideration of such provisions as fall within the jurisdiction of the committee concerned.</text></action>
+		<action datetime="2008-06-20"><text>Referred to House Energy and Commerce</text></action>
+		<action datetime="2008-06-20"><text>Referred to House Ways and Means</text></action>
+		<action datetime="2008-06-24T10:59:00-04:00"><text>Mr. Pallone moved to suspend the rules and pass the bill, as amended.</text></action>
+		<action datetime="2008-06-24T10:59:00-04:00"><text>Considered under suspension of the rules.</text><reference label="consideration" ref="CR H5876-5904, H5905-5916"/></action>
+		<action datetime="2008-06-24T11:17:00-04:00"><text>DEBATE - The House proceeded with forty minutes of debate on H.R. 6331.</text></action>
+		<vote how="roll" type="vote" roll="443" datetime="2008-06-24T12:37:00-04:00" where="h" result="pass" suspension="1"  state="PASS_OVER:HOUSE"><text>On motion to suspend the rules and pass the bill, as amended Agreed to by the Yeas and Nays: (2/3 required): 355 - 59 (Roll no. 443).</text><reference label="text" ref="CR H5876-5904"/></vote>
+		<action datetime="2008-06-24T12:37:00-04:00"><text>Motion to reconsider laid on the table Agreed to without objection.</text></action>
+		<action datetime="2008-06-24"><text>Received in the Senate. Read the first time. Placed on Senate Legislative Calendar under Read the First Time.</text></action>
+		<calendar under="General Orders" number="836" datetime="2008-06-25" calendar="Senate Legislative" ><text>Read the second time. Placed on Senate Legislative Calendar under General Orders. Calendar No. 836.</text></calendar>
+		<action datetime="2008-06-26"><text>Motion to proceed to consideration of measure made in Senate.</text><reference label="consideration" ref="CR S6223-6224, S6225-6231"/></action>
+		<action datetime="2008-06-26"><text>Cloture motion on the motion to proceed to the measure presented in Senate.</text><reference label="consideration" ref="CR S6225"/><reference label="text" ref="CR S6225"/></action>
+		<vote-aux how="roll" type="cloture" roll="160" datetime="2008-06-26" where="s" result="fail"  state="PROV_KILL:CLOTUREFAILED"><text>Cloture on the motion to proceed to the measure not invoked in Senate by Yea-Nay Vote. 58 - 40. Record Vote Number: 160.</text><reference label="consideration" ref="CR S6231"/><reference label="text" ref="CR S6231"/></vote-aux>
+		<action datetime="2008-06-26"><text>Motion by Senator Reid to reconsider the vote by which cloture on the motion to proceed to the measure was not invoked [Record Vote Number 160] entered in Senate.</text></action>
+		<action datetime="2008-06-26"><text>Motion to proceed to consideration of measure withdrawn in Senate.</text><reference label="consideration" ref="CR S6231"/></action>
+		<action datetime="2008-06-26"><text>Returned to the Calendar. Calendar No. 836.</text></action>
+		<action datetime="2008-07-09"><text>Motion to proceed to the motion by Senator Reid to reconsider the vote by which cloture on the motion to proceed to the measure was not invoked (Record Vote Number 160) agreed to in Senate.</text><reference label="consideration" ref="CR S6451"/></action>
+		<action datetime="2008-07-09"><text>Motion by Senator Reid to reconsider the vote by which cloture on the motion to proceed to the measure was not invoked (Record Vote Number 160) agreed to in Senate by Unanimous Consent.</text><reference label="consideration" ref="CR S6476-6490"/></action>
+		<action datetime="2008-07-09"><text>Upon reconsideration, cloture on the motion to proceed invoked in Senate by Yea-Nay Vote. 69 - 30. Record Vote Number: 169.</text><reference label="consideration" ref="CR S6489"/></action>
+		<action datetime="2008-07-09"><text>Motion to proceed to consideration of measure agreed to in Senate by Unanimous Consent.</text><reference label="consideration" ref="CR S6489-6490"/></action>
+		<action datetime="2008-07-09"><text>Measure laid before Senate by unanimous consent.</text><reference label="consideration" ref="CR S6490"/></action>
+		<vote how="by Unanimous Consent" type="vote2" datetime="2008-07-09" where="s" result="pass"  state="PASSED:BILL"><text>Passed Senate without amendment by Unanimous Consent.</text></vote>
+		<action datetime="2008-07-09"><text>Message on Senate action sent to the House.</text></action>
+		<topresident datetime="2008-07-09" ><text>Cleared for White House.</text></topresident>
+		<topresident datetime="2008-07-10" ><text>Presented to President.</text></topresident>
+		<vetoed datetime="2008-07-15"  state="PROV_KILL:VETO"><text>Vetoed by President.</text><reference label="text of veto message" ref="CR H6520-6521"/></vetoed>
+		<action datetime="2008-07-15T14:35:00-04:00"><text>The Chair laid before the House the veto message from the President.</text></action>
+		<action datetime="2008-07-15T14:42:00-04:00"><text>DEBATE - The House proceeded with one hour of debate on the question of passage, the objections of the President to the contrary, notwithstanding.</text><reference label="consideration" ref="CR H6521-6531"/></action>
+		<action datetime="2008-07-15T15:57:00-04:00"><text>POSTPONED PROCEEDINGS - At the conclusion of debate, the Chair put the question on passage, the objections of the President to the contrary notwithstanding, and pursuant to the rule the yeas and nays were ordered. The Chair announced that further proceedings on the question would resume at a time to be announced.</text></action>
+		<action datetime="2008-07-15T16:42:00-04:00"><text>The Chair announced the unfinished business to be the consideration of the veto.</text><reference label="consideration" ref="CR H6533"/></action>
+		<vote how="roll" type="override" roll="491" datetime="2008-07-15T16:48:00-04:00" where="h" result="pass"  state="OVERRIDE_PASS_OVER:HOUSE"><text>Two-thirds of the Members present having voted in the affirmative the bill is passed, Passed by the Yeas and Nays: (2/3 required): 383 - 41 (Roll no. 491).</text></vote>
+		<action datetime="2008-07-15"><text>Veto message received in Senate. Ordered held at the desk.</text></action>
+		<action datetime="2008-07-15"><text>Veto Message considered in Senate.</text><reference label="consideration" ref="CR S6705-6710"/></action>
+		<vote how="roll" type="override" roll="177" datetime="2008-07-15" where="s" result="pass" ><text>Passed Senate over veto by Yea-Nay Vote. 70 - 26. Record Vote Number: 177.</text><reference label="consideration" ref="CR S6710"/></vote>
+		<action datetime="2008-07-15"><text>Message on Senate action sent to the House.</text></action>
+		<enacted number="110-275" type="public" datetime="2008-07-15"  state="ENACTED:VETO_OVERRIDE"><text>Became Public Law No: 110-275.</text></enacted>
+	</actions>
+	<committees>
+		<committee code="HSIF" name="House Energy and Commerce" activity="Referral" />
+		<committee code="HSWM" name="House Ways and Means" activity="Referral" />
+	</committees>
+	<relatedbills>
+		<bill relation="unknown" session="110" type="h" number="748" />
+		<bill relation="unknown" session="110" type="h" number="6212" />
+		<bill relation="unknown" session="110" type="h" number="6252" />
+		<bill relation="unknown" session="110" type="s" number="45" />
+		<bill relation="unknown" session="110" type="s" number="450" />
+		<bill relation="unknown" session="110" type="s" number="1310" />
+		<bill relation="unknown" session="110" type="s" number="2408" />
+		<bill relation="unknown" session="110" type="s" number="3095" />
+		<bill relation="unknown" session="110" type="s" number="3101" />
+		<bill relation="unknown" session="110" type="s" number="3144" />
+	</relatedbills>
+	<subjects>
+		<term name="Health policy"/>
+		<term name="Access to health care"/>
+		<term name="Accreditation (Medical care)"/>
+		<term name="Administrative remedies"/>
+		<term name="Adoption"/>
+		<term name="Afghanistan"/>
+		<term name="Aged"/>
+		<term name="Aid to dependent children"/>
+		<term name="Ambulances"/>
+		<term name="Ambulatory care"/>
+		<term name="Anesthetics"/>
+		<term name="Annuities"/>
+		<term name="Appropriations"/>
+		<term name="Armed forces"/>
+		<term name="Armed forces reserves"/>
+		<term name="Barbiturates"/>
+		<term name="Brain"/>
+		<term name="Budgets"/>
+		<term name="Business"/>
+		<term name="California"/>
+		<term name="Capitation (Medical care)"/>
+		<term name="Cardiovascular diseases"/>
+		<term name="Case management"/>
+		<term name="Case mix (Medical care)"/>
+		<term name="Cash welfare block grants"/>
+		<term name="Children"/>
+		<term name="Chronically ill"/>
+		<term name="Civil rights"/>
+		<term name="Clinical trials"/>
+		<term name="Clinics"/>
+		<term name="Coinsurance"/>
+		<term name="Collection of accounts"/>
+		<term name="Communication in medicine"/>
+		<term name="Communications"/>
+		<term name="Community health services"/>
+		<term name="Competitive bidding"/>
+		<term name="Conflict of interests"/>
+		<term name="Congregate housing"/>
+		<term name="Congress"/>
+		<term name="Congressional investigations"/>
+		<term name="Congressional reporting requirements"/>
+		<term name="Criminal justice"/>
+		<term name="Defense policy"/>
+		<term name="Department of Health and Human Services"/>
+		<term name="Diabetes"/>
+		<term name="Discrimination in medical care"/>
+		<term name="District of Columbia"/>
+		<term name="Drugs"/>
+		<term name="Education"/>
+		<term name="Electronic data interchange"/>
+		<term name="Electronic government information"/>
+		<term name="Estates (Law)"/>
+		<term name="Executive departments"/>
+		<term name="Families"/>
+		<term name="Federal aid to health facilities"/>
+		<term name="Federal-state relations"/>
+		<term name="Finance"/>
+		<term name="Foster home care"/>
+		<term name="Genetics"/>
+		<term name="Gifts"/>
+		<term name="Government information"/>
+		<term name="Government procurement"/>
+		<term name="Government trust funds"/>
+		<term name="Governmental investigations"/>
+		<term name="Group medical practice"/>
+		<term name="Head injuries"/>
+		<term name="Health education"/>
+		<term name="Health information systems"/>
+		<term name="Health insurance"/>
+		<term name="Health maintenance organizations"/>
+		<term name="Hearing"/>
+		<term name="Higher education"/>
+		<term name="Hospital rates"/>
+		<term name="Hospitals"/>
+		<term name="Housing"/>
+		<term name="Imaging systems in medicine"/>
+		<term name="Indian medical care"/>
+		<term name="Inspectors general"/>
+		<term name="Insurance premiums"/>
+		<term name="Iraq"/>
+		<term name="Iraq compilation"/>
+		<term name="Judicial review"/>
+		<term name="Kidney diseases"/>
+		<term name="Language and languages"/>
+		<term name="Law"/>
+		<term name="Life insurance"/>
+		<term name="Living wills"/>
+		<term name="Long-term care"/>
+		<term name="Lung diseases"/>
+		<term name="Managed care"/>
+		<term name="Marketing"/>
+		<term name="Medicaid"/>
+		<term name="Medical care"/>
+		<term name="Medical economics"/>
+		<term name="Medical education"/>
+		<term name="Medical ethics"/>
+		<term name="Medical fees"/>
+		<term name="Medical laboratories"/>
+		<term name="Medical personnel"/>
+		<term name="Medical records"/>
+		<term name="Medical savings accounts"/>
+		<term name="Medical statistics"/>
+		<term name="Medical supplies"/>
+		<term name="Medical tests"/>
+		<term name="Medically uninsured"/>
+		<term name="Medicare"/>
+		<term name="Medicine"/>
+		<term name="Medigap"/>
+		<term name="Mental depression"/>
+		<term name="Mental health services"/>
+		<term name="Middle East and North Africa"/>
+		<term name="Military occupation"/>
+		<term name="Military operations"/>
+		<term name="Minorities"/>
+		<term name="Minority health"/>
+		<term name="Nuclear medicine"/>
+		<term name="Nursing homes"/>
+		<term name="Obesity"/>
+		<term name="Oxygen"/>
+		<term name="Pensions"/>
+		<term name="Performance measurement"/>
+		<term name="Pharmacies"/>
+		<term name="Physical examinations"/>
+		<term name="Physicians"/>
+		<term name="Politics and government"/>
+		<term name="Post-traumatic stress disorder"/>
+		<term name="Prescription pricing"/>
+		<term name="Preventive medicine"/>
+		<term name="Psychiatry"/>
+		<term name="Psychotherapy"/>
+		<term name="Psychotropic drugs"/>
+		<term name="Public contracts"/>
+		<term name="Quality of care"/>
+		<term name="Rural affairs"/>
+		<term name="Rural health"/>
+		<term name="Sexual abstinence"/>
+		<term name="South Asia"/>
+		<term name="Speech disorders"/>
+		<term name="Standards"/>
+		<term name="State and local government"/>
+		<term name="Subsidies"/>
+		<term name="Technology"/>
+		<term name="Telecommunication"/>
+		<term name="Telemedicine"/>
+		<term name="Terminal care"/>
+		<term name="Terrorism"/>
+		<term name="Translating and interpreting"/>
+		<term name="Transportation"/>
+		<term name="Veterans"/>
+		<term name="Veterans' medical care"/>
+		<term name="Welfare"/>
+		<term name="Welfare eligibility"/>
+		<term name="Women"/>
+		<term name="Women's health"/>
+	</subjects>
+	<amendments>
+
+	</amendments>
+	<summary>
+	
+7/15/2008--Public Law. (This measure has not been amended since it was passed by the House on June 24, 2008. The summary of that version is repeated here.) Medicare Improvements for Patients and Providers Act of 2008 - Title I: Medicare - Subtitle A: Beneficiary Improvements - Part 1: Prevention, Mental Health, and Marketing - (Sec. 101) Amends title XVIII (Medicare) of the Social Security Act (SSA), as amended by the Medicare, Medicaid, and SCHIP Extension Act of 2007, to cover additional preventive services. Includes body mass index and end-of-life planning among initial preventive physical examinations. (Sec. 102) Specifies stages for gradual elimination by 2014 of copayment rates for Medicare psychiatric services. (Sec. 103) Prescribes prohibitions on certain sales and marketing activities under Medicare Advantage (MA) plans and prescription drug plans, including: (1) the provision of gifts or prizes as enrollment inducements; (2) unsolicited means of direct contact; (3) cross-selling (the sale of other non-health related products, such as annuities and life insurance, during any sales or marketing activity or presentation conducted with respect to an MA plan); or (4) the provision of meals to prospective plan enrollees. Requires the Secretary of Health and Human Services to establish limitations under MA plans of certain other marketing activities, including co-branding. Requires the inclusion of the plan type in the plan name. Imposes requirements on MA organizations relating to the exclusive use of licensed agents and brokers and compliance with state information requests in order to enable states to collaborate with the Secretary to address fraudulent or inappropriate marketing practices. (Sec. 104) Directs the Secretary to provide for implementation of the changes in the National Association of Insurance Commissioners (NAIC) model law and regulations approved by NAIC in its Model #651 on March 11, 2007, as modified to reflect the changes made under this Act and the Genetic Information Nondiscrimination Act of 2008. Requires a Medigap policy issuer to make available to an eligible individual at least Medicare supplemental policies classified as &quot;C&quot; or &quot;F.&quot; Part II: Low-Income Programs - (Sec. 111) Extends the qualifying individual (QI) program through December 2009. Extends the total amount available for allocation with respect to state coverage of Medicare cost-sharing for additional low-income Medicare beneficiaries. (Sec. 112) Provides for application of a full low-income subsidy (LIS) assets test under the Medicare Savings Program. (Sec. 113) Requires Social Security Administration assistance with Medicare Savings Program and LIS program applications. Makes appropriations for Administration costs related to such assistance. (Sec. 114) Eliminates Medicare part D (Voluntary Prescription Drug Benefit Program) late enrollment penalties payable by subsidy-eligible individuals. (Sec. 115) Eliminates estate recovery under Medicaid of state-paid medical assistance for Medicare cost-sharing. (Sec. 116) Prohibits support and maintenance furnished in kind from being counted as income with respect to eligibility for low-income subsidies under Medicare part D (Voluntary Prescription Drug Benefit Program). Excludes life insurance policies from being counted as a resource under the Supplemental Security Income program (thus precluding their use in determining resources under the Medicare part D program). (Sec. 117) Provides for judicial review of decisions of the Commissioner of Social Security under the Medicare part D program. (Sec. 118) Requires translation into 10 languages (other than English) of the model application form for medical assistance for Medicare cost-sharing. (Sec. 119) Directs the Secretary to make grants to states for state health insurance assistance programs, area agencies on aging, and aging and disability resource centers. Requires the Secretary, acting through the Assistant Secretary for Aging, to make a grant to, or contract with, a qualified, experienced entity to: (1) maintain and update web-based decision support tools, and integrated, person-centered systems, designed to inform older individuals about the full range of benefits for which they may be eligible under federal and state programs; and (2) develop an information clearinghouse on best practices and the most cost-effective methods for finding and informing older individuals with greatest economic need about such programs. Subtitle B: Provisions Relating to Part A - (Sec. 121) Authorizes the Secretary to award grants to states for increasing the delivery of mental health services or other health care services to meet the needs of veterans of Operation Iraqi Freedom and Operation Enduring Freedom living in rural areas. Extends the authorization for FLEX (Medicare rural hospital flexibility program) grants through FY2010. Includes among FLEX grant purposes providing support for critical access hospitals for quality improvement, quality reporting, performance improvements, and benchmarking. Authorizes the Secretary to award grants to eligible critical access hospitals to assist them to transition to skilled nursing facilities (SNFs) and assisted living facilities. (Sec. 122) Permits substitution of a specified rebased target amount for the amount ordinarily calculated in Medicare payments to sole community hospitals for inpatient hospital services. (Sec. 123) Directs the Secretary to establish a demonstration project for development and testing of new community health integration models in certain rural counties for the delivery of acute care, extended care, and other essential health services to Medicare beneficiaries. Authorizes appropriations for FY2010-FY2012. (Sec. 124) Amends the Tax Relief and Health Care Act of 2006, as amended by the Medicare, Medicaid, and SCHIP Extension Act of 2007, to extend through FY2009 the reclassification of certain hospitals. (Sec. 125) Amends SSA title XVIII to repeal the unique deeming authority under which an insitution accredited as a hospital by the Joint Commission on Accreditation of Hospitals shall be deemed to be a hospital eligible for Medicare payments. Subtitle C: Provisions Relating to Part B - Part 1: Physicians' Services - (Sec. 131) Increases the update for physicians' payments for the second half of 2008 and for 2009. Modifies the Physician Assistance and Quality Initiative Fund to eliminate funding for FY2013 and, if a specified contingency occurs, FY2014. Revises requirements for and extends the quality reporting system for 2010 and subsequent years, including increased incentive payments. Includes qualified audiologists as eligible professionals who must report data of quality measures. Directs the Secretary to establish a Physician Feedback Program, under which the Secretary shall use claims data to make confidential reports to physicians that measure the resources involved in furnishing care to individuals. Directs the Comptroller General to study and report to Congress on the Physician Feedback Program. (Sec. 132) Provides for incentive payments for electronic prescribing of medicine. (Sec. 133) Amends the Tax Relief and Health Care Act of 2006 to authorize the Secretary to expand the duration and the scope of the Medicare Medical Home Demonstration Project if such expansion is expected to: (1) improve the quality of patient care without increasing spending under the Medicare program; and (2) reduce spending under the Medicare program without reducing the quality of patient care. Provides funding. (Sec. 134) Amends SSA title XVIII, as amended by the Medicare, Medicaid, and SCHIP Extension Act of 2007, to extend through calendar 2009 the 1.0 floor on the Medicare work geographic adjustment under the Medicare physician fee schedule. (Sec. 135) Establishes an accreditation requirement for advanced diagnostic imaging services. Directs the Secretary to conduct a demonstration project to assess the appropriate use of imaging services. (Sec. 136) Amends the Medicare, Medicaid, and SCHIP Benefits Improvement and Protection Act of 2000, as amended by the Medicare Prescription Drug, Improvement, and Modernization Act of 2003, the Tax Relief and Health Care Act of 2006, and the Medicare, Medicaid, and SCHIP Extension Act of 2007, to extend through 2009 specified treatment of certain physician pathology services under Medicare. (Sec. 137) Makes permanent the exception to the 60-day limit on Medicare reciprocal billing arrangements between two physicians over a longer continuous period during all of which one of them is ordered to active duty as a member of a reserve component of the armed forces. (Sec. 138) Directs the Secretary to increase by 5% the fee schedule otherwise applicable for specified psychotherapy services during the period from July 1, 2008, through December 31, 2009. (Sec. 139) Sets forth a special 100% fee schedule payment rule for teaching anesthesiologists. Directs the Secretary to make specified adjustments to payments to teaching certified registered nurse anesthetists. Part II: Other Payment and Coverage Improvements - (Sec. 141) Amends SSA title XVIII, as amended by the Medicare, Medicaid, and SCHIP Extension Act of 2007, to extend the exceptions process for Medicare physical therapy caps through December 31, 2009. (Sec. 142) Extends the payment rule for brachytherapy and therapeutic radiopharmaceuticals through December 31, 2009. (Sec. 143) Defines covered outpatient speech-language pathology services. (Sec. 144) Provides for coverage of pulmonary and cardiac rehabilitation items and services, including an intensive cardiac rehabilitation program. Repeals the requirement that ownership of oxygen equipment be transferred from the supplier to the individual user after the 36th continuous month of its use. Requires continuous: (1) furnishing of such equipment by the supplier after the 36th month for the remainder of the equipment's useful lifetime; and (2) Medicare payment for the rental of the equipment. (Sec. 145) Repeals the Medicare competitive bidding demonstration project for clinical laboratory services. Specifies a reduction in the clinical laboratory test fee schedule update adjustment for 2009 through 2013. (Sec. 146) Extends increased Medicare payments for ground ambulance services. Sets forth a special payment rule for air ambulance services under the ambulance fee schedule. (Sec. 147) Extends and expands the Medicare hold harmless provision under the prospective payment system for hospital outpatient department (HOPD) services for certain hospitals. (Sec. 148) Provides that clinical diagnostic laboratory services furnished by a critical access hospital shall be treated as being furnished as part of outpatient critical access services without regard to whether the outpatient is physically present in the critical access hospital, or in a skilled nursing facility (SNF) or a clinic (including a rural health clinic) operated by such a hospital, at the time the specimen is collected. (Sec. 149) Adds a hospital-based or critical access hospital-based renal dialysis center, a SNF, and a community mental health center as originating sites for purposes of payment for telehealth services. (Sec. 150) Directs the Medicare Payment Advisory Commission (MEDPAC) to study and report to Congress on the feasibility and advisability of establishing a Medicare Chronic Care Practice Research Network that would serve as a standing network of providers testing new models of care coordination and other care approaches for chronically ill beneficiaries. (Sec. 151) Directs the Secretary, in the case of services furnished by federally qualified health centers (FQHCs), to establish payment limits with respect to services furnished: (1) in 2010 at the limits otherwise established for such year increased by $5; and (2) in a subsequent year at the limits established for the previous year increased by the percentage increase in the Medicare Economic Index (MEI). Requires the Comptroller General to study and report to the Congress on the effects and adequacy of the Medicare FQHC payment structure. (Sec. 152) Amends the Public Health Service Act to direct the Secretary to establish pilot projects to increase public and medical community awareness of and screening for chronic kidney disease, as well as enhance surveillance systems to better assess its prevalence and incidence. Authorizes appropriations. Extends Medicare coverage to kidney disease patient education services. (Sec. 153) Revises requirements for payments for renal dialysis services. Reduces the composite rate factor in the updates for renal dialysis services furnished during calendar 2009, and those furnished on or after January 1, 2010. Directs the Secretary, for dialysis services furnished on or after January 1, 2011, to implement a (bundled) payment system under which a single payment is made to a service provider or a renal dialysis facility for renal dialysis services in lieu of any other payment. Institutes a system of quality incentives for service providers and renal dialysis facilities in the end-stage renal disease (ESRD) program. Directs the Comptroller General to report to Congress on implementation of the ESRD bundling payment system and quality initiative. (Sec. 154) Delays generally until after 2011 full implementation of the Medicare competitive acquisition program for the purchase of durable medical equipment (DME), prosthetics, orthotics, and supplies (DMEPOS). Revises requirements for such program, dividing its implementation into two rounds, and specifying covered item updates for 2009-2014. Prescribes requirements for application of accreditation in implementing quality standards. Requires suppliers to disclose subcontractors. Directs the Secretary of Health and Human Services to provide for a competitive acquisition ombudsman within the Centers for Medicare &amp; Medicaid Services to respond to complaints and inquiries by suppliers and individuals. Specifies topics for the Comptroller General's required study and report to Congress on the impact of competitive acquisition of DME on suppliers, manufacturers, and patients. Sets forth a special rule for the competitive acquisition program for diabetic testing strips. Subtitle D: Provisions Relating to Part C - (Sec. 161) Provides for phase-out of indirect costs of medical education (IME) from capitation rates. (Sec. 162) Revises requirements for certain non-employer Medicare Advantage (MA) private fee-for-service plans, as well as MA plans for special needs individuals, including, respectively, among other changes, requirements to assure access to network coverage and care management requirements for all special needs plans. (Sec. 163) Requires MA private fee-for-service and Medicare Savings Account (MSA) plans to have a quality improvement program (Sec. 165) Places a limitation on out-of-pocket costs (cost-sharing) for dual eligibles and qualified Medicare beneficiaries enrolled in a specialized MA plan for special needs individuals. (Sec. 166) Amends SSA title XVIII, as amended by the Medicare, Medicaid, and SCHIP Extension Act of 2007, to decrease the amount of funding available to the Medicare Advantage Regional Plan Stabilization Fund during 2014. (Sec. 167) Extends through January 1, 2010, reasonable cost reimbursement contracts the Secretary may enter with organizations whose capacity to bear the risk of potential losses under a risk-sharing contract is in doubt. Modifies the requirement that at least two MA regional plans be offered in the service area for the prohibition against the extension or renewal of a reasonable cost contract on or after January 1, 2010, to apply. Requires that such plans not be offered by the same MA organization. Changes the minimum enrollment requirements applicable to such a plan. Directs the Comptroller General to study and report to Congress on the reasons, if any, why reasonable cost reimbursement contracts are unable to become MA plans under Medicare part C. (Sec. 168) Requires MEDPAC to study and report to Congress on how comparable measures of performance and patient experience (quality measures) can be collected and reported by 2011 for the MA program and the original Medicare fee-for-service program. (Sec. 169) Directs MEDPAC to study and report to Congress on the correlation between: (1) the costs that Medicare Advantage organizations incur in providing Medicare Advantage plan coverage for items and services covered under the original Medicare fee-for-service program, as reflected in plan bids; and (2) county-level spending under such original Medicare fee-for-service program on a per capita basis. Requires study of: (1) alternate approaches to payment with respect to a Medicare beneficiary enrolled in an MA plan other than through county-level payment area equivalents; (2) the accuracy and completeness of county-level estimates of per capita spending under the original Medicare fee-for-service program; and (3) ways to improve the accuracy and completeness of such county-level estimates. Subtitle E: Provisions Relating to Part D - Part I: Improving Pharmacy Access - (Sec. 171) Requires prompt payment of clean claims by prescription drug plans (PDPs) and MA-Prescription Drug plans under Medicare part D. Requires interest payments on late claims. (Sec. 172) Requires each PDP contract with a PDP sponsor to provide that the pharmacy located in, or having a contract with, a long-term care facility shall have between 30 and 90 days to submit claims to the sponsor for reimbursement. (Sec. 173) Requires each contract with a PDP sponsor using a pharmacy reimbursement prescription drug pricing standard to require a weekly update of the standard to reflect accurately the market price of acquiring the drug. Part II: Other Provisions - (Sec. 175) Includes barbiturates and benzodiazepines as covered part D drugs. (Sec. 176) Directs the Secretary to identify categories and classes of drugs for which: (1) restricted access would have major or life threatening clinical consequences for individuals who have a disease or disorder treated by them; and (2) there is significant clinical need for such individuals to have access to multiple drugs within a category or class because of unique chemical actions and pharmacological effects of such drugs, such as drugs used in the treatment of cancer. Requires PDP sponsors to include all covered part D drugs in a formulary in categories and classes identified by the Secretary, unless the Secretary establishes exceptions according to a specified process. Subtitle F: Other Provisions - (Sec. 181) Allows the use of information provided to the Secretary under contracts with PDP sponsors for the general purposes of Medicare part D, improving public health through research. Requires such information to be made available to congressional support agencies for congressional oversight of the part D program. (Sec. 182) Revises the definition of &quot;medically accepted indication for drugs.&quot; (Sec. 183) Directs the Secretary to: (1) contract with a consensus-based entity (e.g., the National Quality Forum) for certain activities relating to health care performance measurement; and (2) evaluate and report to Congress on approaches for the collection of data regarding health care disparities. Provides funding. Requires the Comptroller General to study and report to Congress on the performance and costs of such entity. (Sec. 184) Authorizes the Secretary to develop alternative methods of payment for items and services provided under clinical trials and comparative effectiveness studies sponsored or supported by an agency supported by an agency of the Department of Health and Human Services to the extent such alternative methods are necessary to preserve the scientific validity of such trials or studies, such as in the case where masking the identity of interventions from patients and investigators is necessary to comply with the particular trial or study design. (Sec. 185) Directs the Secretary to: (1) evaluate approaches for the collection of data that allow for the ongoing, accurate, and timely collection and evaluation of data on disparities in health care services and performance on the basis of race, ethnicity, and gender; and (2) implement the most effective ones. (Sec. 186) Directs the Secretary to establish a demonstration project to determine the greatest needs and most effective methods of outreach to Medicare beneficiaries who were previously uninsured. (Sec. 187) Directs the Inspector General to prepare and publish a report on: (1) the extent to which Medicare providers and plans are complying with the Office for Civil Rights' Guidance to Federal Financial Assistance Recipients Regarding Prohibition Against National Origin Discrimination Affecting Limited English Proficient Persons and the Office of Minority Health's Culturally and Linguistically Appropriate Services (CLAS) Standards in health care; and (2) a description of the costs associated with or savings related to the provision of language services. (Sec. 188) Creates the Medicare Improvement Fund. Provides funding. (Sec. 189) Directs the Centers for Medicare &amp; Medicaid Services to participate in the Federal Payment Levy Program and ensure that all Medicare provider and supplier payments are processed through it, in specified graduated percentages, by the end of FY2011. Requires any disbursing official of the Department of Health and Human Services to apply administrative offsets with respect to Medicare provider or supplier payments. Title II: Medicaid - (Sec. 201) Amends the Tax Relief and Health Care Act of 2006 to extend through June 30, 2009, the transitional medical assistance (TMA), and the abstinence education program under SSA title XIX (Medicaid). (Sec. 202) Amends SSA title XVIII to extend the Medicaid disproportionate share hospital (DSH) allotment for Tennessee and Hawaii. (Sec. 203) Delays until October 1, 2009, the application of the new payment limit for multiple source drugs under Medicaid. (Sec. 204) Amends SSA title XI to entitle states to receive reconsideration of a claim disallowance. (Sec. 205) Amends the Consolidated Omnibus Budget Reconciliation Act of 1985 to exempt Medicaid health insuring organizations operated by public entities in Ventura and Merced Counties, California, from the requirement that they be Medicaid managed care organizations meeting certain criteria. Declares that such exemption shall not apply with respect to any period for which the number of Medicaid beneficiaries enrolled with such health insuring organizations exceeds 16% (currently 14%) of the number of such beneficiaries in California. Title III: Miscellaneous - (Sec. 301) Amends the Deficit Reduction Act of 2005 to extend through FY2009 supplemental grants under SSA title IV part D (Temporary Assistance for Needy Families) (TANF). (Sec. 302) Amends SSA title IV part E (Federal Payments for Foster Care and Adoption Assistance) to set at 70% the federal matching rate for foster care and adoption assistance for the District of Columbia. (Sec. 303) Amends the Public Health Service Act to extend through FY2011 special diabetes grant programs for Type I diabetes and for Indians. (Sec. 304) Directs the Secretary to contract with the Institute of Medicine (IOM) of the National Academies to identify, and report to the Secretary and Congress on, the methodological standards for conducting systematic reviews of clinical effectiveness research on health and health care in order to ensure that reviewing organizations have objective, scientifically valid, and consistent information on methods. Requires the Secretary to contract with the IOM, also, to study and report to the Secretary and the appropriate congressional committees on the best methods used in developing clinical practice guidelines in order to ensure that organizations developing such guidelines have objective, scientifically valid, and consistent information on approaches.
+
+	</summary>
+</bill>

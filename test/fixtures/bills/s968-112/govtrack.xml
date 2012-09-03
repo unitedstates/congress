@@ -1,0 +1,94 @@
+<bill session="112" type="s" number="968" updated="2012-07-18T16:29:19-04:00">
+	<state datetime="2011-05-26">REPORTED</state>
+	<status><calendar datetime="2011-05-26" /></status>
+
+	<introduced datetime="2011-05-12"/>
+	<titles>
+		<title type="popular" as="">PIPA</title>
+		<title type="short" as="introduced">Preventing Real Online Threats to Economic Creativity and Theft of Intellectual Property Act of 2011</title>
+		<title type="short" as="introduced">PROTECT IP Act of 2011</title>
+		<title type="short" as="reported to senate">Preventing Real Online Threats to Economic Creativity and Theft of Intellectual Property Act of 2011</title>
+		<title type="short" as="reported to senate">PROTECT IP Act of 2011</title>
+		<title type="official" as="introduced">A bill to prevent online threats to economic creativity and theft of intellectual property, and for other purposes.</title>
+	</titles>
+	<sponsor id="300065"/>
+	<cosponsors>
+		<cosponsor id="300052" joined="2011-05-12" withdrawn="2012-01-23"/>
+		<cosponsor id="300071" joined="2011-07-26"/>
+		<cosponsor id="300041" joined="2011-09-07"/>
+		<cosponsor id="412324" joined="2011-07-05"/>
+		<cosponsor id="300043" joined="2011-05-12"/>
+		<cosponsor id="300078" joined="2011-09-23"/>
+		<cosponsor id="412247" joined="2011-05-12"/>
+		<cosponsor id="412390" joined="2011-05-12"/>
+		<cosponsor id="300011" joined="2011-12-12"/>
+		<cosponsor id="400034" joined="2011-05-23" withdrawn="2012-01-23"/>
+		<cosponsor id="300038" joined="2011-06-30"/>
+		<cosponsor id="300063" joined="2011-10-17"/>
+		<cosponsor id="412493" joined="2011-06-27" withdrawn="2012-01-23"/>
+		<cosponsor id="300021" joined="2011-11-02" withdrawn="2012-01-26"/>
+		<cosponsor id="412242" joined="2011-05-12"/>
+		<cosponsor id="300048" joined="2011-05-12"/>
+		<cosponsor id="412322" joined="2011-11-07" withdrawn="2012-01-23"/>
+		<cosponsor id="412223" joined="2011-05-26"/>
+		<cosponsor id="412330" joined="2011-07-25" withdrawn="2012-01-23"/>
+		<cosponsor id="300002" joined="2011-05-25"/>
+		<cosponsor id="300067" joined="2011-07-07"/>
+		<cosponsor id="412246" joined="2011-09-07"/>
+		<cosponsor id="400194" joined="2011-11-02"/>
+		<cosponsor id="300087" joined="2011-05-12"/>
+		<cosponsor id="412323" joined="2011-06-30"/>
+		<cosponsor id="300061" joined="2011-05-12"/>
+		<cosponsor id="412491" joined="2011-05-26" withdrawn="2012-01-23"/>
+		<cosponsor id="300047" joined="2011-05-12"/>
+		<cosponsor id="400272" joined="2011-10-31"/>
+		<cosponsor id="300009" joined="2011-10-19"/>
+		<cosponsor id="400413" joined="2011-07-07"/>
+		<cosponsor id="300058" joined="2011-10-03"/>
+		<cosponsor id="412248" joined="2011-06-09"/>
+		<cosponsor id="400040" joined="2011-06-15" withdrawn="2012-01-23"/>
+		<cosponsor id="300023" joined="2011-06-23"/>
+		<cosponsor id="400050" joined="2011-10-20"/>
+		<cosponsor id="412490" joined="2011-05-12"/>
+		<cosponsor id="400418" joined="2011-11-07" withdrawn="2012-01-26"/>
+		<cosponsor id="400284" joined="2011-06-23" withdrawn="2011-06-27"/>
+		<cosponsor id="412378" joined="2011-05-12"/>
+		<cosponsor id="400064" joined="2011-07-13"/>
+	</cosponsors>
+	<actions>
+		<action datetime="2011-05-12" state="INTRODUCED"><text>Sponsor introductory remarks on measure. (CR S2936-2937)</text></action>
+		<action datetime="2011-05-12" state="REFERRED"><text>Read twice and referred to the Committee on the Judiciary.</text><reference label="text of measure as introduced in Senate" ref="CR S2937-2940"/></action>
+		<calendar datetime="2011-05-26"  state="REPORTED"><committee name="Committee on the Judiciary. (text of measure as introduced in Senate: CR S2937-2940)"/><text>Committee on the Judiciary. Ordered to be reported with an amendment in the nature of a substitute favorably.</text></calendar>
+		<action datetime="2011-05-26"><text>Committee on the Judiciary. Reported by Senator Leahy with an amendment in the nature of a substitute. Without written report.</text></action>
+		<calendar under="General Orders" number="70" datetime="2011-05-26" calendar="Senate Legislative" ><text>Placed on Senate Legislative Calendar under General Orders. Calendar No. 70.</text></calendar>
+		<action datetime="2011-06-22"><committee name="Committee on the Judiciary. (text of measure as introduced in Senate: CR S2937-2940)"/><text>Committee on the Judiciary. Hearings held.</text></action>
+		<action datetime="2011-07-22"><text>By Senator Leahy from Committee on the Judiciary filed written report. Report No. 112-39.</text></action>
+		<action datetime="2011-12-17"><text>Motion to proceed to consideration of measure made in Senate.</text><reference label="consideration" ref="CR S8783"/></action>
+		<action datetime="2011-12-17"><text>Cloture motion on the motion to proceed to the bill presented in Senate.</text><reference label="consideration" ref="CR S8783"/><reference label="text" ref="CR S8783"/></action>
+		<action datetime="2012-01-23"><text>Cloture motion on the motion to proceed to S. 968 withdrawn by unanimous consent in Senate.</text><reference label="consideration" ref="CR S13"/></action>
+	</actions>
+	<committees>
+		<committee code="SSJU" name="Senate Judiciary" activity="Referral, Hearings, Markup, Reporting" />
+	</committees>
+	<relatedbills>
+		<bill relation="unknown" session="112" type="h" number="3261" />
+	</relatedbills>
+	<subjects>
+		<term name="Law"/>
+		<term name="Civil actions and liability"/>
+		<term name="Consumer affairs"/>
+		<term name="Drug safety, medical device, and laboratory regulation"/>
+		<term name="Fraud offenses and financial crimes"/>
+		<term name="Intellectual property"/>
+		<term name="Internet and video services"/>
+		<term name="Marketing and advertising"/>
+		<term name="Prescription drugs"/>
+	</subjects>
+	<amendments>
+
+	</amendments>
+	<summary>
+	5/26/2011--Reported to Senate amended. Preventing Real Online Threats to Economic Creativity and Theft of Intellectual Property Act of 2011 or the PROTECT IP Act of 2011 - (Sec. 3) Authorizes the Attorney General (AG) to commence: (1) an in personam action against a registrant of a nondomestic domain name (NDN) used by an Internet site dedicated to infringing activities (ISDIA) or an owner or operator of an ISDIA accessed through an NDN; or (2) if such individuals are unable to be found by the AG or have no address within a U.S. judicial district, an in rem action (against a domain name itself, in lieu of such individuals) against the NDN used by an ISDIA. Defines ISDIA as a site that: (1) has no significant use other than engaging in or facilitating copyright infringement, circumventing technology controlling access to copyrighted works, or selling or promoting counterfeit goods or services; or (2) is designed, operated, or marketed and used to engage in such activities. Defines NDN as a domain name for which the registry that issued the domain name and operates the relevant top level domain, and the registrar for the domain name, are located outside the United States. Allows the court, upon application by the AG after an NDN-related in personam or in rem action is commenced under this section, to issue a temporary restraining order or an injunction against the NDN, registrant, owner, or operator to cease and desist further ISDIA activity if the NDN is used within the United States to access an ISDIA directing business to U.S. residents and harming U.S. intellectual property right holders. Directs the AG to identify and provide advance notice to operators of nonauthoritative domain name system servers (NDNSSs), financial transaction providers (FTPs), Internet advertising services (IASs), and providers of information location tools (ILTs), including search engines, online directories, and other indexes with hypertext links or referrals to online locations, whose action may be required to prevent such NDN-related ISDIA activity. Sets forth the preventative measures required to be taken by NDNSSs, FTPs, IASs, and ILTs upon being served with a court order in a such an NDN-related action commenced by the AG. (Sec. 4) Authorizes the AG or an intellectual property right owner harmed by an ISDIA to commence: (1) an in personam action against a registrant of an ISDIA's domain name or an owner or operator of an ISDIA accessed through a domain name; or (2) if such individuals are unable to be found or have no address within a U.S. judicial district, an in rem action against a domain name used by an ISDIA. Allows the court, upon application by the relevant plaintiff after an in personam or in rem action concerning a domain name is commenced under this section, to issue a temporary restraining order or injunction against a domain name, registrant, owner, or operator to cease and desist further ISDIA activity if the domain name is: (1) registered or assigned by a domain name registrar or registry located or doing business in the United States, or (2) used within the United States to access an ISDIA directing business to U.S. residents and harming U.S. intellectual property right holders. Directs the relevant plaintiff to identify and provide advance notice to FTPs and IASs whose action may be required to prevent such ISDIA activity. Requires, upon being served with a court order after such an in personam or in rem action concerning a domain name is commenced by the AG or a private right owner under this section: (1) FTPs to take reasonable specified preventative measures, and (2) IASs to take technically feasible and reasonable measures. Sets forth provisions regarding the entities that may be required to take certain preventative measures in actions concerning both domain names and NDNs: (1) granting immunity to such entities for actions complying with a court order, (2) authorizing the relevant plaintiff to bring an action for injunction relief against a served entity that knowingly and willfully fails to comply with a court order, and (3) permitting such entities to intervene in commenced actions and request modifications, suspensions, or terminations of related court orders. (Sec. 5) Provides immunity from liability for: (1) FTPs or IASs that, in good faith, voluntarily take certain preventative actions against ISDIAs, and (2) domain name registries and registrars, FTPs, ILTs, or IASs that, in good faith, withhold services from infringing sites that endanger public health by distributing prescription medication that is counterfeit, adulterated, misbranded, or without a valid prescription. (Sec. 7) Requires the AG to: (1) publish procedures to receive information from the public about ISDIAs and develop a process to coordinate enforcement activities with other law enforcement agencies, and (2) report annually to Congress on actions commenced by the AG under this Act including the use of related court orders and enforcement procedures. Directs the Secretary of Commerce to submit a report to Congress assessing the requirement that NDNSSs, except under specified circumstances, take the least burdensome technically feasible and reasonable measures to prevent an NDN from resolving to its Internet protocol (IP) address after receiving advance notice and upon being served with a court order in an NDN-related in personam or in rem action commenced by the AG under this Act. Requires the Register of Copyrights to submit a report to Congress regarding this Act's: (1) enforcement and effectiveness, (2) burden on intermediaries (including an assessment of the need to reimburse compliance costs), and (3) application to emerging technologies. Directs the Comptroller General (GAO) to submit a report on certain actions commenced by private plaintiffs under this Act. (Sec. 8) Authorizes the Secretary of Homeland Security (DHS), subject to any applicable bonding requirements, to share information and provide: (1) unredacted samples of the products, packaging, and labels, or related photos with trademark right holders if the U.S. Customs and Border Protection (CBP) suspects an import or export violation under specified provisions of the Lanham Act relating to copied or simulated marks or names; and (2) samples to affected parties upon the CBP's seizure of material imported in violation of specified federal copyright laws prohibiting the circumvention of technological measures that control access to or protect a copyrighted work.
+
+	</summary>
+</bill>

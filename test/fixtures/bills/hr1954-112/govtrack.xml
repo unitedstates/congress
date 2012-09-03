@@ -1,0 +1,44 @@
+<bill session="112" type="h" number="1954" updated="2012-06-23T12:02:33-04:00">
+	<state datetime="2011-05-31T19:10:00-04:00">PROV_KILL:SUSPENSIONFAILED</state>
+	<status><vote datetime="2011-05-31T19:10:00-04:00" where="h" result="fail" how="roll" roll="379"/></status>
+
+	<introduced datetime="2011-05-24"/>
+	<titles>
+		<title type="official" as="introduced">To implement the President's request to increase the statutory limit on the public debt.</title>
+	</titles>
+	<sponsor id="400058"/>
+	<cosponsors>
+
+	</cosponsors>
+	<actions>
+		<action datetime="2011-05-24" state="REFERRED"><text>Referred to the House Committee on Ways and Means.</text></action>
+		<action datetime="2011-05-31T16:46:00-04:00"><text>Mr. Camp moved to suspend the rules and pass the bill.</text></action>
+		<action datetime="2011-05-31T16:46:00-04:00"><text>Considered under suspension of the rules.</text><reference label="consideration" ref="CR H3765-3775"/><reference label="text of measure as introduced" ref="CR H3765-3766"/></action>
+		<action datetime="2011-05-31T16:46:00-04:00"><text>DEBATE - The House proceeded with forty minutes of debate on H.R. 1954.</text></action>
+		<action datetime="2011-05-31T17:46:00-04:00"><text>At the conclusion of debate, the Yeas and Nays were demanded and ordered. Pursuant to the provisions of clause 8, rule XX, the Chair announced that further proceedings on the motion would be postponed.</text></action>
+		<action datetime="2011-05-31T19:00:00-04:00"><text>Considered as unfinished business.</text><reference label="consideration" ref="CR H3783-3784"/></action>
+		<vote how="roll" type="vote" roll="379" datetime="2011-05-31T19:10:00-04:00" where="h" result="fail" suspension="1"  state="PROV_KILL:SUSPENSIONFAILED"><text>On motion to suspend the rules and pass the bill Failed by the Yeas and Nays: (2/3 required): 97 - 318, 7 Present (Roll no. 379).</text></vote>
+		<action datetime="2011-05-31T19:10:00-04:00"><text>Motion to reconsider laid on the table Agreed to without objection.</text></action>
+	</actions>
+	<committees>
+		<committee code="HSWM" name="House Ways and Means" activity="Referral" />
+	</committees>
+	<relatedbills>
+		<bill relation="unknown" session="112" type="h" number="2544" />
+		<bill relation="unknown" session="112" type="h" number="2663" />
+		<bill relation="identical" session="112" type="s" number="1326" />
+		<bill relation="unknown" session="112" type="s" number="1326" />
+	</relatedbills>
+	<subjects>
+		<term name="Economics and public finance"/>
+		<term name="Budget deficits and national debt"/>
+	</subjects>
+	<amendments>
+
+	</amendments>
+	<summary>
+	5/24/2011--Introduced.
+Increases the statutory limit on the public debt from $14.294 trillion to $16.7 trillion.
+
+	</summary>
+</bill>

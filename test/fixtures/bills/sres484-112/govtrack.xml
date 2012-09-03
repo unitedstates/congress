@@ -1,0 +1,39 @@
+<bill session="112" type="sr" number="484" updated="2012-06-23T16:37:12-04:00">
+	<state datetime="2012-06-06">PASSED:SIMPLERES</state>
+	<status><vote datetime="2012-06-06" where="s" result="pass" how="by Unanimous Consent" roll=""/></status>
+
+	<introduced datetime="2012-06-06"/>
+	<titles>
+		<title type="official" as="introduced">A resolution designating June 7, 2012, as &quot;National Hunger Awareness Day&quot;.</title>
+	</titles>
+	<sponsor id="400040"/>
+	<cosponsors>
+		<cosponsor id="300065" joined="2012-06-06"/>
+		<cosponsor id="300070" joined="2012-06-06"/>
+		<cosponsor id="300038" joined="2012-06-06"/>
+		<cosponsor id="400050" joined="2012-06-06"/>
+		<cosponsor id="412246" joined="2012-06-06"/>
+		<cosponsor id="400284" joined="2012-06-06"/>
+	</cosponsors>
+	<actions>
+		<vote how="by Unanimous Consent" type="vote" datetime="2012-06-06" where="s" result="pass"  state="PASSED:SIMPLERES"><text>Submitted in the Senate, considered, and agreed to without amendment and with a preamble by Unanimous Consent.</text><reference label="consideration" ref="CR S3798-3799"/><reference label="text as passed Senate" ref="CR S3799"/><reference label="text of measure as introduced" ref="CR S3782-3783"/></vote>
+	</actions>
+	<committees>
+
+	</committees>
+	<relatedbills>
+		<bill relation="unknown" session="112" type="hr" number="655" />
+		<bill relation="unknown" session="112" type="sr" number="204" />
+	</relatedbills>
+	<subjects>
+		<term name="Agriculture and food"/>
+		<term name="Commemorative events and holidays"/>
+		<term name="Food assistance and relief"/>
+	</subjects>
+	<amendments>
+
+	</amendments>
+	<summary>
+	
+	</summary>
+</bill>

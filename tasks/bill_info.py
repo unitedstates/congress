@@ -30,13 +30,17 @@ def fetch_bill(bill_id, options):
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
-  skipped, error = False, False
-
   body = utils.unescape(body)
-
   if "</html>" not in body:
     return {'saved': False, 'ok': False, 'reason': "page was truncated"}
   
+  bill = parse_bill(bill_id, body, options)
+  output_bill(bill, options)
+  
+  return {'ok': True, 'saved': True}
+
+
+def parse_bill(bill_id, body, options):
   bill_type, number, session = utils.split_bill_id(bill_id)
 
   # do all the raw html parsing
@@ -61,9 +65,7 @@ def fetch_bill(bill_id, options):
   # add metadata to each action, establish current state
   actions, state = decipher_timeline(actions, bill_type, titles[-1])
 
-
-
-  bill = {
+  return {
     'bill_id': bill_id,
     'bill_type': bill_type,
     'number': number,
@@ -82,11 +84,6 @@ def fetch_bill(bill_id, options):
 
     'updated_at': datetime.datetime.fromtimestamp(time.time())
   }
-
-  output_bill(bill, options)
-
-  return {'ok': True, 'saved': True}
-
 
 def output_bill(bill, options):
   log("[%s] Writing to disk..." % bill['bill_id'])
