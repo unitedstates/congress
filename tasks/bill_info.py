@@ -471,12 +471,10 @@ def parse_bill_action(line, prev_state, bill_type, title):
   
   # If a line starts with an amendment number, this action is on the amendment and cannot
   # be parsed yet.
-  m = re.match("r^(H|S)\.Amdt\.(\d+)", line, re.I)
+  m = re.search(r"^(H|S)\.Amdt\.(\d+)", line, re.I)
   if m != None:
     # Process actions specific to amendments separately.
-    return {
-      "amendment": m.group(1).lower() + m.group(2)
-    }
+    return None, None
   
   # Otherwise, parse the action line for key actions.
       
