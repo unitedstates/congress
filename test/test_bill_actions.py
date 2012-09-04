@@ -409,5 +409,6 @@ class BillActions(unittest.TestCase):
     self.assertEqual(new_action['where'], "h")
     self.assertEqual(new_action["result"], "pass")
     self.assertEqual(new_action["how"], "by special rule")
-    # self.assertEqual(new_action['bill_ids'], ["hres241-109"])
     self.assertEqual(new_state, "PASSED:SIMPLERES")
+
+    self.assertEqual(new_action['bill_ids'], ["hres241-109"])

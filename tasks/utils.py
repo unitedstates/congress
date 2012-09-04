@@ -135,6 +135,19 @@ def unescape(text):
     return text # leave as is
   return re.sub("&#?\w+;", fixup, text)
 
+def extract_bills(text, session):
+  bill_ids = []
+  
+  p = re.compile('((S\.|H\.)(\s?J\.|\s?R\.|\s?Con\.| ?)(\s?Res\.)*\s?\d+)', flags=re.IGNORECASE)
+  bill_matches = p.findall(text)
+  
+  if bill_matches:
+    for b in bill_matches:
+      bill_text = "%s-%s" % (b[0].lower().replace(" ", '').replace('.', '').replace("con", "c"), session)
+      if bill_text not in bill_ids:
+        bill_ids.append(bill_text)
+  
+  return bill_ids
 
 thomas_types = {
   'hr': ('HR', 'H.R.'),

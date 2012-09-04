@@ -698,6 +698,12 @@ def parse_bill_action(line, prev_state, bill_id, title):
   if m != None:
     action["type"] = "referral"
     action["committee"] = m.group(2)
+
+  # no matter what it is, sweep the action line for bill IDs of related bills
+  bill_ids = utils.extract_bills(line, session)
+  bill_ids = filter(lambda b: b != bill_id, bill_ids)
+  if bill_ids and (len(bill_ids) > 0):
+    action['bill_ids'] = bill_ids
         
   return action, state
 
