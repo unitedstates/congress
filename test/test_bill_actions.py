@@ -40,7 +40,7 @@ class BillActions(unittest.TestCase):
 
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
 
-    # self.assertEqual(new_action['type'], 'reported')
+    self.assertEqual(new_action['type'], 'calendar')
     # self.assertEqual(new_action['committee'], "Committee on the Judiciary")
     self.assertEqual(new_state, "REPORTED")
 
@@ -422,3 +422,18 @@ class BillActions(unittest.TestCase):
     self.assertEqual(new_action["how"], "roll")
     self.assertEqual(new_action['roll'], "379")
     self.assertEqual(new_state, "PROV_KILL:SUSPENSIONFAILED")
+  
+  # from hres240-109
+  def test_passed_by_special_rule(self):
+    bill_type = "hres"
+    title = "Amending the Rules of the House of Representatives to reinstate certain provisions of the rules relating to procedures of the Committee on Standards of Official Conduct to the form in which those provisions existed at the close of the 108th Congress."
+    state = "INTRODUCED"
+    line = "Passed House pursuant to H. Res. 241."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
+    self.assertEqual(new_action['type'], "vote")
+    self.assertEqual(new_action['vote_type'], "vote")
+    self.assertEqual(new_action['where'], "h")
+    self.assertEqual(new_action["result"], "pass")
+    self.assertEqual(new_action["how"], "by special rule")
+    self.assertEqual(new_state, "PASSED:SIMPLERES")
