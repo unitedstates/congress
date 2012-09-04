@@ -37,6 +37,14 @@ The script will cache all downloaded pages, and will not re-fetch them from the 
     python runner.py bills force=True
 
 
+Running Tests
+-------------
+
+To run this project's unit tests:
+
+    python test/runner.py
+
+
 Bulk Data
 ---------
 
