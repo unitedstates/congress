@@ -65,7 +65,7 @@ def parse_bill(bill_id, body, options):
   popular_title = current_title_for(titles, "popular")
 
   # add metadata to each action, establish current state
-  actions, state = process_actions(actions, bill_type, titles[-1])
+  actions, state = process_actions(actions, bill_id, titles[-1])
 
   # pull out some very useful history information from the actions
   history = history_from_actions(actions)
@@ -397,13 +397,13 @@ def related_bills_for(body, session):
 
 # given the parsed list of actions from actions_for, run each action
 # through metadata extraction and figure out what current state the bill is in
-def process_actions(actions, bill_type, title):
+def process_actions(actions, bill_id, title):
   
   state = "INTRODUCED" # every bill is at least introduced
   new_actions = []
 
   for action in actions:
-    new_action, new_state = parse_bill_action(action['text'], state, bill_type, title)
+    new_action, new_state = parse_bill_action(action['text'], state, bill_id, title)
 
     # only change/reflect state change if there was one
     if new_state:
@@ -487,9 +487,11 @@ def history_from_actions(actions):
   return history
 
 
-def parse_bill_action(line, prev_state, bill_type, title):
+def parse_bill_action(line, prev_state, bill_id, title):
   """Parse a THOMAS bill action line. Returns attributes to be set in the XML file on the action line."""
   
+  bill_type, number, session = utils.split_bill_id(bill_id)
+
   state = None
   action = {
     "type": "action"
