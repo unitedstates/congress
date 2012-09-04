@@ -5,6 +5,7 @@ from pyquery import PyQuery as pq
 import json
 from lxml import etree
 import time, datetime
+from lxml.html import fromstring
 
 # can be run on its own, just require a bill_id
 def run(options):
@@ -52,10 +53,9 @@ def parse_bill(bill_id, body, options):
   titles = titles_for(body)
   actions = actions_for(body)
   related_bills = related_bills_for(body, congress)
+  subjects = subjects_for(body, bill_id)
   # committees = committees_for(body)
   # amendments = amendments_for(body)
-  # subjects = subjects_for(body)
-
 
   # post-processing and normalization
 
@@ -90,6 +90,7 @@ def parse_bill(bill_id, body, options):
     'popular_title': popular_title,
 
     'summary': summary,
+    'subjects': subjects,
 
     'related_bills': related_bills,
     # 'committees': committees,
@@ -361,6 +362,18 @@ def cosponsors_for(body):
     })
 
   return cosponsors
+
+def subjects_for(body, bill_id):
+  doc = fromstring(body)
+  subjects = []
+  for meta in doc.cssselect('meta'):
+    if meta.get('name') == 'dc.subject':
+      subjects.append({
+        'bill_id': bill_id,
+        'subject': meta.get('content')
+      })
+      
+  return subjects
 
 def related_bills_for(body, congress):
   match = re.search("RELATED BILL DETAILS.*?<p>.*?<table border=\"0\">(.*?)<hr", body, re.S)
