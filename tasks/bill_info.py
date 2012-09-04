@@ -5,6 +5,7 @@ from pyquery import PyQuery as pq
 import json
 from lxml import etree
 import time, datetime
+from lxml.html import fromstring
 
 # can be run on its own, just require a bill_id
 def run(options):
@@ -41,7 +42,7 @@ def fetch_bill(bill_id, options):
 
 
 def parse_bill(bill_id, body, options):
-  bill_type, number, session = utils.split_bill_id(bill_id)
+  bill_type, number, congress = utils.split_bill_id(bill_id)
 
   # do all the raw html parsing
 
@@ -51,11 +52,10 @@ def parse_bill(bill_id, body, options):
   summary = summary_for(body)
   titles = titles_for(body)
   actions = actions_for(body)
-  related_bills = related_bills_for(body, session)
+  related_bills = related_bills_for(body, congress)
+  subjects = subjects_for(body, bill_id)
   # committees = committees_for(body)
   # amendments = amendments_for(body)
-  # subjects = subjects_for(body)
-
 
   # post-processing and normalization
 
@@ -74,7 +74,7 @@ def parse_bill(bill_id, body, options):
     'bill_id': bill_id,
     'bill_type': bill_type,
     'number': number,
-    'session': session,
+    'congress': congress,
 
     # 'introduced_at': introduced_at,
     'sponsor': sponsor,
@@ -90,6 +90,7 @@ def parse_bill(bill_id, body, options):
     'popular_title': popular_title,
 
     'summary': summary,
+    'subjects': subjects,
 
     'related_bills': related_bills,
     # 'committees': committees,
@@ -110,7 +111,7 @@ def output_bill(bill, options):
 
   # output XML
   root = etree.Element("bill")
-  root.set("session", bill['session'])
+  root.set("congress", bill['congress'])
   root.set("type", bill['bill_type'])
   root.set("number", bill['number'])
   root.set("updated", utils.format_datetime(bill['updated_at']))
@@ -362,7 +363,19 @@ def cosponsors_for(body):
 
   return cosponsors
 
-def related_bills_for(body, session):
+def subjects_for(body, bill_id):
+  doc = fromstring(body)
+  subjects = []
+  for meta in doc.cssselect('meta'):
+    if meta.get('name') == 'dc.subject':
+      subjects.append({
+        'bill_id': bill_id,
+        'subject': meta.get('content')
+      })
+      
+  return subjects
+
+def related_bills_for(body, congress):
   match = re.search("RELATED BILL DETAILS.*?<p>.*?<table border=\"0\">(.*?)<hr", body, re.S)
   if not match:
     if re.search("RELATED BILL DETAILS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
@@ -384,7 +397,7 @@ def related_bills_for(body, session):
 
     bill_code, reason = m.groups()
 
-    bill_id = "%s-%s" % (bill_code.lower().replace(".", "").replace(" ", ""), session)
+    bill_id = "%s-%s" % (bill_code.lower().replace(".", "").replace(" ", ""), congress)
     reason = re.sub("^Related bill (as )?", "", reason)
 
     related_bills.append({
@@ -490,7 +503,7 @@ def history_from_actions(actions):
 def parse_bill_action(line, prev_state, bill_id, title):
   """Parse a THOMAS bill action line. Returns attributes to be set in the XML file on the action line."""
   
-  bill_type, number, session = utils.split_bill_id(bill_id)
+  bill_type, number, congress = utils.split_bill_id(bill_id)
 
   state = None
   action = {
@@ -700,7 +713,7 @@ def parse_bill_action(line, prev_state, bill_id, title):
     action["committee"] = m.group(2)
 
   # no matter what it is, sweep the action line for bill IDs of related bills
-  bill_ids = utils.extract_bills(line, session)
+  bill_ids = utils.extract_bills(line, congress)
   bill_ids = filter(lambda b: b != bill_id, bill_ids)
   if bill_ids and (len(bill_ids) > 0):
     action['bill_ids'] = bill_ids
@@ -792,15 +805,15 @@ def new_state_after_vote(vote_type, passed, chamber, bill_type, suspension, amen
   return None
 
 def output_for_bill(bill_id, format):
-  bill_type, number, session = utils.split_bill_id(bill_id)
-  return "data/bills/%s/%s/%s%s/%s" % (session, bill_type, bill_type, number, "data.%s" % format)
+  bill_type, number, congress = utils.split_bill_id(bill_id)
+  return "data/bills/%s/%s/%s%s/%s" % (congress, bill_type, bill_type, number, "data.%s" % format)
 
 # "All Information" page for a bill
 def bill_url_for(bill_id):
-  bill_type, number, session = utils.split_bill_id(bill_id)
+  bill_type, number, congress = utils.split_bill_id(bill_id)
   thomas_type = utils.thomas_types[bill_type][0]
-  return "http://thomas.loc.gov/cgi-bin/bdquery/z?d%s:%s%s:@@@L&summ2=m&" % (session, thomas_type, number)
+  return "http://thomas.loc.gov/cgi-bin/bdquery/z?d%s:%s%s:@@@L&summ2=m&" % (congress, thomas_type, number)
 
 def bill_cache_for(bill_id, file):
-  bill_type, number, session = utils.split_bill_id(bill_id)
-  return "bills/%s/%s/%s%s/%s" % (session, bill_type, bill_type, number, file)
+  bill_type, number, congress = utils.split_bill_id(bill_id)
+  return "bills/%s/%s/%s%s/%s" % (congress, bill_type, bill_type, number, file)

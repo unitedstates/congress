@@ -25,7 +25,7 @@ def EST():
 def in_est(dt):
   return dt.astimezone(EST())
 
-def current_session(year=None):
+def current_congress(year=None):
   if not year:
     year = datetime.datetime.now().year
   return ((year + 1) / 2) - 894

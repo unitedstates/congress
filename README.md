@@ -24,11 +24,11 @@ To start grabbing everything:
 
     python runner.py bills
 
-You can supply a few kinds of flags. To limit it to 10 House simple resolutions in the 111th session:
+You can supply a few kinds of flags. To limit it to 10 House simple resolutions in the 111th congress:
 
-    python runner.py bills limit=10 bill_type=hres session=111
+    python runner.py bills limit=10 bill_type=hres congress=111
 
-To get only a specific bill, pass in the ID for that bill. For example, S. 968 in the 112th session:
+To get only a specific bill, pass in the ID for that bill. For example, S. 968 in the 112th congress:
 
     python runner.py bills bill_id=s968-112
 
