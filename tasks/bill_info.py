@@ -60,7 +60,9 @@ def parse_bill(bill_id, body, options):
   # post-processing and normalization
 
   # for convenience: extract out current title of each type
-  # current_title = current_title_for(titles)
+  official_title = current_title_for(titles, "official")
+  short_title = current_title_for(titles, "short")
+  popular_title = current_title_for(titles, "popular")
 
   # add metadata to each action, establish current state
   actions, state = process_actions(actions, bill_type, titles[-1])
@@ -73,20 +75,28 @@ def parse_bill(bill_id, body, options):
     'bill_type': bill_type,
     'number': number,
     'session': session,
-    'state': state,
+
     # 'introduced_at': introduced_at,
     'sponsor': sponsor,
-    'summary': summary,
+    'cosponsors': cosponsors,
+
     'actions': actions,
     'history': history,
-    'cosponsors': cosponsors,
+    'state': state,
+    
     'titles': titles,
+    'official_title': official_title,
+    'short_title': short_title,
+    'popular_title': popular_title,
+
+    'summary': summary,
+
     'related_bills': related_bills,
     # 'committees': committees,
     # 'amendments': amendments,
     # 'subjects': subjects,
 
-    'updated_at': datetime.datetime.fromtimestamp(time.time())
+    'updated_at': datetime.datetime.fromtimestamp(time.time()),
   }
 
 def output_bill(bill, options):
@@ -212,6 +222,22 @@ def titles_for(body):
     raise Exception("No titles found.")
 
   return titles
+
+# the most current title of a given type is the first one in the last 'as' subgroup
+def current_title_for(titles, type):
+  current_title = None
+  current_as = -1 # not None, cause for popular titles, None is a valid 'as'
+
+  for title in titles:
+    if title['type'] != type:
+      continue
+    if title['as'] == current_as:
+      continue
+    # right type, new 'as', store first one
+    current_title = title['title']
+    current_as = title['as']
+
+  return current_title
 
 
 def actions_for(body):
