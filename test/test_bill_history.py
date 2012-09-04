@@ -4,7 +4,7 @@ import fixtures
 
 import datetime
 
-class BillTimeline(unittest.TestCase):
+class BillHistory(unittest.TestCase):
 
   def test_normal_enacted_bill(self):
     history = fixtures.bill("hr3590-111")['history']
