@@ -36,7 +36,7 @@ def fetch_bill(bill_id, options):
   
   bill = parse_bill(bill_id, body, options)
   output_bill(bill, options)
-  
+
   return {'ok': True, 'saved': True}
 
 
@@ -65,6 +65,9 @@ def parse_bill(bill_id, body, options):
   # add metadata to each action, establish current state
   actions, state = decipher_timeline(actions, bill_type, titles[-1])
 
+  # pull out some very useful history information from the actions
+  history = history_from_actions(actions)
+
   return {
     'bill_id': bill_id,
     'bill_type': bill_type,
@@ -75,6 +78,7 @@ def parse_bill(bill_id, body, options):
     'sponsor': sponsor,
     'summary': summary,
     'actions': actions,
+    'history': history,
     'cosponsors': cosponsors,
     'titles': titles,
     'related_bills': related_bills,
@@ -386,6 +390,64 @@ def decipher_timeline(actions, bill_type, title):
 
   return new_actions, state
 
+# look at the final set of processed actions and pull out the major historical events
+def history_from_actions(actions):
+  history = {}
+  
+  # if house_vote = votes.select {|vote| vote[:chamber] == 'house' and vote[:passage_type] != 'override'}.last
+  #   history[:house_passage_result] = house_vote[:result]
+  #   history[:house_passage_result_at] = house_vote[:voted_at]
+  # end
+  
+  # if senate_vote = votes.select {|vote| vote[:chamber] == 'senate' and vote[:passage_type] != 'override'}.last
+  #   history[:senate_passage_result] = senate_vote[:result]
+  #   history[:senate_passage_result_at] = senate_vote[:voted_at]
+  # end
+  
+  # if vetoed_action = doc.at('//actions/vetoed')
+  #   history[:vetoed_at] = Utils.govtrack_time_for vetoed_action['datetime']
+  #   history[:vetoed] = true
+  # else
+  #   history[:vetoed] = false
+  # end
+  
+  # if override_house_vote = votes.select {|vote| vote[:chamber] == 'house' and vote[:passage_type] == 'override'}.last
+  #   history[:house_override_result] = override_house_vote[:result]
+  #   history[:house_override_result_at] = override_house_vote[:voted_at]
+  # end
+  
+  # if override_senate_vote = votes.select {|vote| vote[:chamber] == 'senate' and vote[:passage_type] == 'override'}.last
+  #   history[:senate_override_result] = override_senate_vote[:result]
+  #   history[:senate_override_result_at] = override_senate_vote[:voted_at]
+  # end
+  
+  # if enacted_action = doc.at('//actions/enacted')
+  #   history[:enacted_at] = Utils.govtrack_time_for enacted_action['datetime']
+  #   history[:enacted] = true
+  # else
+  #   history[:enacted] = false
+  # end
+  
+  # passed = nil
+  # if concurring_vote = votes.select {|vote| vote[:passage_type] == 'vote2'}.last
+  #   if concurring_vote[:result] == 'pass' and state !~ /PASS_BACK/
+  #     passed = true
+  #   else
+  #     passed = false
+  #   end
+  # else
+  #   passed = false
+  # end
+  
+  # # finally, set the awaiting_signature flag, inferring it from the details above
+  # topresident_action = doc.search('//actions/topresident').last
+  # if (not history['vetoed']) and (not history['enacted'])
+  #   history[:awaiting_signature_since] = Utils.govtrack_time_for topresident_action['datetime']
+  #   history[:awaiting_signature] = true
+  # else:
+  #   history[:awaiting_signature] = false
+
+  return history
 
 
 def parse_bill_action(line, prev_state, bill_type, title):
@@ -437,6 +499,7 @@ def parse_bill_action(line, prev_state, bill_type, title):
     roll = None
     m = re.search(r"\((Roll no\.|Record Vote No:) (\d+)\)", how, re.I)
     if m != None:
+      how = "roll"
       roll = m.group(2)
 
     suspension = None
@@ -446,6 +509,8 @@ def parse_bill_action(line, prev_state, bill_type, title):
     action["type"] = "vote"
     action["vote_type"] = vote_type
     action["how"] = how
+    action['where'] = "h"
+    action['result'] = pass_fail
     if roll:
       action["roll"] = roll
 
@@ -457,9 +522,13 @@ def parse_bill_action(line, prev_state, bill_type, title):
   m = re.search(r"Passed House pursuant to", line, re.I)
   if m != None:
     vote_type = "vote" if (bill_type[0] == "h") else "vote2"
+    pass_fail = "pass"
+
     action["type"] = "vote"
     action["vote_type"] = vote_type
     action["how"] = "by special rule"
+    action["where"] = "h"
+    action["result"] = pass_fail
 
     # get the new state of the bill after this vote
     new_state = new_state_after_vote(vote_type, pass_fail=="pass", "h", bill_type, False, False, title, prev_state)
@@ -505,6 +574,8 @@ def parse_bill_action(line, prev_state, bill_type, title):
     action["type"] = voteaction_type
     action["vote_type"] = vote_type
     action["how"] = how
+    action["result"] = pass_fail
+    action["where"] = "s"
     if roll:
       action["roll"] = roll
 
