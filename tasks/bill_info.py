@@ -201,7 +201,7 @@ def output_bill(bill, options):
 def sponsor_for(body):
   match = re.search(r"<b>Sponsor: </b>(No Sponsor|<a href=[^>]+(\d{5}).*>(.*)</a>\s+\[((\w\w)(-(\d+))?)\])", body, re.I)
   if match:
-    if match.group(3) == "No Sponsor":
+    if (match.group(3) == "No Sponsor") or (match.group(1) == "No Sponsor"):
       return None
     else:
       if len(match.group(4).split('-')) == 2:
