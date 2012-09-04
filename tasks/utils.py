@@ -107,13 +107,6 @@ def xpath_regex(doc, element, pattern):
     "//%s[re:match(text(), '%s')]" % (element, pattern), 
     namespaces={"re": "http://exslt.org/regular-expressions"})
 
-# def format_datetime(v):
-#   if type(v) == float:
-#     v = datetime.datetime.fromtimestamp(v)
-#   if type(v) == datetime.datetime:
-#     v = v.replace(microsecond=0, tzinfo=timezone("US/Eastern"))
-#   return v.isoformat()
-
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
     return obj.replace(microsecond=0, tzinfo=timezone("US/Eastern")).isoformat()

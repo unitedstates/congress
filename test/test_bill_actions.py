@@ -182,9 +182,9 @@ class BillActions(unittest.TestCase):
     line = "Cloture invoked in Senate by Yea-Nay Vote. 60 - 39. Record Vote Number: 395."
 
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_type, title)
-  #   self.assertEqual(new_action['roll'], "395")
-  #   self.assertEqual(new_action['type'], "vote-aux")
-  #   self.assertEqual(new_action['vote_type'], "cloture")
+    # self.assertEqual(new_action['roll'], "395")
+    # self.assertEqual(new_action['type'], "vote-aux")
+    # self.assertEqual(new_action['vote_type'], "cloture")
     # self.assertEqual(new_action['where'], "s")
     # self.assertEqual(new_action['how'], "roll")
     # self.assertEqual(new_action['result'], "pass")

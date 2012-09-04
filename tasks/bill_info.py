@@ -243,15 +243,14 @@ def actions_for(body):
     else:
       action_time = datetime.datetime.strptime(timestamp, "%m/%d/%Y")
 
-    cleaned_text, action_type, considerations, other = action_for(text)
+    cleaned_text, considerations = action_for(text)
 
     action = {
       'text': cleaned_text,
-      'type': action_type,
+      'type': "action",
       'acted_at': action_time,
       'considerations': considerations
     }
-    action.update(other)
     actions.append(action)
 
   return actions
@@ -289,7 +288,7 @@ def action_for(text):
 
       considerations.append({'type': type, 'reference': reference})
 
-  return (text, "action", considerations, {})
+  return text, considerations
 
 def cosponsors_for(body):
   match = re.search("COSPONSORS\((\d+)\).*?<p>(?:</br>)?(.*?)(?:</br>)?<hr", body, re.S)
@@ -392,60 +391,70 @@ def decipher_timeline(actions, bill_type, title):
 
 # look at the final set of processed actions and pull out the major historical events
 def history_from_actions(actions):
+  
   history = {}
   
-  # if house_vote = votes.select {|vote| vote[:chamber] == 'house' and vote[:passage_type] != 'override'}.last
-  #   history[:house_passage_result] = house_vote[:result]
-  #   history[:house_passage_result_at] = house_vote[:voted_at]
-  # end
+  house_vote = None
+  for action in actions:
+    if (action['type'] == 'vote') and (action['where'] == 'h') and (action['vote_type'] != "override"):
+      house_vote = action
+  if house_vote:
+    history['house_passage_result'] = house_vote['result']
+    history['house_passage_result_at'] = house_vote['acted_at']
+
+  senate_vote = None
+  for action in actions:
+    if (action['type'] == 'vote') and (action['where'] == 's') and (action['vote_type'] != "override"):
+      senate_vote = action
+  if senate_vote:
+    history['senate_passage_result'] = senate_vote['result']
+    history['senate_passage_result_at'] = senate_vote['acted_at']
   
-  # if senate_vote = votes.select {|vote| vote[:chamber] == 'senate' and vote[:passage_type] != 'override'}.last
-  #   history[:senate_passage_result] = senate_vote[:result]
-  #   history[:senate_passage_result_at] = senate_vote[:voted_at]
-  # end
+  vetoed = None
+  for action in actions:
+    if action['type'] == 'vetoed':
+      vetoed = action
+  if vetoed:
+    history['vetoed'] = True
+    history['vetoed_at'] = vetoed['acted_at']
+  else:
+    history['vetoed'] = False
+
+  house_override_vote = None
+  for action in actions:
+    if (action['type'] == 'vote') and (action['where'] == 'h') and (action['vote_type'] == "override"):
+      house_override_vote = action
+  if house_override_vote:
+    history['house_override_result'] = house_override_vote['result']
+    history['house_override_result_at'] = house_override_vote['acted_at']
+
+  senate_override_vote = None
+  for action in actions:
+    if (action['type'] == 'vote') and (action['where'] == 's') and (action['vote_type'] == "override"):
+      senate_override_vote = action
+  if senate_override_vote:
+    history['senate_override_result'] = senate_override_vote['result']
+    history['senate_override_result_at'] = senate_override_vote['acted_at']
+
+  enacted = None
+  for action in actions:
+    if action['type'] == 'enacted':
+      enacted = action
+  if enacted:
+    history['enacted'] = True
+    history['enacted_at'] = action['acted_at']
+  else:
+    history['enacted'] = False
   
-  # if vetoed_action = doc.at('//actions/vetoed')
-  #   history[:vetoed_at] = Utils.govtrack_time_for vetoed_action['datetime']
-  #   history[:vetoed] = true
-  # else
-  #   history[:vetoed] = false
-  # end
-  
-  # if override_house_vote = votes.select {|vote| vote[:chamber] == 'house' and vote[:passage_type] == 'override'}.last
-  #   history[:house_override_result] = override_house_vote[:result]
-  #   history[:house_override_result_at] = override_house_vote[:voted_at]
-  # end
-  
-  # if override_senate_vote = votes.select {|vote| vote[:chamber] == 'senate' and vote[:passage_type] == 'override'}.last
-  #   history[:senate_override_result] = override_senate_vote[:result]
-  #   history[:senate_override_result_at] = override_senate_vote[:voted_at]
-  # end
-  
-  # if enacted_action = doc.at('//actions/enacted')
-  #   history[:enacted_at] = Utils.govtrack_time_for enacted_action['datetime']
-  #   history[:enacted] = true
-  # else
-  #   history[:enacted] = false
-  # end
-  
-  # passed = nil
-  # if concurring_vote = votes.select {|vote| vote[:passage_type] == 'vote2'}.last
-  #   if concurring_vote[:result] == 'pass' and state !~ /PASS_BACK/
-  #     passed = true
-  #   else
-  #     passed = false
-  #   end
-  # else
-  #   passed = false
-  # end
-  
-  # # finally, set the awaiting_signature flag, inferring it from the details above
-  # topresident_action = doc.search('//actions/topresident').last
-  # if (not history['vetoed']) and (not history['enacted'])
-  #   history[:awaiting_signature_since] = Utils.govtrack_time_for topresident_action['datetime']
-  #   history[:awaiting_signature] = true
-  # else:
-  #   history[:awaiting_signature] = false
+  topresident = None
+  for action in actions:
+    if action['type'] == 'topresident':
+      topresident = action
+  if topresident and (not history['vetoed']) and (not history['enacted']):
+    history['awaiting_signature'] = True
+    history['awaiting_signature_since'] = action['acted_at']
+  else:
+    history['awaiting_signature'] = False
 
   return history
 
@@ -499,7 +508,7 @@ def parse_bill_action(line, prev_state, bill_type, title):
     roll = None
     m = re.search(r"\((Roll no\.|Record Vote No:) (\d+)\)", how, re.I)
     if m != None:
-      how = "roll"
+      how = "roll" # normalize the ugly how
       roll = m.group(2)
 
     suspension = None
