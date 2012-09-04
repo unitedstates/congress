@@ -53,9 +53,10 @@ def parse_bill(bill_id, body, options):
   titles = titles_for(body)
   actions = actions_for(body)
   related_bills = related_bills_for(body, congress)
-  subjects = subjects_for(body, bill_id)
+  subjects = subjects_for(body)
   # committees = committees_for(body)
   # amendments = amendments_for(body)
+
 
   # post-processing and normalization
 
@@ -95,7 +96,6 @@ def parse_bill(bill_id, body, options):
     'related_bills': related_bills,
     # 'committees': committees,
     # 'amendments': amendments,
-    # 'subjects': subjects,
 
     'updated_at': datetime.datetime.fromtimestamp(time.time()),
   }
@@ -363,15 +363,13 @@ def cosponsors_for(body):
 
   return cosponsors
 
-def subjects_for(body, bill_id):
+def subjects_for(body):
   doc = fromstring(body)
   subjects = []
   for meta in doc.cssselect('meta'):
     if meta.get('name') == 'dc.subject':
-      subjects.append({
-        'bill_id': bill_id,
-        'subject': meta.get('content')
-      })
+      subjects.append(meta.get('content'))
+  subjects.sort()
       
   return subjects
 
