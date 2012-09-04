@@ -41,6 +41,10 @@ def fetch_bill(bill_id, options):
   # 2) there are > 150 amendments, use undocumented amendments list (~5-10 bills a session)
   #     e.g. hr3590-111, sconres13-111, s3240-112
   if "</html>" not in body:
+    log("[%s] Main page truncated, fetching many pages..." % bill_id)
+    bill = parse_bill_split(bill_id, body, options)
+  elif too_many_amendments(body):
+    log("[%s] Too many amendments, fetching many pages..." % bill_id)
     bill = parse_bill_split(bill_id, body, options)
   else:
     bill = parse_bill(bill_id, body, options)
@@ -217,9 +221,12 @@ def sponsor_for(body):
     raise Exception("Choked finding sponsor information.")
 
 def summary_for(body):
-  match = re.search("SUMMARY AS OF:</a></b>(.*?)<hr", body, re.S)
+  match = re.search("SUMMARY AS OF:</a></b>(.*?)(?:<hr|<div id=\"footer\">)", body, re.S)
   if not match:
-    return None # expected when no summary
+    if re.search("<b>SUMMARY:</b><p>\*\*\*NONE\*\*\*", body, re.I):
+      return None # expected when no summary
+    else:
+      raise Exception("Choked finding summary.")
 
   text = match.group(1).strip()
 
@@ -403,7 +410,7 @@ def introduced_at_for(body):
 
 
 def cosponsors_for(body):
-  match = re.search("COSPONSORS\((\d+)\).*?<p>(?:</br>)?(.*?)(?:</br>)?<hr", body, re.S)
+  match = re.search("COSPONSORS\((\d+)\).*?<p>(?:</br>)?(.*?)(?:</br>)?(?:<hr|<div id=\"footer\">)", body, re.S)
   if not match:
     none = re.search("COSPONSOR\(S\):</b></a><p>\*\*\*NONE\*\*\*", body)
     if none:
@@ -421,6 +428,10 @@ def cosponsors_for(body):
 
   lines = re.compile("<br ?/>").split(text)
   for line in lines:
+    # can happen on stand-alone cosponsor pages
+    if line.strip() == "</div>":
+      continue
+
     m = re.search(r"<a href=[^>]+(\d{5}).*>(Rep|Sen) (.+?)</a> \[([A-Z\d\-]+)\]\s*- (\d\d?/\d\d?/\d\d\d\d)(?:\(withdrawn - (\d\d?/\d\d?/\d\d\d\d)\))?", line, re.I)
     if not m:
       raise Exception("Choked scanning cosponsor line: %s" % line)
@@ -886,6 +897,15 @@ def new_state_after_vote(vote_type, passed, chamber, bill_type, suspension, amen
           return 'CONFERENCE:PASSED:SENATE'
       
   return None
+
+# are there at least 150 amendments listed in this body? a quick tally
+# not the end of the world if it's wrong once in a great while, it just sparks
+# a less efficient way of gathering this bill's data
+def too_many_amendments(body):
+  # example:
+  # "<b>150.</b> <a href="/cgi-bin/bdquery/z?d111:SP02937:">S.AMDT.2937 </a> to <a href="/cgi-bin/bdquery/z?d111:HR03590:">H.R.3590</a>"
+  amendments = re.findall("(<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(SP|HZ)\d+:\">(S|H)\.AMDT\.\d+\s*</a> to )", body, re.I)
+  return (len(amendments) >= 150)
 
 def output_for_bill(bill_id, format):
   bill_type, number, congress = utils.split_bill_id(bill_id)
