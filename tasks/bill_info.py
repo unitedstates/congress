@@ -23,19 +23,28 @@ def run(options):
 def fetch_bill(bill_id, options):
   log("\n[%s] Fetching..." % bill_id)
 
+
   body = utils.download(
     bill_url_for(bill_id), 
     bill_cache_for(bill_id, "information.html"),
     options.get('force', False))
 
+  body = utils.unescape(body)
+
+
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
-  body = utils.unescape(body)
+  # two conditions where we want to parse the bill from multiple pages instead of one:
+  # 1) the all info page is truncated (~5-10 bills a session)
+  #     e.g. s1867-112, hr2112-112, s3240-112
+  # 2) there are > 150 amendments, use undocumented amendments list (~5-10 bills a session)
+  #     e.g. hr3590-111, sconres13-111, s3240-112
   if "</html>" not in body:
-    return {'saved': False, 'ok': False, 'reason': "page was truncated"}
-  
-  bill = parse_bill(bill_id, body, options)
+    bill = parse_bill_split(bill_id, body, options)
+  else:
+    bill = parse_bill(bill_id, body, options)
+
   output_bill(bill, options)
 
   return {'ok': True, 'saved': True}
@@ -44,8 +53,7 @@ def fetch_bill(bill_id, options):
 def parse_bill(bill_id, body, options):
   bill_type, number, congress = utils.split_bill_id(bill_id)
 
-  # do all the raw html parsing
-
+  # parse everything out of the All Information page
   introduced_at = introduced_at_for(body)
   sponsor = sponsor_for(body)
   cosponsors = cosponsors_for(body)
@@ -54,11 +62,74 @@ def parse_bill(bill_id, body, options):
   actions = actions_for(body)
   related_bills = related_bills_for(body, congress)
   subjects = subjects_for(body)
-  # committees = committees_for(body)
-  # amendments = amendments_for(body)
+  committees = [] # committees_for(body)
+  amendments = [] # amendments_for(body)
+
+  return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
+    summary, titles, actions, related_bills, subjects, committees, amendments)
 
 
-  # post-processing and normalization
+# parse information pieced together from various pages
+def parse_bill_split(bill_id, body, options):
+  bill_type, number, congress = utils.split_bill_id(bill_id)
+
+  # get some info out of the All Info page, since we already have it
+  introduced_at = introduced_at_for(body)
+  sponsor = sponsor_for(body)
+  subjects = subjects_for(body)
+
+  # cosponsors page
+  cosponsors_body = utils.download(
+    bill_url_for(bill_id, "P"), 
+    bill_cache_for(bill_id, "cosponsors.html"),
+    options.get('force', False))
+  cosponsors_body = utils.unescape(cosponsors_body)
+  cosponsors = cosponsors_for(cosponsors_body)
+
+  # summary page
+  summary_body = utils.download(
+    bill_url_for(bill_id, "D"), 
+    bill_cache_for(bill_id, "summary.html"),
+    options.get('force', False))
+  summary_body = utils.unescape(summary_body)
+  summary = summary_for(summary_body)
+
+  # titles page
+  titles_body = utils.download(
+    bill_url_for(bill_id, "T"), 
+    bill_cache_for(bill_id, "titles.html"),
+    options.get('force', False))
+  titles_body = utils.unescape(titles_body)
+  titles = titles_for(titles_body)
+
+  # actions page
+  actions_body = utils.download(
+    bill_url_for(bill_id, "X"), 
+    bill_cache_for(bill_id, "actions.html"),
+    options.get('force', False))
+  actions_body = utils.unescape(actions_body)
+  actions = actions_for(actions_body)
+
+  related_bills_body = utils.download(
+    bill_url_for(bill_id, "K"), 
+    bill_cache_for(bill_id, "related_bills.html"),
+    options.get('force', False))
+  related_bills_body = utils.unescape(related_bills_body)
+  related_bills = related_bills_for(related_bills_body, congress)
+  
+  committees = [] # committees_for(body)
+  amendments = [] # amendments_for(body)
+
+  return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
+    summary, titles, actions, related_bills, subjects, committees, amendments)
+
+
+# take the initial parsed content, extract more information, assemble output data
+def process_bill(bill_id, options,
+  introduced_at, sponsor, cosponsors, 
+  summary, titles, actions, related_bills, subjects, committees, amendments):
+  
+  bill_type, number, congress = utils.split_bill_id(bill_id)
 
   # for convenience: extract out current title of each type
   official_title = current_title_for(titles, "official")
@@ -168,7 +239,7 @@ def summary_for(body):
 
 
 def titles_for(body):
-  match = re.search("TITLE\(S\):<.*?<ul>.*?<p><li>(.*?)<hr", body, re.I | re.S)
+  match = re.search("TITLE\(S\):<.*?<ul>.*?<p><li>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
   if not match:
     raise Exception("Couldn't find titles section.")
 
@@ -242,7 +313,7 @@ def current_title_for(titles, type):
 
 
 def actions_for(body):
-  match = re.search(">ALL ACTIONS:<.*?<dl>(.*?)<hr", body, re.I | re.S)
+  match = re.search(">ALL ACTIONS:<.*?<dl>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
   if not match:
     if re.search("ALL ACTIONS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
       return [] # no actions, can happen for bills reserved for the Speaker
@@ -388,7 +459,7 @@ def subjects_for(body):
   return subjects
 
 def related_bills_for(body, congress):
-  match = re.search("RELATED BILL DETAILS.*?<p>.*?<table border=\"0\">(.*?)<hr", body, re.S)
+  match = re.search("RELATED BILL DETAILS.*?<p>.*?<table border=\"0\">(.*?)(?:<hr|<div id=\"footer\">)", body, re.S)
   if not match:
     if re.search("RELATED BILL DETAILS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
       return []
@@ -820,11 +891,11 @@ def output_for_bill(bill_id, format):
   bill_type, number, congress = utils.split_bill_id(bill_id)
   return "data/bills/%s/%s/%s%s/%s" % (congress, bill_type, bill_type, number, "data.%s" % format)
 
-# "All Information" page for a bill
-def bill_url_for(bill_id):
+# defaults to "All Information" page for a bill
+def bill_url_for(bill_id, page = "L"):
   bill_type, number, congress = utils.split_bill_id(bill_id)
   thomas_type = utils.thomas_types[bill_type][0]
-  return "http://thomas.loc.gov/cgi-bin/bdquery/z?d%s:%s%s:@@@L&summ2=m&" % (congress, thomas_type, number)
+  return "http://thomas.loc.gov/cgi-bin/bdquery/z?d%s:%s%s:@@@%s&summ2=m&" % (congress, thomas_type, number, page)
 
 def bill_cache_for(bill_id, file):
   bill_type, number, congress = utils.split_bill_id(bill_id)
