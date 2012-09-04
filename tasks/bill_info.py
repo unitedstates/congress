@@ -63,7 +63,7 @@ def parse_bill(bill_id, body, options):
   # current_title = current_title_for(titles)
 
   # add metadata to each action, establish current state
-  actions, state = decipher_timeline(actions, bill_type, titles[-1])
+  actions, state = process_actions(actions, bill_type, titles[-1])
 
   # pull out some very useful history information from the actions
   history = history_from_actions(actions)
@@ -371,7 +371,7 @@ def related_bills_for(body, session):
 
 # given the parsed list of actions from actions_for, run each action
 # through metadata extraction and figure out what current state the bill is in
-def decipher_timeline(actions, bill_type, title):
+def process_actions(actions, bill_type, title):
   
   state = "INTRODUCED" # every bill is at least introduced
   new_actions = []
@@ -384,8 +384,10 @@ def decipher_timeline(actions, bill_type, title):
       state = new_state
       new_action['state'] = new_state
 
-    action.update(new_action)
-    new_actions.append(action)
+    # an action can opt-out of inclusion altogether
+    if new_action:
+      action.update(new_action)
+      new_actions.append(action)
 
   return new_actions, state
 
@@ -527,7 +529,8 @@ def parse_bill_action(line, prev_state, bill_type, title):
     new_state = new_state_after_vote(vote_type, pass_fail=="pass", "h", bill_type, suspension, as_amended, title, prev_state)
     if new_state:
       state = new_state
-      
+    
+  # Passed House, not necessarily by an actual vote (think "deem")
   m = re.search(r"Passed House pursuant to", line, re.I)
   if m != None:
     vote_type = "vote" if (bill_type[0] == "h") else "vote2"
