@@ -65,7 +65,7 @@ def parse_bill(bill_id, body, options):
   popular_title = current_title_for(titles, "popular")
 
   # add metadata to each action, establish current state
-  actions, state = process_actions(actions, bill_id, titles[-1])
+  actions, state = process_actions(actions, bill_id, official_title)
 
   # pull out some very useful history information from the actions
   history = history_from_actions(actions)
