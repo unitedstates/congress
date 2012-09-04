@@ -46,7 +46,7 @@ def parse_bill(bill_id, body, options):
 
   # do all the raw html parsing
 
-  # introduced_at = introduced_at_for(body)
+  introduced_at = introduced_at_for(body)
   sponsor = sponsor_for(body)
   cosponsors = cosponsors_for(body)
   summary = summary_for(body)
@@ -77,7 +77,7 @@ def parse_bill(bill_id, body, options):
     'number': number,
     'congress': congress,
 
-    # 'introduced_at': introduced_at,
+    'introduced_at': introduced_at,
     'sponsor': sponsor,
     'cosponsors': cosponsors,
 
@@ -317,6 +317,20 @@ def action_for(text):
 
   return text, considerations
 
+def introduced_at_for(body):
+  doc = fromstring(body)
+  
+  introduced_at = None
+  for meta in doc.cssselect('meta'):
+    if meta.get('name') == 'dc.date':
+      introduced_at = meta.get('content')
+  
+  if not introduced_at:
+    raise Exception("Couldn't find an introduction date in the meta tags.")
+
+  return datetime.datetime.strptime(introduced_at, "%Y-%m-%d")
+
+
 def cosponsors_for(body):
   match = re.search("COSPONSORS\((\d+)\).*?<p>(?:</br>)?(.*?)(?:</br>)?<hr", body, re.S)
   if not match:
@@ -324,7 +338,7 @@ def cosponsors_for(body):
     if none:
       return [] # no cosponsors, it happens, nothing to be ashamed of
     else:
-      raise Exception("Choked finding cosponsors section")
+      raise Exception("Choked finding cosponsors section.")
 
   count = match.group(1)
   text = match.group(2)
