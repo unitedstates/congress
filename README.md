@@ -3,7 +3,12 @@ Scraping THOMAS.gov
 
 An experimental public domain scraper for the THOMAS legislative information system managed by the Library of Congress.
 
-Currently: fetches some basic information on bills.
+Currently:
+
+* Fetches and parses HTML for almost all information on bills. (Everything but related committees.)
+* Parses the semantics of Congressional action into metadata and vote outcomes.
+* Tracks the past and present state of a bill.
+* Includes a suite of unit tests for action semantics and state tracking.
 
 
 Using
@@ -65,7 +70,6 @@ Just about everything. More data:
 
 And general improvements:
 
-* Some basic unit testing for various situations and corner cases
 * Hasn't been yet run over THOMAS' entire contents
 * Data quality checks
 * Use a proper command line flag parser, and syntax
