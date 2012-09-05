@@ -1,7 +1,6 @@
 import utils
 from utils import log
 import re
-from pyquery import PyQuery as pq
 import json
 from lxml import etree
 import time, datetime
