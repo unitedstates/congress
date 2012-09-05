@@ -36,15 +36,18 @@ def fetch_bill(bill_id, options):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
   # two conditions where we want to parse the bill from multiple pages instead of one:
-  # 1) the all info page is truncated (~5-10 bills a session)
+  # 1) the all info page is truncated (~5-10 bills a congress)
   #     e.g. s1867-112, hr2112-112, s3240-112
-  # 2) there are > 150 amendments, use undocumented amendments list (~5-10 bills a session)
+  # 2) there are > 150 amendments, use undocumented amendments list (~5-10 bills a congress)
   #     e.g. hr3590-111, sconres13-111, s3240-112
   if "</html>" not in body:
     log("[%s] Main page truncated, fetching many pages..." % bill_id)
     bill = parse_bill_split(bill_id, body, options)
   elif too_many_amendments(body):
     log("[%s] Too many amendments, fetching many pages..." % bill_id)
+    bill = parse_bill_split(bill_id, body, options)
+  elif options.get('force_split', False):
+    log("[%s] Forcing a split, fetching many pages..." % bill_id)
     bill = parse_bill_split(bill_id, body, options)
   else:
     bill = parse_bill(bill_id, body, options)
@@ -67,7 +70,7 @@ def parse_bill(bill_id, body, options):
   related_bills = related_bills_for(body, congress)
   subjects = subjects_for(body)
   committees = [] # committees_for(body)
-  amendments = [] # amendments_for(body)
+  amendments = amendments_for(body, bill_id)
 
   return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
     summary, titles, actions, related_bills, subjects, committees, amendments)
@@ -121,8 +124,14 @@ def parse_bill_split(bill_id, body, options):
   related_bills_body = utils.unescape(related_bills_body)
   related_bills = related_bills_for(related_bills_body, congress)
   
+  amendments_body = utils.download(
+    bill_url_for(bill_id, "A"), 
+    bill_cache_for(bill_id, "amendments.html"),
+    options.get('force', False))
+  amendments_body = utils.unescape(amendments_body)
+  amendments = amendments_for_standalone(amendments_body, bill_id)
+
   committees = [] # committees_for(body)
-  amendments = [] # amendments_for(body)
 
   return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
     summary, titles, actions, related_bills, subjects, committees, amendments)
@@ -170,7 +179,7 @@ def process_bill(bill_id, options,
 
     'related_bills': related_bills,
     # 'committees': committees,
-    # 'amendments': amendments,
+    'amendments': amendments,
 
     'updated_at': datetime.datetime.fromtimestamp(time.time()),
   }
@@ -899,6 +908,45 @@ def new_state_after_vote(vote_type, passed, chamber, bill_type, suspension, amen
           return 'CONFERENCE:PASSED:SENATE'
       
   return None
+
+# parse amendments out of undocumented standalone amendments page
+def amendments_for_standalone(body, bill_id):
+  bill_type, number, congress = utils.split_bill_id(bill_id)
+
+  amendments = []
+
+  for chamber, number in re.findall("<a href=\"/cgi-bin/bdquery/z\?d\d+:(?:SP|HZ)\d+:\">(S|H)\.AMDT\.(\d+)</a>", body, re.I):
+    chamber = chamber.lower()
+    amendments.append({
+      'chamber': chamber,
+      'number': number,
+      'amendment_id': "%s%s-%s" % (chamber, number, congress)
+    })
+
+  if len(amendments) == 0:
+    if not re.search("AMENDMENT\(S\):((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
+      raise Exception("Couldn't find amendments section.")
+
+  return amendments
+
+def amendments_for(body, bill_id):
+  bill_type, number, congress = utils.split_bill_id(bill_id)
+
+  amendments = []
+
+  for chamber, number in re.findall("<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(?:SP|HZ)\d+:\">(S|H)\.AMDT\.(\d+)\s*</a> to ", body, re.I):
+    chamber = chamber.lower()
+    amendments.append({
+      'chamber': chamber,
+      'number': number,
+      'amendment_id': "%s%s-%s" % (chamber, number, congress)
+    })
+
+  if len(amendments) == 0:
+    if not re.search("AMENDMENT\(S\):((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
+      raise Exception("Couldn't find amendments section.")
+
+  return amendments
 
 # are there at least 150 amendments listed in this body? a quick tally
 # not the end of the world if it's wrong once in a great while, it just sparks
