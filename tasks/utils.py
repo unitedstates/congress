@@ -44,13 +44,13 @@ def download(url, destination, force=False):
       log("Downloading: %s" % url)
       response = urllib2.urlopen(url)
       body = response.read()
-    except socket.timeout, e:
+    except (socket.gaierror, socket.timeout), e:
       try:
         log("Timeout, re-downloading: %s" % url)
         time.sleep(2)
         response = urllib2.urlopen(url)
         body = response.read()
-      except (URLError, socket.timeout), e:
+      except (URLError, socket.gaierror, socket.timeout), e:
         log(e.reason)
         return None      
 
