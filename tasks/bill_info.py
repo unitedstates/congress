@@ -217,10 +217,14 @@ def sponsor_for(body):
       else:
         state, district = match.group(4), None
       
-      thomas_id = int(match.group(2))
+      thomas_id = str(int(match.group(2)))
+
+      name = match.group(3).strip()
+      title, name = re.search("^(Rep|Sen|Del|Com)\.? (.*?)$", name).groups()
 
       return {
-        'name': match.group(3),
+        'title': title,
+        'name': name,
         'thomas_id': thomas_id, 
         'state': state, 
         'district': district
@@ -461,7 +465,7 @@ def cosponsors_for(body):
       withdrawn_date = datetime.datetime.strftime(withdrawn_date, "%Y-%m-%d")
 
     cosponsors.append({
-      'thomas_id': int(thomas_id),
+      'thomas_id': str(int(thomas_id)),
       'title': title,
       'name': name,
       'state': state,
@@ -505,7 +509,16 @@ def related_bills_for(body, congress):
     bill_code, reason = m.groups()
 
     bill_id = "%s-%s" % (bill_code.lower().replace(".", "").replace(" ", ""), congress)
-    reason = re.sub("^Related bill (as )?", "", reason)
+    
+    reasons = {
+      "Identical bill identified by CRS": "identical",
+      "Related bill identified by CRS": "related",
+      "Related bill as identified by the House Clerk's office": "related",
+      "passed in House in lieu of this bill": "supersedes",
+      "passed in Senate in lieu of this bill": "supersedes",
+    }
+
+    reason = reasons.get(reason.strip(), "unknown")
 
     related_bills.append({
       'bill_id': bill_id,
