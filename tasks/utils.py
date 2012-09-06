@@ -19,6 +19,12 @@ def log(object):
   else:
     pprint.pprint(object)
 
+def format_datetime(obj):
+  if isinstance(obj, datetime.datetime):
+    return obj.replace(microsecond=0, tzinfo=timezone("US/Eastern")).isoformat()
+  else:
+    return None
+
 def EST():
   return tz.gettz("America/New_York")
 
@@ -106,12 +112,6 @@ def xpath_regex(doc, element, pattern):
   return doc.xpath(
     "//%s[re:match(text(), '%s')]" % (element, pattern), 
     namespaces={"re": "http://exslt.org/regular-expressions"})
-
-def format_datetime(obj):
-  if isinstance(obj, datetime.datetime):
-    return obj.replace(microsecond=0, tzinfo=timezone("US/Eastern")).isoformat()
-  else:
-    return None
 
 # taken from http://effbot.org/zone/re-sub.htm#unescape-html
 def unescape(text):

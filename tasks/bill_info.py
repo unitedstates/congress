@@ -355,6 +355,7 @@ def actions_for(body):
       action_time = datetime.datetime.strptime(timestamp, "%m/%d/%Y %I:%M%p")
     else:
       action_time = datetime.datetime.strptime(timestamp, "%m/%d/%Y")
+      action_time = datetime.datetime.strftime(action_time, "%Y-%m-%d")
 
     cleaned_text, considerations = action_for(text)
 
@@ -414,7 +415,9 @@ def introduced_at_for(body):
   if not introduced_at:
     raise Exception("Couldn't find an introduction date in the meta tags.")
 
-  return datetime.datetime.strptime(introduced_at, "%Y-%m-%d")
+  # maybe silly to parse and re-serialize, but I'd like to make explicit the format we publish dates in
+  parsed = datetime.datetime.strptime(introduced_at, "%Y-%m-%d")
+  return datetime.datetime.strftime(parsed, "%Y-%m-%d")
 
 
 def cosponsors_for(body):
@@ -452,8 +455,10 @@ def cosponsors_for(body):
         state, district_number = district, None
 
     join_date = datetime.datetime.strptime(join_date, "%m/%d/%Y")
+    join_date = datetime.datetime.strftime(join_date, "%Y-%m-%d")
     if withdrawn_date:
       withdrawn_date = datetime.datetime.strptime(withdrawn_date, "%m/%d/%Y")
+      withdrawn_date = datetime.datetime.strftime(withdrawn_date, "%Y-%m-%d")
 
     cosponsors.append({
       'thomas_id': int(thomas_id),
