@@ -27,4 +27,10 @@ for arg in args:
 
 # depends on tasks/[task_name].py being present relative to this directory
 sys.path.append("tasks")
-__import__(task_name).run(options)
+import utils
+
+try:
+  raise Exception("OK!")
+  __import__(task_name).run(options)
+except Exception as exception:
+  utils.admin(exception)

@@ -2,3 +2,4 @@
 /cache
 /data
 *.pyc
+/config.yml

@@ -1,22 +1,23 @@
-import os, errno, socket
+import os, errno, sys, traceback
 import time
 import re, htmlentitydefs
 import iso8601
 from dateutil import tz
+import yaml
 from pytz import timezone
 import datetime, time
 from lxml import html
-
-import urllib
-import urllib2
-from urllib2 import HTTPError, URLError
-
 import scrapelib
-
 import pprint
+
+import smtplib
+import email.utils
+from email.mime.text import MIMEText
+import getpass
 
 # scraper should be instantiated at class-load time, so that it can rate limit appropriately
 scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_attempts=3)
+
 
 def log(object):
   if isinstance(object, str):
@@ -69,16 +70,6 @@ def write(content, destination):
   f = open(destination, 'w')
   f.write(content)
   f.close()
-
-def fetch_html(url):
-  try:
-    log("Fetching: %s" % url)
-    response = urllib2.urlopen(url)
-    body = response.read()
-    return html.document_fromstring(body)
-  except URLError, e:
-    log(e.reason)
-    return None
 
 # de-dupe a list, taken from:
 # http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
@@ -140,6 +131,58 @@ def extract_bills(text, session):
         bill_ids.append(bill_text)
   
   return bill_ids
+
+# read in an opt-in config file for changing directories and supplying email settings
+# returns None if it's not there, and this should always be handled gracefully
+def config():
+  path = "config.yml"
+  if os.path.exists(path):
+    return yaml.load(open(path, 'r'))
+  else:
+    return None
+
+# if email settings are supplied, email the text - otherwise, just print it
+def admin(body):
+  if isinstance(body, Exception):
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    body = "\n".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+
+  details = config()
+  if details:
+    details = details.get('email', None)
+
+  if details:
+    send_email(body)
+  else:
+    log(body)
+
+# this should only be called if the settings are definitely there
+def send_email(message):
+  settings = config()['email']
+
+  # adapted from http://www.doughellmann.com/PyMOTW/smtplib/
+  msg = MIMEText(message)
+  msg.set_unixfrom('author')
+  msg['To'] = email.utils.formataddr(('Recipient', settings['to']))
+  msg['From'] = email.utils.formataddr(('Author', settings['from']))
+  msg['Subject'] = settings['subject']
+
+  server = smtplib.SMTP(settings['hostname'])
+  try:
+    # server.set_debuglevel(True)
+
+    server.ehlo()
+    if settings['starttls'] and server.has_extn('STARTTLS'):
+      server.starttls()
+      server.ehlo()
+
+    server.login(settings['user_name'], settings['password'])
+    server.sendmail(settings['from'], [settings['to']], msg.as_string())
+  finally:
+    server.quit()
+
+  log("Sent email to %s" % settings['to'])
+
 
 thomas_types = {
   'hr': ('HR', 'H.R.'),
