@@ -67,8 +67,12 @@ def download(url, destination, force=False):
       log("Downloading: %s" % url)
       response = scraper.urlopen(url)
       body = str(response)
-    except HTTPError as e:
-      log("Error downloading %s" % url)
+    except scrapelib.HTTPError as e:
+      log("Error downloading %s:\n\n%s" % (url, format_exception(e)))
+      return None
+
+    # don't allow 0-byte files
+    if (not body) or (not body.strip()):
       return None
 
     # cache content to disk
