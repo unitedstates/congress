@@ -1,0 +1,19 @@
+# output directories
+output:
+  cache:
+  data: 
+
+# email settings
+email: 
+  
+  # smtp details
+  hostname: 
+  port: 
+  user_name:
+  password: 
+  starttls: 
+
+  # email content
+  subject: "[THOMAS] Notice"
+  from: 
+  to: 
