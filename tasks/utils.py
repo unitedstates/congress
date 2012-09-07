@@ -200,8 +200,8 @@ def send_email(message):
   msg = MIMEText(message)
   msg.set_unixfrom('author')
   msg['To'] = email.utils.formataddr(('Recipient', settings['to']))
-  msg['From'] = email.utils.formataddr(('Author', settings['from']))
-  msg['Subject'] = settings['subject']
+  msg['From'] = email.utils.formataddr((settings['from_name'], settings['from']))
+  msg['Subject'] = "%s - %i" % (settings['subject'], int(time.time()))
 
   server = smtplib.SMTP(settings['hostname'])
   try:

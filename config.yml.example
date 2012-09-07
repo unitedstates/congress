@@ -16,4 +16,5 @@ email:
   # email content
   subject: "[THOMAS] Notice"
   from: 
+  from_name: 
   to: 
