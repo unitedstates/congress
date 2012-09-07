@@ -68,7 +68,7 @@ def parse_bill(bill_id, body, options):
   actions = actions_for(body)
   related_bills = related_bills_for(body, congress)
   subjects = subjects_for(body)
-  committees = [] # committees_for(body)
+  committees = committees_for(body)
   amendments = amendments_for(body, bill_id)
 
   return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
@@ -130,7 +130,12 @@ def parse_bill_split(bill_id, body, options):
   amendments_body = utils.unescape(amendments_body)
   amendments = amendments_for_standalone(amendments_body, bill_id)
 
-  committees = [] # committees_for(body)
+  committees_body = utils.download(
+    bill_url_for(bill_id, "C"), 
+    bill_cache_for(bill_id, "committees.html"),
+    options.get('force', False))
+  committees_body = utils.unescape(committees_body)
+  committees = committees_for(committees_body)
 
   return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
     summary, titles, actions, related_bills, subjects, committees, amendments)
@@ -177,7 +182,7 @@ def process_bill(bill_id, options,
     'subjects': subjects,
 
     'related_bills': related_bills,
-    # 'committees': committees,
+    'committees': committees,
     'amendments': amendments,
 
     'updated_at': datetime.datetime.fromtimestamp(time.time()),
@@ -186,7 +191,7 @@ def process_bill(bill_id, options,
 def output_bill(bill, options):
   log("[%s] Writing to disk..." % bill['bill_id'])
 
-  # output JSON
+  # output JSON - so easy!
   utils.write(
     json.dumps(bill, sort_keys=True, indent=2, default=utils.format_datetime), 
     output_for_bill(bill['bill_id'], "json")
@@ -256,6 +261,12 @@ def summary_for(body):
   
   return text
 
+def committees_for(body):
+  # match = re.search("COMMITTEE\(S\):<.*?<ul>.*?<p><li>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
+
+  # <tr><td colspan=2><a href="/cgi-bin/bdquery/R?d112:FLD005:@3(House+Energy+and+Commerce)">House Energy and Commerce</a> </td><td width="65%">Referral</td></tr>
+  # <td width="30%"><a href="/cgi-bin/bdquery/R?d112:FLD005:@3(House+Health)">Subcommittee on  Health</a></td><td width="65%">Referral</td></tr>
+  pass
 
 def titles_for(body):
   match = re.search("TITLE\(S\):<.*?<ul>.*?<p><li>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)

@@ -11,7 +11,12 @@ import urllib
 import urllib2
 from urllib2 import HTTPError, URLError
 
+import scrapelib
+
 import pprint
+
+# scraper should be instantiated at class-load time, so that it can rate limit appropriately
+scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_attempts=3)
 
 def log(object):
   if isinstance(object, str):
@@ -48,27 +53,14 @@ def download(url, destination, force=False):
   else:
     try:
       log("Downloading: %s" % url)
-      response = urllib2.urlopen(url)
-      body = response.read()
-    except (socket.gaierror, socket.timeout), e:
-      try:
-        log("Timeout, re-downloading: %s" % url)
-        time.sleep(2)
-        response = urllib2.urlopen(url)
-        body = response.read()
-      except (URLError, socket.gaierror, socket.timeout), e:
-        log(e.reason)
-        return None      
-
-    except URLError, e:
-      log(e.reason)
+      response = scraper.urlopen(url)
+      body = str(response)
+    except HTTPError as e:
+      log("Error downloading %s" % url)
       return None
 
     # cache content to disk
     write(body, cache)
-
-    # rate-limit but only if we used the network
-    time.sleep(0.5)
 
   return body
 
