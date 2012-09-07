@@ -143,18 +143,21 @@ def config():
 
 # if email settings are supplied, email the text - otherwise, just print it
 def admin(body):
-  if isinstance(body, Exception):
-    exc_type, exc_value, exc_traceback = sys.exc_info()
-    body = "\n".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+  try:
+    if isinstance(body, Exception):
+      exc_type, exc_value, exc_traceback = sys.exc_info()
+      body = "\n".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
 
-  details = config()
-  if details:
-    details = details.get('email', None)
+    details = config()
+    if details:
+      details = details.get('email', None)
 
-  if details:
-    send_email(body)
-  else:
-    log(body)
+    if details:
+      send_email(body)
+    else:
+      log(body)
+  except:
+    print "Exception logging message to admin, halting as to avoid loop"
 
 # this should only be called if the settings are definitely there
 def send_email(message):
