@@ -33,9 +33,12 @@ def fetch_bill(bill_id, options):
 
   body = utils.unescape(body)
 
-
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
+
+  if reserved_for_speaker(body):
+    log("[%s] Reserved for the speaker, not a real bill, skipping..." % bill_id)
+    return {'saved': False, 'ok': True, 'reason': "reserved for the speaker"}
 
   # two conditions where we want to parse the bill from multiple pages instead of one:
   # 1) the all info page is truncated (~5-10 bills a congress)
@@ -987,6 +990,14 @@ def too_many_amendments(body):
   # "<b>150.</b> <a href="/cgi-bin/bdquery/z?d111:SP02937:">S.AMDT.2937 </a> to <a href="/cgi-bin/bdquery/z?d111:HR03590:">H.R.3590</a>"
   amendments = re.findall("(<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(SP|HZ)\d+:\">(S|H)\.AMDT\.\d+\s*</a> to )", body, re.I)
   return (len(amendments) >= 150)
+
+# bills reserved for the speaker are not actual legislation, 
+# just markers that the number will not be used for ordinary members' bills
+def reserved_for_speaker(body):
+  if re.search("OFFICIAL TITLE AS INTRODUCED:((?:(?!\<hr).)+)Reserved for the Speaker", body, re.S | re.I):
+    return True
+  else:
+    return False
 
 def output_for_bill(bill_id, format):
   bill_type, number, congress = utils.split_bill_id(bill_id)
