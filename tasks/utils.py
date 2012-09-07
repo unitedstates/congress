@@ -15,6 +15,16 @@ import email.utils
 from email.mime.text import MIMEText
 import getpass
 
+
+# read in an opt-in config file for changing directories and supplying email settings
+# returns None if it's not there, and this should always be handled gracefully
+path = "config.yml"
+if os.path.exists(path):
+  config = yaml.load(open(path, 'r'))
+else:
+  config = None
+
+
 # scraper should be instantiated at class-load time, so that it can rate limit appropriately
 scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_attempts=3)
 
@@ -46,7 +56,8 @@ def split_bill_id(bill_id):
   return re.match("^([a-z]+)(\d+)-(\d+)$", bill_id).groups()
 
 def download(url, destination, force=False):
-  cache = "cache/%s" % destination
+  cache = os.path.join(cache_dir(), destination)
+
   if not force and os.path.exists(cache):
     log("Cached: (%s, %s)" % (cache, url))
     with open(cache, 'r') as f:
@@ -132,36 +143,58 @@ def extract_bills(text, session):
   
   return bill_ids
 
-# read in an opt-in config file for changing directories and supplying email settings
-# returns None if it's not there, and this should always be handled gracefully
-def config():
-  path = "config.yml"
-  if os.path.exists(path):
-    return yaml.load(open(path, 'r'))
-  else:
-    return None
+# uses config values if present
+def cache_dir():
+  cache = None
+
+  if config:
+    output = config.get('output', None)
+    if output:
+      cache = output.get('cache', None)
+
+  if not cache:
+    cache = "cache"
+
+  return cache
+
+# uses config values if present
+def data_dir():
+  data = None
+
+  if config:
+    output = config.get('output', None)
+    if output:
+      data = output.get('data', None)
+
+  if not data:
+    data = "data"
+
+  return data
 
 # if email settings are supplied, email the text - otherwise, just print it
 def admin(body):
   try:
     if isinstance(body, Exception):
-      exc_type, exc_value, exc_traceback = sys.exc_info()
-      body = "\n".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+      body = format_exception(body)
 
-    details = config()
-    if details:
-      details = details.get('email', None)
+    log(body) # always print it
 
-    if details:
-      send_email(body)
-    else:
-      log(body)
-  except:
+    if config:
+      details = config.get('email', None)
+      if details:
+        send_email(body)
+    
+  except Exception as exception:
     print "Exception logging message to admin, halting as to avoid loop"
+    print format_exception(exception)
+
+def format_exception(exception):
+  exc_type, exc_value, exc_traceback = sys.exc_info()
+  return "\n".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
 
 # this should only be called if the settings are definitely there
 def send_email(message):
-  settings = config()['email']
+  settings = config['email']
 
   # adapted from http://www.doughellmann.com/PyMOTW/smtplib/
   msg = MIMEText(message)

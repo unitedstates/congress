@@ -1001,7 +1001,7 @@ def reserved_for_speaker(body):
 
 def output_for_bill(bill_id, format):
   bill_type, number, congress = utils.split_bill_id(bill_id)
-  return "data/bills/%s/%s/%s%s/%s" % (congress, bill_type, bill_type, number, "data.%s" % format)
+  return "%s/bills/%s/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, "data.%s" % format)
 
 # defaults to "All Information" page for a bill
 def bill_url_for(bill_id, page = "L"):
