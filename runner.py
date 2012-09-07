@@ -30,7 +30,6 @@ sys.path.append("tasks")
 import utils
 
 try:
-  raise Exception("OK!")
   __import__(task_name).run(options)
 except Exception as exception:
   utils.admin(exception)
