@@ -28,6 +28,9 @@ def fetch_bill(bill_id, options):
     bill_cache_for(bill_id, "information.html"),
     options.get('force', False))
 
+  if not body:
+    return {'saved': False, 'ok': False, 'reason': "failed to download"}
+
   body = utils.unescape(body)
 
 
