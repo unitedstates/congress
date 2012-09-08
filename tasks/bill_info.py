@@ -160,7 +160,7 @@ def process_bill(bill_id, options,
   popular_title = current_title_for(titles, "popular")
 
   # add metadata to each action, establish current state
-  actions, state = process_actions(actions, bill_id, official_title)
+  actions, state, state_date = process_actions(actions, bill_id, official_title, introduced_at)
 
   # pull out some very useful history information from the actions
   history = history_from_actions(actions)
@@ -178,6 +178,7 @@ def process_bill(bill_id, options,
     'actions': actions,
     'history': history,
     'state': state,
+    'state_at': state_date,
     
     'titles': titles,
     'official_title': official_title,
@@ -209,6 +210,38 @@ def output_bill(bill, options):
   root.set("type", bill['bill_type'])
   root.set("number", bill['number'])
   root.set("updated", utils.format_datetime(bill['updated_at']))
+  
+  def make_node(parent, tag, text, **attrs):
+  	  n = etree.Element(tag)
+  	  parent.append(n)
+  	  n.text = text
+  	  for k, v in attrs.items():
+  	  	  if v:
+  	  	  	  n.set(k.replace("___", ""), v)
+	  return n
+  
+  make_node(root, "state", bill['state'], datetime=bill['state_at'])
+  make_node(root, "introduced", None, datetime=bill['introduced_at'])
+  titles = make_node(root, "titles", None)
+  for title in bill['titles']:
+  	  make_node(titles, "title", title['title'], type=title['type'], ___as=title['as']) # ___ to avoid a Python keyword
+  make_node(root, "sponsor", None, **bill['sponsor'])
+  cosponsors = make_node(root, "cosponsors", None)
+  for cosp in bill['cosponsors']:
+  	  make_node(cosponsors, "cosponsor", None, **cosp)
+  actions = make_node(root, "actions", None)
+  for action in bill['actions']:
+  	  a = make_node(actions, action['type'], None, datetime=action['acted_at'])
+  	  if action.get('text'): make_node(a, "text", action['text'])
+  	  if action.get('committee'): make_node(a, "committee", None, name=action['committee'])
+  	  for cr in action['considerations']:
+  	  	  make_node(a, "consideration", cr)
+  # TODO committees, related bills
+  subjects = make_node(root, "subjects", None)
+  for s in bill['subjects']: # top term?
+  	  make_node(subjects, "term", None, name=s)
+  # TODO amendments
+  if bill.get('summary'): make_node(root, "summary", bill['summary'])
 
   utils.write(
     etree.tostring(root, pretty_print=True),
@@ -547,9 +580,10 @@ def related_bills_for(body, congress):
 
 # given the parsed list of actions from actions_for, run each action
 # through metadata extraction and figure out what current state the bill is in
-def process_actions(actions, bill_id, title):
+def process_actions(actions, bill_id, title, introduced_date):
   
   state = "INTRODUCED" # every bill is at least introduced
+  state_date = introduced_date
   new_actions = []
 
   for action in actions:
@@ -558,6 +592,7 @@ def process_actions(actions, bill_id, title):
     # only change/reflect state change if there was one
     if new_state:
       state = new_state
+      state_date = action["acted_at"]
       new_action['state'] = new_state
 
     # an action can opt-out of inclusion altogether
@@ -565,7 +600,7 @@ def process_actions(actions, bill_id, title):
       action.update(new_action)
       new_actions.append(action)
 
-  return new_actions, state
+  return new_actions, state, state_date
 
 # look at the final set of processed actions and pull out the major historical events
 def history_from_actions(actions):
