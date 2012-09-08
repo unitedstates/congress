@@ -31,8 +31,6 @@ def fetch_bill(bill_id, options):
   if not body:
     return {'saved': False, 'ok': False, 'reason': "failed to download"}
 
-  body = utils.unescape(body)
-
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
@@ -354,9 +352,6 @@ def titles_for(body):
 
       if type == "popular":
         title = re.sub(ur"[\s\u00a0]\(identified.+?$", "", title)
-
-      # strip unicode control chars (appears in hjres735-112)
-      title = utils.clean_title(title)
 
       titles.append({
         'title': title.strip(),

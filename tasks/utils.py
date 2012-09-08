@@ -79,7 +79,7 @@ def download(url, destination, force=False):
     # cache content to disk
     write(body, cache)
 
-  return body
+  return unescape(body)
 
 def write(content, destination):
   mkdir_p(os.path.dirname(destination))
@@ -95,10 +95,6 @@ def uniq(seq):
     return [ x for x in seq if x not in seen and not seen_add(x)]
 
 import os, errno
-
-def clean_title(str):
-  remove_re = re.compile(u'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]')
-  return remove_re.sub('', str)
 
 # mdir -p in python, from:
 # http://stackoverflow.com/questions/600268/mkdir-p-functionality-in-python
@@ -118,6 +114,11 @@ def xpath_regex(doc, element, pattern):
 
 # taken from http://effbot.org/zone/re-sub.htm#unescape-html
 def unescape(text):
+
+  def remove_unicode_control(str):
+    remove_re = re.compile(u'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]')
+    return remove_re.sub('', str)
+
   def fixup(m):
     text = m.group(0)
     if text[:2] == "&#":
@@ -136,7 +137,10 @@ def unescape(text):
       except KeyError:
         pass
     return text # leave as is
-  return re.sub("&#?\w+;", fixup, text)
+
+  text = re.sub("&#?\w+;", fixup, text)
+  text = remove_unicode_control(text)
+  return text
 
 def extract_bills(text, session):
   bill_ids = []
