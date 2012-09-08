@@ -226,7 +226,7 @@ def output_bill(bill, options):
   	  	  	  n.set(k.replace("___", ""), v)
 	  return n
   
-  make_node(root, "state", bill['state'], datetime=bill['state_at'])
+  make_node(root, "state", bill['state'], datetime=utils.format_datetime(bill['state_at']))
   make_node(root, "introduced", None, datetime=bill['introduced_at'])
   titles = make_node(root, "titles", None)
   for title in bill['titles']:
