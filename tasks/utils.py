@@ -96,6 +96,10 @@ def uniq(seq):
 
 import os, errno
 
+def clean_title(str):
+  remove_re = re.compile(u'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]')
+  return remove_re.sub('', str)
+
 # mdir -p in python, from:
 # http://stackoverflow.com/questions/600268/mkdir-p-functionality-in-python
 def mkdir_p(path):

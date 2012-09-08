@@ -355,6 +355,9 @@ def titles_for(body):
       if type == "popular":
         title = re.sub(ur"[\s\u00a0]\(identified.+?$", "", title)
 
+      # strip unicode control chars (appears in hjres735-112)
+      title = utils.clean_title(title)
+
       titles.append({
         'title': title.strip(),
         'as': state,
