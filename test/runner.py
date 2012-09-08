@@ -8,7 +8,7 @@ sys.path.append("test") # allow fixtures.py to be loaded
 tests = unittest.TestLoader().discover("test")
 results = unittest.TextTestRunner().run(tests)
 
-if len(results.failures) > 0:
+if (len(results.failures) > 0) or (len(results.errors) > 0):
   exit(1)
 else:
   exit(0)
