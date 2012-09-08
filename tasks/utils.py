@@ -1,7 +1,6 @@
 import os, errno, sys, traceback
 import time
 import re, htmlentitydefs
-import iso8601
 from dateutil import tz
 import yaml
 from pytz import timezone
