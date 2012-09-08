@@ -36,8 +36,11 @@ def run(options):
     try:
       results = bill_info.fetch_bill(bill_id, options)
     except Exception, e:
-      errors.append(e)
-      continue
+      if options.get('raise', False):
+        raise
+      else:
+        errors.append(e)
+        continue
 
     if results.get('ok', False):
       if results.get('saved', False):
