@@ -234,8 +234,8 @@ def output_bill(bill, options):
   	  a = make_node(actions, action['type'], None, datetime=action['acted_at'])
   	  if action.get('text'): make_node(a, "text", action['text'])
   	  if action.get('committee'): make_node(a, "committee", None, name=action['committee'])
-  	  for cr in action['considerations']:
-  	  	  make_node(a, "consideration", cr)
+  	  for cr in action['references']:
+  	  	  make_node(a, "reference", cr)
   # TODO committees, related bills
   subjects = make_node(root, "subjects", None)
   for s in bill['subjects']: # top term?
@@ -411,13 +411,13 @@ def actions_for(body):
       action_time = datetime.datetime.strptime(timestamp, "%m/%d/%Y")
       action_time = datetime.datetime.strftime(action_time, "%Y-%m-%d")
 
-    cleaned_text, considerations = action_for(text)
+    cleaned_text, references = action_for(text)
 
     action = {
       'text': cleaned_text,
       'type': "action",
       'acted_at': action_time,
-      'considerations': considerations
+      'references': references
     }
     actions.append(action)
 
@@ -429,8 +429,8 @@ def action_for(text):
   # strip out links
   text = re.sub(r"</?[Aa]( \S.*?)?>", "", text)
 
-  # remove and extract considerations
-  considerations = []
+  # remove and extract references
+  references = []
   match = re.search("\s+\(([^)]+)\)\s*$", text)
   if match:
     # remove the matched section
@@ -438,25 +438,25 @@ def action_for(text):
 
     types = match.group(1)
 
-    # fix use of comma or colon instead of a semi colon between consideration types
+    # fix use of comma or colon instead of a semi colon between reference types
     # have seen some accidental capitalization combined with accidental comma, thus the 'T'
     # e.g. "text of Title VII as reported in House: CR H3075-3077, Text omission from Title VII:" (hr5384-109)
     types = re.sub("[,:] ([a-zT])", r"; \1", types)
     # fix "CR:"
     types = re.sub("CR:", "CR", types)
-    # fix a missing semicolon altogether between considerations
+    # fix a missing semicolon altogether between references
     # e.g. sres107-112, "consideration: CR S1877-1878 text as"
     types = re.sub("(\d+) ([a-z])", r"\1; \2", types)
 
-    for consideration in re.split("; ?", types):
-      if ": " not in consideration:
-        type, reference = None, consideration
+    for reference in re.split("; ?", types):
+      if ": " not in reference:
+        type, reference = None, reference
       else:
-        type, reference = consideration.split(": ")
+        type, reference = reference.split(": ")
 
-      considerations.append({'type': type, 'reference': reference})
+      references.append({'type': type, 'reference': reference})
 
-  return text, considerations
+  return text, references
 
 def introduced_at_for(body):
   doc = fromstring(body)
