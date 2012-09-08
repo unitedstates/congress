@@ -37,6 +37,8 @@ def log(object):
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
     return obj.replace(microsecond=0, tzinfo=timezone("US/Eastern")).isoformat()
+  elif isinstance(obj, str):
+    return obj
   else:
     return None
 

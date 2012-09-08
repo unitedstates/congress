@@ -237,7 +237,7 @@ def output_bill(bill, options):
   	  make_node(cosponsors, "cosponsor", None, **cosp)
   actions = make_node(root, "actions", None)
   for action in bill['actions']:
-  	  a = make_node(actions, action['type'], None, datetime=action['acted_at'])
+  	  a = make_node(actions, action['type'], None, datetime=utils.format_datetime(action['acted_at']))
   	  if action.get('text'): make_node(a, "text", action['text'])
   	  if action.get('committee'): make_node(a, "committee", None, name=action['committee'])
   	  for cr in action['references']:
