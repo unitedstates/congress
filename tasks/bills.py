@@ -33,7 +33,11 @@ def run(options):
   skips = []
 
   for bill_id in to_fetch:
-    results = bill_info.fetch_bill(bill_id, options)
+    try:
+      results = bill_info.fetch_bill(bill_id, options)
+    except Exception, e:
+      errors.append(e)
+      continue
 
     if results.get('ok', False):
       if results.get('saved', False):
@@ -50,7 +54,11 @@ def run(options):
   if len(errors) > 0:
     message = "\nErrors for %s bills:\n" % len(errors)
     for error in errors:
-      message += "[%s] %s" % (error['bill_id'], error)
+      if isinstance(error, Exception):
+        message += "[%s] Exception:\n\n" % bill_id
+        message += utils.format_exception(error)
+      else:
+        message += "[%s] %s" % (error['bill_id'], error)
     utils.admin(message) # email if possible
 
   log("\nSkipped %s bills." % len(skips))
