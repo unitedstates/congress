@@ -160,7 +160,13 @@ def process_bill(bill_id, options,
   popular_title = current_title_for(titles, "popular")
 
   # add metadata to each action, establish current state
-  actions, state, state_date = process_actions(actions, bill_id, official_title, introduced_at)
+  actions = process_actions(actions, bill_id, official_title, introduced_at)
+
+  # pull out latest state change and the date of it
+  state, state_date = latest_state(actions)
+  if not state: # default to introduced
+    state = "INTRODUCED"
+    state_date = introduced_at
 
   # pull out some very useful history information from the actions
   history = history_from_actions(actions)
@@ -235,7 +241,7 @@ def output_bill(bill, options):
   	  if action.get('text'): make_node(a, "text", action['text'])
   	  if action.get('committee'): make_node(a, "committee", None, name=action['committee'])
   	  for cr in action['references']:
-  	  	  make_node(a, "reference", cr)
+  	  	  make_node(a, "reference", cr['reference'])
   # TODO committees, related bills
   subjects = make_node(root, "subjects", None)
   for s in bill['subjects']: # top term?
@@ -591,8 +597,6 @@ def process_actions(actions, bill_id, title, introduced_date):
 
     # only change/reflect state change if there was one
     if new_state:
-      state = new_state
-      state_date = action["acted_at"]
       new_action['state'] = new_state
 
     # an action can opt-out of inclusion altogether
@@ -600,7 +604,16 @@ def process_actions(actions, bill_id, title, introduced_date):
       action.update(new_action)
       new_actions.append(action)
 
-  return new_actions, state, state_date
+  return new_actions
+
+# find the latest state change in a set of processed actions
+def latest_state(actions):
+  state, state_date = None, None
+  for action in actions:
+    if action.get('state', None):
+      state = action['state']
+      state_date = action['acted_at']
+  return state, state_date
 
 # look at the final set of processed actions and pull out the major historical events
 def history_from_actions(actions):
