@@ -11,5 +11,7 @@ notifications:
   email:
     recipients: 
       - eric@sunlightfoundation.com
+      - tauberer@govtrack.us
+      - dwillis@gmail.com
     on_success: change
     on_failure: change
