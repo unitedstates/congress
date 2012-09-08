@@ -241,7 +241,7 @@ def output_bill(bill, options):
   	  if action.get('text'): make_node(a, "text", action['text'])
   	  if action.get('committee'): make_node(a, "committee", None, name=action['committee'])
   	  for cr in action['references']:
-  	  	  make_node(a, "reference", cr['reference'])
+  	  	  make_node(a, "reference", None, ref=cr['reference'], label=cr['type'])
   # TODO committees, related bills
   subjects = make_node(root, "subjects", None)
   for s in bill['subjects']: # top term?
