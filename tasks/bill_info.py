@@ -38,20 +38,25 @@ def fetch_bill(bill_id, options):
     log("[%s] Reserved for the speaker, not a real bill, skipping..." % bill_id)
     return {'saved': False, 'ok': True, 'reason': "reserved for the speaker"}
 
-  # two conditions where we want to parse the bill from multiple pages instead of one:
+  # conditions where we want to parse the bill from multiple pages instead of one:
   # 1) the all info page is truncated (~5-10 bills a congress)
   #     e.g. s1867-112, hr2112-112, s3240-112
-  # 2) there are > 150 amendments, use undocumented amendments list (~5-10 bills a congress)
-  #     e.g. hr3590-111, sconres13-111, s3240-112
   if "</html>" not in body:
     log("[%s] Main page truncated, fetching many pages..." % bill_id)
     bill = parse_bill_split(bill_id, body, options)
+
+  # 2) there are > 150 amendments, use undocumented amendments list (~5-10 bills a congress)
+  #     e.g. hr3590-111, sconres13-111, s3240-112
   elif too_many_amendments(body):
     log("[%s] Too many amendments, fetching many pages..." % bill_id)
     bill = parse_bill_split(bill_id, body, options)
+
+  # 3) when I feel like it
   elif options.get('force_split', False):
     log("[%s] Forcing a split, fetching many pages..." % bill_id)
     bill = parse_bill_split(bill_id, body, options)
+
+  # Otherwise, get the bill's data from a single All Information page
   else:
     bill = parse_bill(bill_id, body, options)
 
