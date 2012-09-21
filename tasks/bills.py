@@ -39,7 +39,7 @@ def run(options):
       if options.get('raise', False):
         raise
       else:
-        errors.append(e)
+        errors.append((bill_id, e))
         continue
 
     if results.get('ok', False):
@@ -50,18 +50,17 @@ def run(options):
         skips.append(bill_id)
         log("[%s] Skipping bill: %s" % (bill_id, results['reason']))
     else:
-      results.update({'bill_id': bill_id})
-      errors.append(results)
+      errors.append((bill_id, results))
       log("[%s] Error: %s" % (bill_id, results['reason']))
 
   if len(errors) > 0:
     message = "\nErrors for %s bills:\n" % len(errors)
-    for error in errors:
+    for bill_id, error in errors:
       if isinstance(error, Exception):
         message += "[%s] Exception:\n\n" % bill_id
         message += utils.format_exception(error)
       else:
-        message += "[%s] %s" % (error['bill_id'], error)
+        message += "[%s] %s" % (bill_id, error)
     utils.admin(message) # email if possible
 
   log("\nSkipped %s bills." % len(skips))
