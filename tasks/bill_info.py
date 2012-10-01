@@ -162,14 +162,14 @@ def process_bill(bill_id, options,
   short_title = current_title_for(titles, "short")
   popular_title = current_title_for(titles, "popular")
 
-  # add metadata to each action, establish current state
+  # add metadata to each action, establish current status
   actions = process_actions(actions, bill_id, official_title, introduced_at)
 
-  # pull out latest state change and the date of it
-  state, state_date = latest_state(actions)
-  if not state: # default to introduced
-    state = "INTRODUCED"
-    state_date = introduced_at
+  # pull out latest status change and the date of it
+  status, status_date = latest_status(actions)
+  if not status: # default to introduced
+    status = "INTRODUCED"
+    status_date = introduced_at
 
   # pull out some very useful history information from the actions
   history = history_from_actions(actions)
@@ -186,8 +186,8 @@ def process_bill(bill_id, options,
 
     'actions': actions,
     'history': history,
-    'state': state,
-    'state_at': state_date,
+    'status': status,
+    'status_at': status_date,
     
     'titles': titles,
     'official_title': official_title,
@@ -229,7 +229,7 @@ def output_bill(bill, options):
   	  	  	  n.set(k.replace("___", ""), v)
 	  return n
   
-  make_node(root, "state", bill['state'], datetime=utils.format_datetime(bill['state_at']))
+  make_node(root, "status", bill['status'], datetime=utils.format_datetime(bill['status_at']))
   make_node(root, "introduced", None, datetime=bill['introduced_at'])
   titles = make_node(root, "titles", None)
   for title in bill['titles']:
@@ -588,19 +588,19 @@ def related_bills_for(body, congress):
   return related_bills
 
 # given the parsed list of actions from actions_for, run each action
-# through metadata extraction and figure out what current state the bill is in
+# through metadata extraction and figure out what current status the bill is in
 def process_actions(actions, bill_id, title, introduced_date):
   
-  state = "INTRODUCED" # every bill is at least introduced
-  state_date = introduced_date
+  status = "INTRODUCED" # every bill is at least introduced
+  status_date = introduced_date
   new_actions = []
 
   for action in actions:
-    new_action, new_state = parse_bill_action(action['text'], state, bill_id, title)
+    new_action, new_status = parse_bill_action(action['text'], status, bill_id, title)
 
-    # only change/reflect state change if there was one
-    if new_state:
-      new_action['state'] = new_state
+    # only change/reflect status change if there was one
+    if new_status:
+      new_action['status'] = new_status
 
     # an action can opt-out of inclusion altogether
     if new_action:
@@ -609,14 +609,14 @@ def process_actions(actions, bill_id, title, introduced_date):
 
   return new_actions
 
-# find the latest state change in a set of processed actions
-def latest_state(actions):
-  state, state_date = None, None
+# find the latest status change in a set of processed actions
+def latest_status(actions):
+  status, status_date = None, None
   for action in actions:
-    if action.get('state', None):
-      state = action['state']
-      state_date = action['acted_at']
-  return state, state_date
+    if action.get('status', None):
+      status = action['status']
+      status_date = action['acted_at']
+  return status, status_date
 
 # look at the final set of processed actions and pull out the major historical events
 def history_from_actions(actions):
@@ -688,12 +688,12 @@ def history_from_actions(actions):
   return history
 
 
-def parse_bill_action(line, prev_state, bill_id, title):
+def parse_bill_action(line, prev_status, bill_id, title):
   """Parse a THOMAS bill action line. Returns attributes to be set in the XML file on the action line."""
   
   bill_type, number, congress = utils.split_bill_id(bill_id)
 
-  state = None
+  status = None
   action = {
     "type": "action"
   }
@@ -754,10 +754,10 @@ def parse_bill_action(line, prev_state, bill_id, title):
     if roll:
       action["roll"] = roll
 
-    # get the new state of the bill after this vote
-    new_state = new_state_after_vote(vote_type, pass_fail=="pass", "h", bill_type, suspension, as_amended, title, prev_state)
-    if new_state:
-      state = new_state
+    # get the new status of the bill after this vote
+    new_status = new_status_after_vote(vote_type, pass_fail=="pass", "h", bill_type, suspension, as_amended, title, prev_status)
+    if new_status:
+      status = new_status
     
   # Passed House, not necessarily by an actual vote (think "deem")
   m = re.search(r"Passed House pursuant to", line, re.I)
@@ -771,11 +771,11 @@ def parse_bill_action(line, prev_state, bill_id, title):
     action["where"] = "h"
     action["result"] = pass_fail
 
-    # get the new state of the bill after this vote
-    new_state = new_state_after_vote(vote_type, pass_fail=="pass", "h", bill_type, False, False, title, prev_state)
+    # get the new status of the bill after this vote
+    new_status = new_status_after_vote(vote_type, pass_fail=="pass", "h", bill_type, False, False, title, prev_status)
     
-    if new_state:
-      state = new_state
+    if new_status:
+      status = new_status
   
   # A Senate Vote
   m = re.search(r"(Passed Senate|Failed of passage in Senate|Resolution agreed to in Senate|Received in the Senate, considered, and agreed to|Submitted in the Senate, considered, and agreed to|Introduced in the Senate, read twice, considered, read the third time, and passed|Received in the Senate, read twice, considered, read the third time, and passed|Senate agreed to conference report|Cloture \S*\s?on the motion to proceed .*?not invoked in Senate|Cloture on the bill not invoked in Senate|Cloture on the bill invoked in Senate|Cloture on the motion to proceed to the bill invoked in Senate|Cloture on the motion to proceed to the bill not invoked in Senate|Senate agreed to House amendment|Senate concurred in the House amendment)(,?.*,?) (without objection|by Unanimous Consent|by Voice Vote|by Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)", line, re.I)
@@ -820,18 +820,18 @@ def parse_bill_action(line, prev_state, bill_id, title):
     if roll:
       action["roll"] = roll
 
-    # get the new state of the bill after this vote
-    new_state = new_state_after_vote(vote_type, pass_fail=="pass", "s", bill_type, False, as_amended, title, prev_state)
+    # get the new status of the bill after this vote
+    new_status = new_status_after_vote(vote_type, pass_fail=="pass", "s", bill_type, False, as_amended, title, prev_status)
     
-    if new_state:
-      state = new_state
+    if new_status:
+      status = new_status
       
-  # TODO: Make a new state for this as pre-reported.
+  # TODO: Make a new status for this as pre-reported.
   m = re.search(r"Placed on (the )?([\w ]+) Calendar( under ([\w ]+))?[,\.] Calendar No\. (\d+)\.|Committee Agreed to Seek Consideration Under Suspension of the Rules|Ordered to be Reported", line, re.I)
   if m != None:
     # TODO: This makes no sense.
-    if prev_state in ("INTRODUCED", "REFERRED"):
-      state = "REPORTED"
+    if prev_status in ("INTRODUCED", "REFERRED"):
+      status = "REPORTED"
     
     action["type"] = "calendar"
     
@@ -844,15 +844,15 @@ def parse_bill_action(line, prev_state, bill_id, title):
   if m != None:
     action["type"] = "reported"
     action["committee"] = m.group(1)
-    if prev_state in ("INTRODUCED", "REFERRED"):
-      state = "REPORTED"
+    if prev_status in ("INTRODUCED", "REFERRED"):
+      status = "REPORTED"
     
   m = re.search(r"Committee on (.*)\. Discharged (by Unanimous Consent)?", line, re.I)
   if m != None:
     action["committee"] = m.group(1)
     action["type"] = "discharged"
-    if prev_state in ("INTRODUCED", "REFERRED"):
-      state = "REPORTED"
+    if prev_status in ("INTRODUCED", "REFERRED"):
+      status = "REPORTED"
       
   m = re.search("Cleared for White House|Presented to President", line, re.I)
   if m != None:
@@ -866,36 +866,36 @@ def parse_bill_action(line, prev_state, bill_id, title):
   if m != None:
     action["type"] = "vetoed"
     action["pocket"] = "1"
-    state = "VETOED:POCKET"
+    status = "VETOED:POCKET"
 
   # need to put this in an else, or this regex will match the pocket veto and override it
   else: 
     m = re.search("Vetoed by President", line, re.I)
     if m != None:
       action["type"] = "vetoed"
-      state = "PROV_KILL:VETO"
+      status = "PROV_KILL:VETO"
     
   m = re.search("Became (Public|Private) Law No: ([\d\-]+)\.", line, re.I)
   if m != None:
     action["type"] = "enacted"
-    if prev_state != "PROV_KILL:VETO" and not prev_state.startswith("VETOED:"):       
-      state = "ENACTED:SIGNED"
+    if prev_status != "PROV_KILL:VETO" and not prev_status.startswith("VETOED:"):       
+      status = "ENACTED:SIGNED"
     else:
-      state = "ENACTED:VETO_OVERRIDE"
+      status = "ENACTED:VETO_OVERRIDE"
     
   m = re.search(r"Referred to (the )?((House|Senate|Committee) [^\.]+).?", line, re.I)
   if m != None:
     action["type"] = "referral"
     action["committee"] = m.group(2)
-    if prev_state == "INTRODUCED":
-      state = "REFERRED"
+    if prev_status == "INTRODUCED":
+      status = "REFERRED"
     
   m = re.search(r"Referred to the Subcommittee on (.*[^\.]).?", line, re.I)
   if m != None:
     action["type"] = "referral"
     action["subcommittee"] = m.group(1)
-    if prev_state == "INTRODUCED":
-      state = "REFERRED"
+    if prev_status == "INTRODUCED":
+      status = "REFERRED"
     
   m = re.search(r"Received in the Senate and referred to (the )?(.*[^\.]).?", line, re.I)
   if m != None:
@@ -908,9 +908,9 @@ def parse_bill_action(line, prev_state, bill_id, title):
   if bill_ids and (len(bill_ids) > 0):
     action['bill_ids'] = bill_ids
         
-  return action, state
+  return action, status
 
-def new_state_after_vote(vote_type, passed, chamber, bill_type, suspension, amended, title, prev_state):
+def new_status_after_vote(vote_type, passed, chamber, bill_type, suspension, amended, title, prev_status):
   if vote_type == "vote": # vote in originating chamber
     if passed:
       if bill_type in ("hres", "sres"):
@@ -981,10 +981,10 @@ def new_state_after_vote(vote_type, passed, chamber, bill_type, suspension, amen
     else:
       return 'PROV_KILL:PINGPONGFAIL'
   if vote_type == "conference":
-    # This is tricky to integrate into state because we have to wait for both
+    # This is tricky to integrate into status because we have to wait for both
     # chambers to pass the conference report.
     if passed:
-      if prev_state.startswith("CONFERENCE:PASSED:"):
+      if prev_status.startswith("CONFERENCE:PASSED:"):
         return 'PASSED:BILL'
       else:
         if chamber == "h":
