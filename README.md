@@ -27,19 +27,29 @@ Whether or not you use virtualenv:
 
 To start grabbing everything:
 
-    python runner.py bills
+    ./run bills
 
 You can supply a few kinds of flags. To limit it to 10 House simple resolutions in the 111th congress:
 
-    python runner.py bills limit=10 bill_type=hres congress=111
+    ./run bills --limit=10 --bill_type=hres --congress=111
 
 To get only a specific bill, pass in the ID for that bill. For example, S. 968 in the 112th congress:
 
-    python runner.py bills bill_id=s968-112
+    ./run bills --bill_id=s968-112
 
 The script will cache all downloaded pages, and will not re-fetch them from the network unless a force flag is passed:
 
-    python runner.py bills force=True
+    ./run bills --force
+
+
+Syncing with THOMAS
+-------------------
+
+If you are trying to automatically sync bill information on an ongoing basis, it's recommended to do this only once or twice a day, as THOMAS is not updated in real time, and most information is delayed by a day.
+
+To get emailed with errors, copy config.yml.example to config.yml and fill in the SMTP options. The script will automatically use the details when a parsing or execution error occurs.
+
+Pass the --force flag when syncing, to ensure that the newest data is downloaded.
 
 
 Running Tests
@@ -47,7 +57,7 @@ Running Tests
 
 To run this project's unit tests:
 
-    python test/runner.py
+    ./test/run
 
 
 Bulk Data
