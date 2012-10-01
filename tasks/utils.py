@@ -96,7 +96,7 @@ def uniq(seq):
 
 import os, errno
 
-# mdir -p in python, from:
+# mkdir -p in python, from:
 # http://stackoverflow.com/questions/600268/mkdir-p-functionality-in-python
 def mkdir_p(path):
   try:
