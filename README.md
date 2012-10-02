@@ -68,7 +68,7 @@ Two bulk data output files will be generated for each bill: a JSON version (data
 Contributing
 ------------
 
-Pull requests with patches are awesome. Including unit tests is strongly encouraged ([example](https://github.com/unitedstates/congress/blob/master/test/test_bill_actions.py)).
+Pull requests with patches are awesome. Including unit tests is strongly encouraged ([example tests](https://github.com/unitedstates/congress/blob/master/test/test_bill_actions.py)).
 
 The best way to file a bug is to [open a ticket](https://github.com/unitedstates/congress/issues).
 
@@ -76,17 +76,15 @@ The best way to file a bug is to [open a ticket](https://github.com/unitedstates
 TODO
 ----
 
-More data:
-
 * Bills - related committees
 * Amendments - everything
 * Treaties - everything (may wait until they are in Congress.gov)
 * Nominations - everything (may wait until they are in Congress.gov)
 
-As [Congress.gov](http://beta.congress.gov) starts reaching [data parity](http://beta.congress.gov/help/coverage-dates/) with THOMAS.gov, the scraper can be gradually converted to get different pieces of information from Congress.gov instead of THOMAS.gov, which will be shut down after Congress.gov's 1-year beta period.
+As [Congress.gov](http://beta.congress.gov) starts reaching [data parity](http://beta.congress.gov/help/coverage-dates/) with THOMAS.gov, the scraper will be gradually converted to get different pieces of information from Congress.gov instead of THOMAS.gov, which will be shut down after Congress.gov's 1-year beta period.
 
 
 About
 -----
 
-This project is primarily maintained by [Eric Mill]((http://twitter.com/konklone)), [Josh Tauberer](http://twitter.com/JoshData), and [Derek Willis](http://twitter.com/derekwillis).
+This project is primarily maintained by [Eric Mill](http://twitter.com/konklone), [Josh Tauberer](http://twitter.com/JoshData), and [Derek Willis](http://twitter.com/derekwillis).
