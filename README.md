@@ -71,15 +71,14 @@ Two bulk data output files will be generated for each bill: a JSON version (data
 TODO
 ----
 
-Just about everything. More data:
+More data:
 
-* Complete bill information
-* Amendment information
-* Name normalization of members of Congress
-* Name normalization for Congressional committees and subcommittees
+* Bills - related committees
+* Amendments - everything
+* Treaties - everything (may wait until they are in Congress.gov)
+* Nominations - everything (may wait until they are in Congress.gov)
 
 And general improvements:
 
 * Hasn't been yet run over THOMAS' entire contents
 * Data quality checks
-* Use a proper command line flag parser, and syntax
