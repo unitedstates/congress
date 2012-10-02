@@ -2,11 +2,8 @@ import unittest
 import bill_info
 
 # parsing various kinds of action text to extract metadata and establish state
-# vote parsing is handled in test_bill_timeline_votes.py
 
 class BillActions(unittest.TestCase):
-
-  # non-voting tests
 
   def test_veto(self):
     bill_id = "hjres64-111"
