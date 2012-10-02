@@ -234,7 +234,12 @@ def output_bill(bill, options):
   titles = make_node(root, "titles", None)
   for title in bill['titles']:
   	  make_node(titles, "title", title['title'], type=title['type'], ___as=title['as']) # ___ to avoid a Python keyword
-  make_node(root, "sponsor", None, **bill['sponsor'])
+
+  if bill['sponsor']:
+    make_node(root, "sponsor", None, **bill['sponsor'])
+  else:
+    make_node(root, "sponsor", None)
+
   cosponsors = make_node(root, "cosponsors", None)
   for cosp in bill['cosponsors']:
   	  make_node(cosponsors, "cosponsor", None, **cosp)
