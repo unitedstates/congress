@@ -1,18 +1,15 @@
-Scraping THOMAS.gov
-===================
+Congress
+========
 
-An experimental public domain scraper for the THOMAS legislative information system managed by the Library of Congress.
+Public domain code that collects core data about the bills that travel through the US Congress.
 
-Currently:
+Includes a scraper for THOMAS.gov, the official source of information on the life and times of legislation in Congress.
 
-* Fetches and parses HTML for almost all information on bills. (Everything but related committees.)
-* Parses the semantics of Congressional action into metadata and vote outcomes.
-* Tracks the past and present state of a bill.
-* Includes a suite of unit tests for action semantics and state tracking.
+The resulting bulk data is [hosted on Github](https://github.com/unitedstates/congress/downloads), and is updated nightly. Read about the [contents and schema](https://github.com/unitedstates/congress/wiki).
 
 
-Using
------
+Running the scraper
+-------------------
 
 It's recommended you first create and activate a virtualenv with:
 
@@ -60,12 +57,20 @@ To run this project's unit tests:
     ./test/run
 
 
-Bulk Data
----------
+Data Output
+-----------
 
 The script will cache downloaded pages in a top-level `cache` directory, and output bulk data in a top-level `data` directory.
 
 Two bulk data output files will be generated for each bill: a JSON version (data.json) and an XML version (data.xml). The XML version attempts to maintain backwards compatibility with the XML bulk data that [GovTrack.us](http://govtrack.us) has provided for years.
+
+
+Contributing
+------------
+
+Pull requests with patches are awesome. Including unit tests is strongly encouraged ([example](https://github.com/unitedstates/congress/blob/master/test/test_bill_actions.py)).
+
+The best way to file a bug is to [open a ticket](https://github.com/unitedstates/congress/issues).
 
 
 TODO
@@ -78,7 +83,10 @@ More data:
 * Treaties - everything (may wait until they are in Congress.gov)
 * Nominations - everything (may wait until they are in Congress.gov)
 
-And general improvements:
+As [Congress.gov](http://beta.congress.gov) starts reaching [data parity](http://beta.congress.gov/help/coverage-dates/) with THOMAS.gov, the scraper can be gradually converted to get different pieces of information from Congress.gov instead of THOMAS.gov, which will be shut down after Congress.gov's 1-year beta period.
 
-* Hasn't been yet run over THOMAS' entire contents
-* Data quality checks
+
+About
+-----
+
+This project is primarily maintained by [Eric Mill]((http://twitter.com/konklone)), [Josh Tauberer](http://twitter.com/JoshData), and [Derek Willis](http://twitter.com/derekwillis).
