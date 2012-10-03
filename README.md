@@ -77,6 +77,7 @@ TODO
 ----
 
 * Bills - related committees
+* Bill text - archive entire bill text from GPO
 * Amendments - everything
 * Treaties - everything (may wait until they are in Congress.gov)
 * Nominations - everything (may wait until they are in Congress.gov)
