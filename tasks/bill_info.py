@@ -1010,12 +1010,20 @@ def amendments_for_standalone(body, bill_id):
 
   amendments = []
 
-  for chamber, number in re.findall("<a href=\"/cgi-bin/bdquery/z\?d\d+:(?:SP|HZ)\d+:\">(S|H)\.AMDT\.(\d+)</a>", body, re.I):
+  for code, chamber, number in re.findall("<a href=\"/cgi-bin/bdquery/z\?d\d+:(SU|SP|HZ)\d+:\">(S|H)\.(?:UP\.)?AMDT\.(\d+)</a>", body, re.I):
     chamber = chamber.lower()
+
+    # there are "senate unprinted amendments" for the 97th and 98th Congresses, with their own numbering scheme
+    # make those use 'su' as the type instead of 's'
+    amendment_type = chamber
+    if code == "SU":
+      amendment_type = "su"
+
     amendments.append({
       'chamber': chamber,
+      'amendment_type': amendment_type,
       'number': number,
-      'amendment_id': "%s%s-%s" % (chamber, number, congress)
+      'amendment_id': "%s%s-%s" % (amendment_type, number, congress)
     })
 
   if len(amendments) == 0:
@@ -1029,12 +1037,20 @@ def amendments_for(body, bill_id):
 
   amendments = []
 
-  for chamber, number in re.findall("<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(?:SP|HZ)\d+:\">(S|H)\.AMDT\.(\d+)\s*</a> to ", body, re.I):
+  for code, chamber, number in re.findall("<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(SU|SP|HZ)\d+:\">(S|H)\.(?:UP\.)?AMDT\.(\d+)\s*</a> to ", body, re.I):
     chamber = chamber.lower()
+
+    # there are "senate unprinted amendments" for the 97th and 98th Congresses, with their own numbering scheme
+    # make those use 'su' as the type instead of 's'
+    amendment_type = chamber
+    if code == "SU":
+      amendment_type = "su"
+
     amendments.append({
       'chamber': chamber,
+      'amendment_type': amendment_type,
       'number': number,
-      'amendment_id': "%s%s-%s" % (chamber, number, congress)
+      'amendment_id': "%s%s-%s" % (amendment_type, number, congress)
     })
 
   if len(amendments) == 0:
