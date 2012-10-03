@@ -717,10 +717,10 @@ def parse_bill_action(line, prev_status, bill_id, title):
   m = re.search(r"(On passage|On motion to suspend the rules and pass the bill|On motion to suspend the rules and agree to the resolution|On motion to suspend the rules and pass the resolution|On agreeing to the resolution|On agreeing to the conference report|Two-thirds of the Members present having voted in the affirmative the bill is passed,?|On motion that the House agree to the Senate amendments?|On motion that the House suspend the rules and concur in the Senate amendments?|On motion that the House suspend the rules and agree to the Senate amendments?|On motion that the House agree with an amendment to the Senate amendments?|House Agreed to Senate Amendments.*?|Passed House)(, the objections of the President to the contrary notwithstanding.?)?(, as amended| \(Amended\))? (Passed|Failed|Agreed to|Rejected)? ?(by voice vote|without objection|by (the Yeas and Nays|Yea-Nay Vote|recorded vote)((:)? \(2/3 required\))?: \d+ - \d+(, \d+ Present)? [ \)]*\((Roll no\.|Record Vote No:) \d+\))", line, re.I)
   if m != None:
     motion, is_override, as_amended, pass_fail, how = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
-    
+  
     if re.search(r"Passed House|House Agreed to", motion, re.I):
       pass_fail = 'pass'
-    elif re.search("On agreeing", motion, re.I) and re.search("ayes had prevailed", line, re.I):
+    elif re.search("ayes had prevailed", line, re.I):
       pass_fail = 'pass'
     elif re.search(r"Pass|Agreed", pass_fail, re.I):
       pass_fail = 'pass'
