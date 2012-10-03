@@ -60,8 +60,8 @@ class BillActions(unittest.TestCase):
 
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
     self.assertEqual(new_action['type'], "enacted")
-    # self.assertEqual(new_action['number'], "111-148")
-    # self.assertEqual(new_action['law_type'], "public")
+    self.assertEqual(new_action['number'], "111-148")
+    self.assertEqual(new_action['law'], "public")
 
   def test_cleared_for_whitehouse(self):
     bill_id = "hr3590-111"

@@ -885,6 +885,8 @@ def parse_bill_action(line, prev_status, bill_id, title):
     
   m = re.search("Became (Public|Private) Law No: ([\d\-]+)\.", line, re.I)
   if m != None:
+    action["law"] = m.group(1).lower()
+    action["number"] = m.group(2)
     action["type"] = "enacted"
     if prev_status != "PROV_KILL:VETO" and not prev_status.startswith("VETOED:"):       
       status = "ENACTED:SIGNED"
