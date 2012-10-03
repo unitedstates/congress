@@ -309,12 +309,63 @@ def summary_for(body):
   
   return text
 
-def committees_for(body):
-  # match = re.search("COMMITTEE\(S\):<.*?<ul>.*?<p><li>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
 
-  # <tr><td colspan=2><a href="/cgi-bin/bdquery/R?d112:FLD005:@3(House+Energy+and+Commerce)">House Energy and Commerce</a> </td><td width="65%">Referral</td></tr>
-  # <td width="30%"><a href="/cgi-bin/bdquery/R?d112:FLD005:@3(House+Health)">Subcommittee on  Health</a></td><td width="65%">Referral</td></tr>
-  pass
+def parse_committee_row(rows):
+    committee_info = []
+    for row in rows:
+
+      #ignore header/end row that contain no committee information
+      match_header = re.search("</?table", row)
+      if match_header:
+        continue
+
+      #identifies and pulls out committee name
+      match2 = re.search("(?<=\">)[\w\s,\']+(?=</a>)", row)
+      if match2:
+        committee = match2.group().strip()
+      else:
+        raise Exception("Couldn't find committee name.")
+
+      #identifies and pulls out committee activity
+      match3 = re.search("(?<=<td width=\"65%\">).*?(?=</td>)", row)
+      if match3:
+        activity = match3.group().strip().lower()
+      else:
+        raise Exception("Couldn't find committee activity.")
+
+      #identifies subcommittees by change in table cell width
+      match4 = re.search("<td width=\"5%\">", row)
+      if match4:      
+        committee_info.append({"committee": top_committee, "activity": activity, "subcommittee": committee})
+        
+      else:
+        top_committee = committee
+        committee_info.append({"committee": committee, "activity": activity})
+
+    return committee_info
+
+def committees_for(body):
+
+  #grabs entire Committee & Subcommittee table
+  match = re.search("COMMITTEE\(S\):<.*?<ul>.*?</table>", body, re.I | re.S)  
+  if match: 
+    committee_text = match.group().strip()
+    
+    #returns empty array for bills not assigned to a committee; e.g. bill_id=hr19-112
+    none_match = re.search("\*\*\*NONE\*\*\*", committee_text)
+
+    if none_match:
+      committee_info = {}
+
+    if not none_match:
+      #splits Committee & Subcommittee table up by table row     
+      rows = committee_text.split("</tr>")
+      committee_info = parse_committee_row(rows)
+
+    return committee_info
+
+  if not match:
+    raise Exception("Couldn't find committees section.")
 
 def titles_for(body):
   match = re.search("TITLE\(S\):<.*?<ul>.*?<p><li>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
