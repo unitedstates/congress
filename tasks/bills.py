@@ -115,7 +115,7 @@ def bill_ids_for(congress, options):
       offset += 100
 
       # sanity check, while True loops are dangerous
-      if offset > 10000:
+      if offset > 100000:
         break
 
   return utils.uniq(bill_ids)
