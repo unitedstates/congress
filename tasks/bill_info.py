@@ -786,12 +786,12 @@ def parse_bill_action(line, prev_status, bill_id, title):
       status = new_status
   
   # A Senate Vote
-  m = re.search(r"(Passed Senate|Failed of passage in Senate|Resolution agreed to in Senate|Received in the Senate, considered, and agreed to|Submitted in the Senate, considered, and agreed to|Introduced in the Senate, read twice, considered, read the third time, and passed|Received in the Senate, read twice, considered, read the third time, and passed|Senate agreed to conference report|Cloture \S*\s?on the motion to proceed .*?not invoked in Senate|Cloture on the bill not invoked in Senate|Cloture on the bill invoked in Senate|Cloture on the motion to proceed to the bill invoked in Senate|Cloture on the motion to proceed to the bill not invoked in Senate|Senate agreed to House amendment|Senate concurred in the House amendment)(,?.*,?) (without objection|by Unanimous Consent|by Voice Vote|by Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)", line, re.I)
+  m = re.search(r"(Passed Senate|Failed of passage in Senate|Resolution agreed to in Senate|Received in the Senate, considered, and agreed to|Submitted in the Senate, considered, and agreed to|Introduced in the Senate, read twice, considered, read the third time, and passed|Received in the Senate, read twice, considered, read the third time, and passed|Senate agreed to conference report|Cloture \S*\s?on the motion to proceed .*?not invoked in Senate|Cloture on the bill not invoked in Senate|Cloture on the bill invoked in Senate|Cloture invoked in Senate|Cloture on the motion to proceed to the bill invoked in Senate|Cloture on the motion to proceed to the bill not invoked in Senate|Senate agreed to House amendment|Senate concurred in the House amendment)(,?.*,?) (without objection|by Unanimous Consent|by Voice Vote|by Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)", line, re.I)
   if m != None:
     motion, extra, how = m.group(1), m.group(2), m.group(3)
     roll = None
     
-    if re.search("passed|agreed|concurred|bill invoked", motion, re.I):
+    if re.search("passed|agreed|concurred|bill invoked|cloture invoked", motion, re.I):
       pass_fail = "pass"
     else:
       pass_fail = "fail"
@@ -1041,6 +1041,7 @@ def amendments_for(body, bill_id):
 
   return amendments
 
+
 # are there at least 150 amendments listed in this body? a quick tally
 # not the end of the world if it's wrong once in a great while, it just sparks
 # a less efficient way of gathering this bill's data
@@ -1057,6 +1058,9 @@ def reserved_for_speaker(body):
     return True
   else:
     return False
+
+
+# directory helpers
 
 def output_for_bill(bill_id, format):
   bill_type, number, congress = utils.split_bill_id(bill_id)
