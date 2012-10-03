@@ -175,68 +175,69 @@ class BillActions(unittest.TestCase):
 
     self.assertEqual(new_state, None) # unchanged
 
-  def test_vote_process_voice_senate(self):
-    bill_id = "hr3590-111"
-    title = "An act entitled The Patient Protection and Affordable Care Act."
-    state = "PASS_OVER:HOUSE" # should not change
-    line = "Motion to proceed to consideration of measure agreed to in Senate by Unanimous Consent."
+    # not sure whether to include votes that are on process, not passage or cloture
+  # def test_vote_process_voice_senate(self):
+  #   bill_id = "hr3590-111"
+  #   title = "An act entitled The Patient Protection and Affordable Care Act."
+  #   state = "PASS_OVER:HOUSE" # should not change
+  #   line = "Motion to proceed to consideration of measure agreed to in Senate by Unanimous Consent."
 
-    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+  #   new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
 
-    # self.assertEqual(new_action['type'], 'vote')
-    # self.assertEqual(new_action['vote_type'], 'other')
-    # self.assertEqual(new_action['how'], 'Unanimous Consent')
-    # self.assertEqual(new_action['where'], 's')
-    # self.assertEqual(new_action['result'], 'pass')
-    self.assertEqual(new_state, None)
+  #   self.assertEqual(new_action['type'], 'vote')
+  #   self.assertEqual(new_action['vote_type'], 'other')
+  #   self.assertEqual(new_action['how'], 'Unanimous Consent')
+  #   self.assertEqual(new_action['where'], 's')
+  #   self.assertEqual(new_action['result'], 'pass')
+  #   self.assertEqual(new_state, None)
 
-  def test_vote_commit_roll_failure(self):
-    bill_id = "hr3590-111"
-    title = "An act entitled The Patient Protection and Affordable Care Act."
-    state = "PASS_OVER:HOUSE" # should not change
-    line = "Motion by Senator McCain to commit to Senate Committee on Finance under the order of 12/2/2009, not having achieved 60 votes in the affirmative, the motion was rejected in Senate by Yea-Nay Vote. 42 - 58. Record Vote Number: 358."
+  # def test_vote_commit_roll_failure(self):
+  #   bill_id = "hr3590-111"
+  #   title = "An act entitled The Patient Protection and Affordable Care Act."
+  #   state = "PASS_OVER:HOUSE" # should not change
+  #   line = "Motion by Senator McCain to commit to Senate Committee on Finance under the order of 12/2/2009, not having achieved 60 votes in the affirmative, the motion was rejected in Senate by Yea-Nay Vote. 42 - 58. Record Vote Number: 358."
 
-    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+  #   new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
 
-    # self.assertEqual(new_action['type'], 'vote')
-    # self.assertEqual(new_action['vote_type'], 'other')
-    # self.assertEqual(new_action['how'], 'roll')
-    # self.assertEqual(new_action['where'], 's')
-    # self.assertEqual(new_action['result'], 'fail')
-    # self.assertEqual(new_action['roll'], "358")
-    self.assertEqual(new_state, None)
+  #   self.assertEqual(new_action['type'], 'vote')
+  #   self.assertEqual(new_action['vote_type'], 'other')
+  #   self.assertEqual(new_action['how'], 'roll')
+  #   self.assertEqual(new_action['where'], 's')
+  #   self.assertEqual(new_action['result'], 'fail')
+  #   self.assertEqual(new_action['roll'], "358")
+  #   self.assertEqual(new_state, None)
 
-  def test_vote_motion_conference(self):
-    bill_id = "hr3630-112"
-    title = "A bill to extend the payroll tax holiday, unemployment compensation, Medicare physician payment, provide for the consideration of the Keystone XL pipeline, and for other purposes."
-    state = "PASS_BACK:SENATE"
-    line = "On motion that the House disagree to the Senate amendments, and request a conference Agreed to by the Yeas and Nays: 229 - 193 (Roll no. 946)."
+  # def test_vote_motion_conference(self):
+  #   bill_id = "hr3630-112"
+  #   title = "A bill to extend the payroll tax holiday, unemployment compensation, Medicare physician payment, provide for the consideration of the Keystone XL pipeline, and for other purposes."
+  #   state = "PASS_BACK:SENATE"
+  #   line = "On motion that the House disagree to the Senate amendments, and request a conference Agreed to by the Yeas and Nays: 229 - 193 (Roll no. 946)."
 
-    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+  #   new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
 
-    # self.assertEqual(new_action['type'], 'vote')
-    # self.assertEqual(new_action['vote_type'], 'other')
-    # self.assertEqual(new_action['how'], 'roll')
-    # self.assertEqual(new_action['where'], 'h')
-    # self.assertEqual(new_action['result'], 'pass')
-    # self.assertEqual(new_action['roll'], "946")
-    self.assertEqual(new_state, None)
+  #   # self.assertEqual(new_action['type'], 'vote')
+  #   # self.assertEqual(new_action['vote_type'], 'other')
+  #   # self.assertEqual(new_action['how'], 'roll')
+  #   # self.assertEqual(new_action['where'], 'h')
+  #   # self.assertEqual(new_action['result'], 'pass')
+  #   # self.assertEqual(new_action['roll'], "946")
+  #   self.assertEqual(new_state, None)
 
-  def test_vote_motion_instruct_conferees(self):
-    bill_id = "hr3630-112"
-    title = "A bill to extend the payroll tax holiday, unemployment compensation, Medicare physician payment, provide for the consideration of the Keystone XL pipeline, and for other purposes."
-    state = "PASS_BACK:SENATE"
-    line = "On motion that the House instruct conferees Agreed to by the Yeas and Nays: 397 - 16 (Roll no. 9)."
+  # def test_vote_motion_instruct_conferees(self):
+  #   bill_id = "hr3630-112"
+  #   title = "A bill to extend the payroll tax holiday, unemployment compensation, Medicare physician payment, provide for the consideration of the Keystone XL pipeline, and for other purposes."
+  #   state = "PASS_BACK:SENATE"
+  #   line = "On motion that the House instruct conferees Agreed to by the Yeas and Nays: 397 - 16 (Roll no. 9)."
 
-    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+  #   new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
 
-    # self.assertEqual(new_action['type'], 'vote')
-    # self.assertEqual(new_action['vote_type'], 'other')
-    # self.assertEqual(new_action['how'], 'roll')
-    # self.assertEqual(new_action['where'], 'h')
-    # self.assertEqual(new_action['result'], 'pass')
-    # self.assertEqual(new_action['roll'], "9")
-    self.assertEqual(new_state, None)
+  #   # self.assertEqual(new_action['type'], 'vote')
+  #   # self.assertEqual(new_action['vote_type'], 'other')
+  #   # self.assertEqual(new_action['how'], 'roll')
+  #   # self.assertEqual(new_action['where'], 'h')
+  #   # self.assertEqual(new_action['result'], 'pass')
+  #   # self.assertEqual(new_action['roll'], "9")
+  #   self.assertEqual(new_state, None)
 
   def test_vote_conference_report_house_pass(self):
     bill_id = "hr3630-112"
