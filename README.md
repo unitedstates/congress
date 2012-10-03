@@ -1,18 +1,15 @@
-Scraping THOMAS.gov
-===================
+Congress
+========
 
-An experimental public domain scraper for the THOMAS legislative information system managed by the Library of Congress.
+Public domain code that collects core data about the bills that travel through the US Congress.
 
-Currently:
+Includes a scraper for THOMAS.gov, the official source of information on the life and times of legislation in Congress.
 
-* Fetches and parses HTML for almost all information on bills. (Everything but related committees.)
-* Parses the semantics of Congressional action into metadata and vote outcomes.
-* Tracks the past and present state of a bill.
-* Includes a suite of unit tests for action semantics and state tracking.
+The resulting bulk data is [hosted on Github](https://github.com/unitedstates/congress/downloads), and is updated nightly. Read about the [contents and schema](https://github.com/unitedstates/congress/wiki).
 
 
-Using
------
+Running the scraper
+-------------------
 
 It's recommended you first create and activate a virtualenv with:
 
@@ -27,19 +24,29 @@ Whether or not you use virtualenv:
 
 To start grabbing everything:
 
-    python runner.py bills
+    ./run bills
 
 You can supply a few kinds of flags. To limit it to 10 House simple resolutions in the 111th congress:
 
-    python runner.py bills limit=10 bill_type=hres congress=111
+    ./run bills --limit=10 --bill_type=hres --congress=111
 
 To get only a specific bill, pass in the ID for that bill. For example, S. 968 in the 112th congress:
 
-    python runner.py bills bill_id=s968-112
+    ./run bills --bill_id=s968-112
 
 The script will cache all downloaded pages, and will not re-fetch them from the network unless a force flag is passed:
 
-    python runner.py bills force=True
+    ./run bills --force
+
+
+Syncing with THOMAS
+-------------------
+
+If you are trying to automatically sync bill information on an ongoing basis, it's recommended to do this only once or twice a day, as THOMAS is not updated in real time, and most information is delayed by a day.
+
+To get emailed with errors, copy config.yml.example to config.yml and fill in the SMTP options. The script will automatically use the details when a parsing or execution error occurs.
+
+Pass the --force flag when syncing, to ensure that the newest data is downloaded.
 
 
 Running Tests
@@ -47,29 +54,38 @@ Running Tests
 
 To run this project's unit tests:
 
-    python test/runner.py
+    ./test/run
 
 
-Bulk Data
----------
+Data Output
+-----------
 
 The script will cache downloaded pages in a top-level `cache` directory, and output bulk data in a top-level `data` directory.
 
 Two bulk data output files will be generated for each bill: a JSON version (data.json) and an XML version (data.xml). The XML version attempts to maintain backwards compatibility with the XML bulk data that [GovTrack.us](http://govtrack.us) has provided for years.
 
 
+Contributing
+------------
+
+Pull requests with patches are awesome. Including unit tests is strongly encouraged ([example tests](https://github.com/unitedstates/congress/blob/master/test/test_bill_actions.py)).
+
+The best way to file a bug is to [open a ticket](https://github.com/unitedstates/congress/issues).
+
+
 TODO
 ----
 
-Just about everything. More data:
+* Bills - related committees
+* Bill text - archive entire bill text from GPO
+* Amendments - everything
+* Treaties - everything (may wait until they are in Congress.gov)
+* Nominations - everything (may wait until they are in Congress.gov)
 
-* Complete bill information
-* Amendment information
-* Name normalization of members of Congress
-* Name normalization for Congressional committees and subcommittees
+As [Congress.gov](http://beta.congress.gov) starts reaching [data parity](http://beta.congress.gov/help/coverage-dates/) with THOMAS.gov, the scraper will be gradually converted to get different pieces of information from Congress.gov instead of THOMAS.gov, which will be shut down after Congress.gov's 1-year beta period.
 
-And general improvements:
 
-* Hasn't been yet run over THOMAS' entire contents
-* Data quality checks
-* Use a proper command line flag parser, and syntax
+About
+-----
+
+This project is primarily maintained by [Eric Mill](http://twitter.com/konklone), [Josh Tauberer](http://twitter.com/JoshData), and [Derek Willis](http://twitter.com/derekwillis).

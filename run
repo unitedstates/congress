@@ -16,10 +16,15 @@ task_name = sys.argv[1]
 
 # parse any command line flags off
 options = {}
-args = sys.argv[2:]
-for arg in args:
-  key, value = arg.split('=')
-  if key and value:
+for arg in sys.argv[2:]:
+  if arg.startswith("--"):
+
+    if "=" in arg:
+      key, value = arg.split('=')
+    else:
+      key, value = arg, True
+    
+    key = key.split("--")[1]
     if value == 'True': value = True
     elif value == 'False': value = False
     options[key.lower()] = value
