@@ -718,9 +718,12 @@ def parse_bill_action(line, prev_status, bill_id, title):
   if m != None:
     motion, is_override, as_amended, pass_fail, how = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
   
+    # print line
+    # print m.groups()
+
     if re.search(r"Passed House|House Agreed to", motion, re.I):
       pass_fail = 'pass'
-    elif re.search("ayes had prevailed", line, re.I):
+    elif re.search("(ayes|yeas) had prevailed", line, re.I):
       pass_fail = 'pass'
     elif re.search(r"Pass|Agreed", pass_fail, re.I):
       pass_fail = 'pass'
@@ -1063,7 +1066,8 @@ def output_for_bill(bill_id, format):
 def bill_url_for(bill_id, page = "L"):
   bill_type, number, congress = utils.split_bill_id(bill_id)
   thomas_type = utils.thomas_types[bill_type][0]
-  return "http://thomas.loc.gov/cgi-bin/bdquery/z?d%s:%s%s:@@@%s&summ2=m&" % (congress, thomas_type, number, page)
+  congress = int(congress)
+  return "http://thomas.loc.gov/cgi-bin/bdquery/z?d%03d:%s%s:@@@%s&summ2=m&" % (congress, thomas_type, number, page)
 
 def bill_cache_for(bill_id, file):
   bill_type, number, congress = utils.split_bill_id(bill_id)
