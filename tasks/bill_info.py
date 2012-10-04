@@ -1034,6 +1034,12 @@ def amendments_for_standalone(body, bill_id):
 
 def amendments_for(body, bill_id):
   bill_type, number, congress = utils.split_bill_id(bill_id)
+  
+  # it is possible in older sessions for the amendments section to not appear at all.
+  # if this method is being run, we know the page is not truncated, so if the header
+  # is not at all present, assume the page is missing amendments because there are none.
+  if not re.search("AMENDMENT\(S\):", body):
+    return []
 
   amendments = []
 
