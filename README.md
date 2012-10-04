@@ -88,7 +88,7 @@ As [Congress.gov](http://beta.congress.gov) starts reaching [data parity](http:/
 Contributors
 -----
 
-    * [Eric Mill](http://github.com/konklone) - [Sunlight Foundation](http://sunlightfoundation.com)
-    * [Josh Tauberer](http://github.com/tauberer) - [GovTrack.us](http://govtrack.us)
-    * [Derek Willis](http://github.com/dwillis)
-    * [Alex Engler](http://github.com/AlexEngler)
+* [Eric Mill](http://github.com/konklone) - [Sunlight Foundation](http://sunlightfoundation.com)
+* [Josh Tauberer](http://github.com/tauberer) - [GovTrack.us](http://govtrack.us)
+* [Derek Willis](http://github.com/dwillis)
+* [Alex Engler](http://github.com/AlexEngler)
