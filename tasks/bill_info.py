@@ -317,15 +317,16 @@ def summary_for(body):
 
 def parse_committee_row(rows):
     committee_info = []
+    top_committee = None
     for row in rows:
-
       #ignore header/end row that contain no committee information
       match_header = re.search("</?table", row)
       if match_header:
         continue
 
       #identifies and pulls out committee name
-      match2 = re.search("(?<=\">)[\w\s,\']+(?=</a>)", row)
+      #Can handle committee names with letters, white space, dashes, parens, periods, and apostrophes.
+      match2 = re.search("(?<=\">)[-.\w\s,()\']+(?=</a>)", row)
       if match2:
         committee = match2.group().strip()
       else:
@@ -334,7 +335,16 @@ def parse_committee_row(rows):
       #identifies and pulls out committee activity
       match3 = re.search("(?<=<td width=\"65%\">).*?(?=</td>)", row)
       if match3:
-        activity = match3.group().strip().lower()
+        activity_string = match3.group().strip().lower()
+       
+        #splits string of activities into activity list
+        activity_list = activity_string.split(",")
+        
+        #strips white space from each activity in list
+        activity = []
+        for x in activity_list:
+          activity.append(x.strip())
+
       else:
         raise Exception("Couldn't find committee activity.")
 
@@ -342,9 +352,9 @@ def parse_committee_row(rows):
       match4 = re.search("<td width=\"5%\">", row)
       if match4:      
         committee_info.append({"committee": top_committee, "activity": activity, "subcommittee": committee})
-        
+
       else:
-        top_committee = committee
+        top_committee = committee #saves committee for the next row in case it is a subcommittee
         committee_info.append({"committee": committee, "activity": activity})
 
     return committee_info
@@ -355,12 +365,11 @@ def committees_for(body):
   match = re.search("COMMITTEE\(S\):<.*?<ul>.*?</table>", body, re.I | re.S)  
   if match: 
     committee_text = match.group().strip()
-    
+
     #returns empty array for bills not assigned to a committee; e.g. bill_id=hr19-112
     none_match = re.search("\*\*\*NONE\*\*\*", committee_text)
-
     if none_match:
-      committee_info = {}
+      committee_info = None
 
     if not none_match:
       #splits Committee & Subcommittee table up by table row     
