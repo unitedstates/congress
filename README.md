@@ -8,7 +8,7 @@ Includes a scraper for THOMAS.gov, the official source of information on the lif
 The resulting bulk data is [hosted on Github](https://github.com/unitedstates/congress/downloads), and is updated nightly. Read about the [contents and schema](https://github.com/unitedstates/congress/wiki).
 
 
-Running the scraper
+Collecting the data
 -------------------
 
 It's recommended you first create and activate a virtualenv with:
@@ -39,7 +39,7 @@ The script will cache all downloaded pages, and will not re-fetch them from the 
     ./run bills --force
 
 
-Syncing with THOMAS
+Keeping data fresh
 -------------------
 
 If you are trying to automatically sync bill information on an ongoing basis, it's recommended to do this only once or twice a day, as THOMAS is not updated in real time, and most information is delayed by a day.
@@ -47,14 +47,6 @@ If you are trying to automatically sync bill information on an ongoing basis, it
 To get emailed with errors, copy config.yml.example to config.yml and fill in the SMTP options. The script will automatically use the details when a parsing or execution error occurs.
 
 Pass the --force flag when syncing, to ensure that the newest data is downloaded.
-
-
-Running Tests
--------------
-
-To run this project's unit tests:
-
-    ./test/run
 
 
 Data Output
@@ -73,6 +65,14 @@ Pull requests with patches are awesome. Including unit tests is strongly encoura
 The best way to file a bug is to [open a ticket](https://github.com/unitedstates/congress/issues).
 
 
+Running tests
+-------------
+
+To run this project's unit tests:
+
+    ./test/run
+
+
 TODO
 ----
 
@@ -85,7 +85,10 @@ TODO
 As [Congress.gov](http://beta.congress.gov) starts reaching [data parity](http://beta.congress.gov/help/coverage-dates/) with THOMAS.gov, the scraper will be gradually converted to get different pieces of information from Congress.gov instead of THOMAS.gov, which will be shut down after Congress.gov's 1-year beta period.
 
 
-About
+Contributors
 -----
 
-This project is primarily maintained by [Eric Mill](http://twitter.com/konklone), [Josh Tauberer](http://twitter.com/JoshData), and [Derek Willis](http://twitter.com/derekwillis).
+* [Eric Mill](http://github.com/konklone) - [Sunlight Foundation](http://sunlightfoundation.com)
+* [Josh Tauberer](http://github.com/tauberer) - [GovTrack.us](http://govtrack.us)
+* [Derek Willis](http://github.com/dwillis)
+* [Alex Engler](http://github.com/AlexEngler)

@@ -115,7 +115,7 @@ def bill_ids_for(congress, options):
       offset += 100
 
       # sanity check, while True loops are dangerous
-      if offset > 10000:
+      if offset > 100000:
         break
 
   return utils.uniq(bill_ids)
@@ -128,4 +128,4 @@ def page_for(congress, bill_type, offset):
   return "http://thomas.loc.gov/cgi-bin/bdquery/d?d%03d:%s:./list/bss/d%03d%s.lst:[[o]]" % (congress, offset, congress, thomas_type)
 
 def page_cache_for(congress, bill_type, offset):
-  return "bills/%s/pages/%s/%i.html" % (congress, bill_type, offset)
+  return "%s/bills/pages/%s/%i.html" % (congress, bill_type, offset)

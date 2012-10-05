@@ -1094,6 +1094,12 @@ def amendments_for_standalone(body, bill_id):
 
 def amendments_for(body, bill_id):
   bill_type, number, congress = utils.split_bill_id(bill_id)
+  
+  # it is possible in older sessions for the amendments section to not appear at all.
+  # if this method is being run, we know the page is not truncated, so if the header
+  # is not at all present, assume the page is missing amendments because there are none.
+  if not re.search("AMENDMENT\(S\):", body):
+    return []
 
   amendments = []
 
@@ -1142,7 +1148,7 @@ def reserved_for_speaker(body):
 
 def output_for_bill(bill_id, format):
   bill_type, number, congress = utils.split_bill_id(bill_id)
-  return "%s/bills/%s/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, "data.%s" % format)
+  return "%s/%s/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, "data.%s" % format)
 
 # defaults to "All Information" page for a bill
 def bill_url_for(bill_id, page = "L"):
@@ -1153,4 +1159,4 @@ def bill_url_for(bill_id, page = "L"):
 
 def bill_cache_for(bill_id, file):
   bill_type, number, congress = utils.split_bill_id(bill_id)
-  return "bills/%s/%s/%s%s/%s" % (congress, bill_type, bill_type, number, file)
+  return "%s/bills/%s/%s%s/%s" % (congress, bill_type, bill_type, number, file)
