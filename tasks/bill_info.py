@@ -174,6 +174,8 @@ def process_bill(bill_id, options,
   # pull out some very useful history information from the actions
   history = history_from_actions(actions)
 
+  slip_law = slip_law_from(actions)
+
   return {
     'bill_id': bill_id,
     'bill_type': bill_type,
@@ -188,6 +190,7 @@ def process_bill(bill_id, options,
     'history': history,
     'status': status,
     'status_at': status_date,
+    'enacted_as': slip_law,
     
     'titles': titles,
     'official_title': official_title,
@@ -261,7 +264,6 @@ def output_bill(bill, options):
     etree.tostring(root, pretty_print=True),
     output_for_bill(bill['bill_id'], "xml")
   )
-  
 
 
 def sponsor_for(body):
@@ -592,6 +594,16 @@ def related_bills_for(body, congress):
 
   return related_bills
 
+# get the public or private law number from any enacted action
+def slip_law_from(actions):
+  for action in actions:
+    if action["type"] == "enacted":
+      return {
+        'law_type': action["law"],
+        'congress': action["congress"],
+        'number': action["number"]
+      }
+
 # given the parsed list of actions from actions_for, run each action
 # through metadata extraction and figure out what current status the bill is in
 def process_actions(actions, bill_id, title, introduced_date):
@@ -886,7 +898,9 @@ def parse_bill_action(line, prev_status, bill_id, title):
   m = re.search("Became (Public|Private) Law No: ([\d\-]+)\.", line, re.I)
   if m != None:
     action["law"] = m.group(1).lower()
-    action["number"] = m.group(2)
+    pieces = m.group(2).split("-")
+    action["congress"] = pieces[0]
+    action["number"] = pieces[1]
     action["type"] = "enacted"
     if prev_status != "PROV_KILL:VETO" and not prev_status.startswith("VETOED:"):       
       status = "ENACTED:SIGNED"
