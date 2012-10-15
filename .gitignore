@@ -3,3 +3,4 @@
 /data
 *.pyc
 /config.yml
+.DS_Store
