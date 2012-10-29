@@ -317,7 +317,7 @@ def summary_for(body):
   return text
 
 
-def parse_committee_row(rows):
+def parse_committee_rows(rows):
     committee_info = []
     top_committee = None
     for row in rows:
@@ -331,6 +331,8 @@ def parse_committee_row(rows):
       match2 = re.search("(?<=\">)[-.\w\s,()\']+(?=</a>)", row)
       if match2:
         committee = match2.group().strip()
+        # remove excess internal spacing
+        committee = re.sub("\\s{2,}", " ", committee) 
       else:
         raise Exception("Couldn't find committee name.")
 
@@ -352,11 +354,11 @@ def parse_committee_row(rows):
 
       #identifies subcommittees by change in table cell width
       match4 = re.search("<td width=\"5%\">", row)
-      if match4:      
+      if match4:
         committee_info.append({"committee": top_committee, "activity": activity, "subcommittee": committee})
 
       else:
-        top_committee = committee #saves committee for the next row in case it is a subcommittee
+        top_committee = committee # saves committee for the next row in case it is a subcommittee
         committee_info.append({"committee": committee, "activity": activity})
 
     return committee_info
@@ -368,15 +370,14 @@ def committees_for(body):
   if match: 
     committee_text = match.group().strip()
 
-    #returns empty array for bills not assigned to a committee; e.g. bill_id=hr19-112
+    # returns empty array for bills not assigned to a committee; e.g. bill_id=hr19-112
     none_match = re.search("\*\*\*NONE\*\*\*", committee_text)
     if none_match:
-      committee_info = None
-
-    if not none_match:
-      #splits Committee & Subcommittee table up by table row     
+      committee_info = []
+    else:
+      # splits Committee & Subcommittee table up by table row     
       rows = committee_text.split("</tr>")
-      committee_info = parse_committee_row(rows)
+      committee_info = parse_committee_rows(rows)
 
     return committee_info
 
