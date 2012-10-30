@@ -262,7 +262,7 @@ def output_bill(bill, options):
     if s != bill['subjects_top_term']:
   	  make_node(subjects, "term", None, name=s)
   # TODO amendments
-  if bill.get('summary'): make_node(root, "summary", bill['summary'])
+  if bill.get('summary'): make_node(root, "summary", bill['summary']['text'], date=bill['summary'].get('date'), status=bill['summary'].get('as'))
 
   utils.write(
     etree.tostring(root, pretty_print=True),
@@ -304,13 +304,22 @@ def summary_for(body):
     else:
       raise Exception("Choked finding summary.")
 
+  ret = { }
+
   text = match.group(1).strip()
 
   # strip out the bold explanation of a new summary, if present
   text = re.sub("\s*<p><b>\(This measure.*?</b></p>\s*", "", text)
 
   # strip out the intro date thing
-  text = re.sub("\d+/\d+/\d+--[^\s].*?(\n|<p>)", "", text)
+  sumdate = "(\d+/\d+/\d+)--([^\s].*?)(\n|<p>)"
+  m = re.search(sumdate, text)
+  if m:
+    ret["date"] = datetime.datetime.strptime(m.group(1), "%m/%d/%Y")
+    ret["date"] = datetime.datetime.strftime(ret["date"], "%Y-%m-%d")
+    ret["as"] = m.group(2)
+    if ret["as"].endswith("."): ret["as"] = ret["as"][:-1]
+  text = re.sub(sumdate, "", text)
 
   # naive stripping of tags, should work okay in this limited context
   text = re.sub("<[^>]+>", "", text)
@@ -318,8 +327,9 @@ def summary_for(body):
   # compress and strip whitespace artifacts
   text = re.sub("\s{2,}", " ", text).strip()
   
-  return text
-
+  ret["text"] = text
+  
+  return ret
 
 def parse_committee_rows(rows):
     committee_info = []
