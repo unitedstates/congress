@@ -198,7 +198,8 @@ def process_bill(bill_id, options,
     'popular_title': popular_title,
 
     'summary': summary,
-    'subjects': subjects,
+    'subjects_top_term': subjects[0],
+    'subjects': subjects[1],
 
     'related_bills': related_bills,
     'committees': committees,
@@ -255,7 +256,10 @@ def output_bill(bill, options):
   	  	  make_node(a, "reference", None, ref=cr['reference'], label=cr['type'])
   # TODO committees, related bills
   subjects = make_node(root, "subjects", None)
+  if bill['subjects_top_term']: # top term always goes first
+    make_node(subjects, "term", None, name=bill['subjects_top_term'])
   for s in bill['subjects']: # top term?
+    if s != bill['subjects_top_term']:
   	  make_node(subjects, "term", None, name=s)
   # TODO amendments
   if bill.get('summary'): make_node(root, "summary", bill['summary'])
@@ -606,12 +610,14 @@ def cosponsors_for(body):
 def subjects_for(body):
   doc = fromstring(body)
   subjects = []
+  top_term = None
   for meta in doc.cssselect('meta'):
     if meta.get('name') == 'dc.subject':
       subjects.append(meta.get('content'))
+      if not top_term: top_term = meta.get('content')
   subjects.sort()
       
-  return subjects
+  return top_term, subjects
 
 def related_bills_for(body, congress):
   match = re.search("RELATED BILL DETAILS.*?<p>.*?<table border=\"0\">(.*?)(?:<hr|<div id=\"footer\">)", body, re.S)
