@@ -20,12 +20,6 @@ def run(options):
 # download and cache landing page for bill
 # can raise an exception under various conditions
 def fetch_bill(bill_id, committee_names, options):
-  # The run() method in this module passses committees as None, so we need
-  # to load them now. When called from bills.py, it pre-loads this so it is carried
-  # through across all bills in the task.
-  if not committee_names: 
-    committee_names = fetch_committee_names(utils.split_bill_id(bill_id)[2], options)
-
   log("\n[%s] Fetching..." % bill_id)
 
   body = utils.download(
@@ -82,7 +76,7 @@ def parse_bill(bill_id, body, committee_names, options):
   actions = actions_for(body)
   related_bills = related_bills_for(body, congress)
   subjects = subjects_for(body)
-  committees = committees_for(body, committee_names, bill_id)
+  committees = committees_for(body, congress, committee_names, options, bill_id)
   amendments = amendments_for(body, bill_id)
 
   return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
@@ -149,7 +143,7 @@ def parse_bill_split(bill_id, body, committee_names, options):
     bill_cache_for(bill_id, "committees.html"),
     options.get('force', False))
   committees_body = utils.unescape(committees_body)
-  committees = committees_for(committees_body, committee_names, bill_id)
+  committees = committees_for(committees_body, congress, committee_names, options, bill_id)
 
   return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
     summary, titles, actions, related_bills, subjects, committees, amendments)
@@ -394,7 +388,11 @@ def parse_committee_rows(rows, committee_names, bill_id):
 
     return committee_info
 
-def committees_for(body, committee_names, bill_id):
+def committees_for(body, congress, committee_names, options, bill_id):
+  # The run() method in this module and the test fixtures pass committees as None,
+  # so we need to load them now. When called from bills.py, it is set.
+  if not committee_names: 
+    committee_names = fetch_committee_names(congress, options)
 
   #grabs entire Committee & Subcommittee table
   match = re.search("COMMITTEE\(S\):<.*?<ul>.*?</table>", body, re.I | re.S)  
