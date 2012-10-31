@@ -1,6 +1,7 @@
 import utils
 from utils import log
 import os
+import re
 import time
 from lxml import html
 
@@ -27,6 +28,12 @@ def run(options):
     return None
 
   print "Going to fetch %i bills from congress #%s" % (len(to_fetch), congress)
+  
+  # get the mapping from THOMAS's committee names to THOMAS's committee IDs
+  # found on the advanced search page. committee_names[congress][name] = ID
+  # with subcommittee names as the committee name plus a pipe plus the subcommittee
+  # name.
+  committee_names = bill_info.fetch_committee_names(congress, options)
 
   errors = []
   saved = []
@@ -34,7 +41,7 @@ def run(options):
 
   for bill_id in to_fetch:
     try:
-      results = bill_info.fetch_bill(bill_id, options)
+      results = bill_info.fetch_bill(bill_id, committee_names, options)
     except Exception, e:
       if options.get('raise', False):
         raise
@@ -129,3 +136,4 @@ def page_for(congress, bill_type, offset):
 
 def page_cache_for(congress, bill_type, offset):
   return "%s/bills/pages/%s/%i.html" % (congress, bill_type, offset)
+  

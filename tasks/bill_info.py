@@ -11,7 +11,7 @@ def run(options):
   bill_id = options.get('bill_id', None)
   
   if bill_id:
-    result = fetch_bill(bill_id, options)
+    result = fetch_bill(bill_id, None, options)
     log("\n%s" % result)
   else:
     log("To run this task directly, supply a bill_id.")
@@ -19,9 +19,14 @@ def run(options):
 
 # download and cache landing page for bill
 # can raise an exception under various conditions
-def fetch_bill(bill_id, options):
-  log("\n[%s] Fetching..." % bill_id)
+def fetch_bill(bill_id, committee_names, options):
+  # The run() method in this module passses committees as None, so we need
+  # to load them now. When called from bills.py, it pre-loads this so it is carried
+  # through across all bills in the task.
+  if not committee_names: 
+    committee_names = fetch_committee_names(utils.split_bill_id(bill_id)[2], options)
 
+  log("\n[%s] Fetching..." % bill_id)
 
   body = utils.download(
     bill_url_for(bill_id), 
@@ -43,29 +48,29 @@ def fetch_bill(bill_id, options):
   #     e.g. s1867-112, hr2112-112, s3240-112
   if "</html>" not in body:
     log("[%s] Main page truncated, fetching many pages..." % bill_id)
-    bill = parse_bill_split(bill_id, body, options)
+    bill = parse_bill_split(bill_id, body, committee_names, options)
 
   # 2) there are > 150 amendments, use undocumented amendments list (~5-10 bills a congress)
   #     e.g. hr3590-111, sconres13-111, s3240-112
   elif too_many_amendments(body):
     log("[%s] Too many amendments, fetching many pages..." % bill_id)
-    bill = parse_bill_split(bill_id, body, options)
+    bill = parse_bill_split(bill_id, body, committee_names, options)
 
   # 3) when I feel like it
   elif options.get('force_split', False):
     log("[%s] Forcing a split, fetching many pages..." % bill_id)
-    bill = parse_bill_split(bill_id, body, options)
+    bill = parse_bill_split(bill_id, body, committee_names, options)
 
   # Otherwise, get the bill's data from a single All Information page
   else:
-    bill = parse_bill(bill_id, body, options)
+    bill = parse_bill(bill_id, body, committee_names, options)
 
   output_bill(bill, options)
 
   return {'ok': True, 'saved': True}
 
 
-def parse_bill(bill_id, body, options):
+def parse_bill(bill_id, body, committee_names, options):
   bill_type, number, congress = utils.split_bill_id(bill_id)
 
   # parse everything out of the All Information page
@@ -77,7 +82,7 @@ def parse_bill(bill_id, body, options):
   actions = actions_for(body)
   related_bills = related_bills_for(body, congress)
   subjects = subjects_for(body)
-  committees = committees_for(body)
+  committees = committees_for(body, committee_names, bill_id)
   amendments = amendments_for(body, bill_id)
 
   return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
@@ -85,7 +90,7 @@ def parse_bill(bill_id, body, options):
 
 
 # parse information pieced together from various pages
-def parse_bill_split(bill_id, body, options):
+def parse_bill_split(bill_id, body, committee_names, options):
   bill_type, number, congress = utils.split_bill_id(bill_id)
 
   # get some info out of the All Info page, since we already have it
@@ -144,7 +149,7 @@ def parse_bill_split(bill_id, body, options):
     bill_cache_for(bill_id, "committees.html"),
     options.get('force', False))
   committees_body = utils.unescape(committees_body)
-  committees = committees_for(committees_body)
+  committees = committees_for(committees_body, committee_names, bill_id)
 
   return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
     summary, titles, actions, related_bills, subjects, committees, amendments)
@@ -331,7 +336,7 @@ def summary_for(body):
   
   return ret
 
-def parse_committee_rows(rows):
+def parse_committee_rows(rows, committee_names, bill_id):
     committee_info = []
     top_committee = None
     for row in rows:
@@ -341,14 +346,14 @@ def parse_committee_rows(rows):
         continue
 
       #identifies and pulls out committee name
-      #Can handle committee names with letters, white space, dashes, parens, periods, and apostrophes.
-      match2 = re.search("(?<=\">)[-.\w\s,()\']+(?=</a>)", row)
+      #Can handle committee names with letters, white space, dashes, slashes, parens, periods, apostrophes, and ampersands.
+      match2 = re.search("(?<=\">)[-.\w\s,()\'&/]+(?=</a>)", row)
       if match2:
         committee = match2.group().strip()
         # remove excess internal spacing
         committee = re.sub("\\s{2,}", " ", committee) 
       else:
-        raise Exception("Couldn't find committee name.")
+        raise Exception("Couldn't find committee name. Line was: " + row)
 
       #identifies and pulls out committee activity
       match3 = re.search("(?<=<td width=\"65%\">).*?(?=</td>)", row)
@@ -369,15 +374,25 @@ def parse_committee_rows(rows):
       #identifies subcommittees by change in table cell width
       match4 = re.search("<td width=\"5%\">", row)
       if match4:
-        committee_info.append({"committee": top_committee, "activity": activity, "subcommittee": committee})
+        if not top_committee:
+          # Subcommittees are a little finniky, so don't raise an exception if the subcommittee can't be processed.
+          log("[%s] Subcommittee specified without a parent committee: %s" % (bill_id, committee))
+          continue
+        committee_info.append({"committee": top_committee, "activity": activity, "subcommittee": committee, "committee_id": committee_names[top_committee]})
+        # Subcommittees are a little finniky, so don't raise an exception if the subcommittee is not found.
+        # Just skip writing the id attribute.
+        try:
+          committee_info[-1]["subcommittee_id"] = committee_names[committee_names[top_committee] + "|" + committee.replace("Subcommittee on ", "")]
+        except KeyError:
+          log("[%s] Subcommittee not found in %s: %s" % (bill_id, committee_names[top_committee], committee))
 
       else:
         top_committee = committee # saves committee for the next row in case it is a subcommittee
-        committee_info.append({"committee": committee, "activity": activity})
+        committee_info.append({"committee": committee, "activity": activity, "committee_id": committee_names[committee]})
 
     return committee_info
 
-def committees_for(body):
+def committees_for(body, committee_names, bill_id):
 
   #grabs entire Committee & Subcommittee table
   match = re.search("COMMITTEE\(S\):<.*?<ul>.*?</table>", body, re.I | re.S)  
@@ -391,7 +406,7 @@ def committees_for(body):
     else:
       # splits Committee & Subcommittee table up by table row     
       rows = committee_text.split("</tr>")
-      committee_info = parse_committee_rows(rows)
+      committee_info = parse_committee_rows(rows, committee_names, bill_id)
 
     return committee_info
 
@@ -1191,3 +1206,60 @@ def bill_url_for(bill_id, page = "L"):
 def bill_cache_for(bill_id, file):
   bill_type, number, congress = utils.split_bill_id(bill_id)
   return "%s/bills/%s/%s%s/%s" % (congress, bill_type, bill_type, number, file)
+  
+def fetch_committee_names(congress, options):
+  congress = int(congress)
+  
+  # Parse the THOMAS advanced search pages for the names that THOMAS uses for
+  # committees on bill pages, and map those to the IDs for the committees that are
+  # listed on the advanced search pages (but aren't shown on bill pages).
+  log("\nFetching committee names (%d)..." % congress)
+  
+  body = utils.download(
+    "http://thomas.loc.gov/home/LegislativeData.php?&n=BSS&c=%d" % congress, 
+    "%s/meta/thomas_committee_names" % congress,
+    options.get('force', False))
+
+  committees = { }
+
+  for chamber, options in re.findall('>Choose (House|Senate) Committees</option>(.*?)</select>', body, re.I | re.S):
+    for name, id in re.findall(r'<option value="(.*?)\{(.*?)}">', options, re.I | re.S):
+      id = str(id).upper()
+      name = name.strip().replace("  ", " ") # weirdness
+      if id.endswith("00"):
+        # Map chamber + committee name to its ID, minus the 00 at the end. On bill pages,
+        # committees appear as e.g. "House Finance." Except the JCSE.
+        if id != "JCSE00":
+          name = chamber + " " + name
+        
+        # Correct for some oddness on THOMAS (but not on Congress.gov): The House Committee
+        # on House Administration appears just as "House Administration".
+        if name == "House House Administration": name = "House Administration"
+
+        committees[name] = id[0:-2]
+        
+      else:
+        # map committee ID + "|" + subcommittee name to the zero-padded subcommittee numeric ID
+        committees[id[0:-2] + "|" + name] = id[-2:]
+        
+  # Correct for a limited number of other ways committees appear, owing probably to the
+  # committee name being changed mid-way through a Congress.
+  if congress == 95:
+    committees["House Intelligence (Select)"] = committees["House Intelligence (Permanent Select)"]
+  if congress == 96:
+    committees["Senate Human Resources"] = "SSHR"
+  if congress == 97:
+    committees["Senate Small Business (Select)"] = committees["Senate Small Business"]
+  if congress == 98:
+    committees["Senate Indian Affairs (Select)"] = committees["Senate Indian Affairs (Permanent Select)"]
+  if congress == 100:
+    committees["HSPO|Hoc Task Force on Presidential Pay Recommendation"] = committees["HSPO|Ad Hoc Task Force on Presidential Pay Recommendation"]
+  if congress == 103:
+    committees["Senate Indian Affairs (Permanent Select)"] = committees["Senate Indian Affairs"]
+  if congress == 108:
+    # This appears to be a mistake, a subcommittee appearing as a full committee. Map it to
+    # the full committee for now.
+    committees["House Antitrust (Full Committee Task Force)"] = committees["House Judiciary"]
+   
+  return committees
+
