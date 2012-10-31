@@ -320,7 +320,9 @@ def summary_for(body):
   sumdate = "(\d+/\d+/\d+)--([^\s].*?)(\n|<p>)"
   m = re.search(sumdate, text)
   if m:
-    ret["date"] = datetime.datetime.strptime(m.group(1), "%m/%d/%Y")
+    d = m.group(1)
+    if d == "7/11/1794": d = "7/11/1974" # THOMAS error
+    ret["date"] = datetime.datetime.strptime(d, "%m/%d/%Y")
     ret["date"] = datetime.datetime.strftime(ret["date"], "%Y-%m-%d")
     ret["as"] = m.group(2)
     if ret["as"].endswith("."): ret["as"] = ret["as"][:-1]
