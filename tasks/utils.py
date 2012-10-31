@@ -29,7 +29,7 @@ scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_
 
 
 def log(object):
-  if isinstance(object, str):
+  if isinstance(object, (str, unicode)):
     print object
   else:
     pprint.pprint(object)
