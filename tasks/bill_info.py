@@ -710,6 +710,7 @@ def process_actions(actions, bill_id, title, introduced_date):
     # only change/reflect status change if there was one
     if new_status:
       new_action['status'] = new_status
+      status = new_status
 
     # an action can opt-out of inclusion altogether
     if new_action:
