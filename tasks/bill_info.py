@@ -526,7 +526,32 @@ def actions_for(body):
       'references': references
     }
     actions.append(action)
-
+  
+  # THOMAS has a funny way of outputting actions. It is sorted by date,
+  # except that committee events are grouped together. Once we identify
+  # the committees related to events, we should sort the events properly
+  # in time order. But (of course there's a but) not all dates have times,
+  # meaning we will come to having to compare equal dates and dates with
+  # times on those dates. In those cases, preserve the original order
+  # of the events as shown on THOMAS.
+  #
+  # Note that we do this *before* process actions, since we must get
+  # this in chronological order before running our status finite state machine.
+  def action_comparer(a, b):
+    a = a["acted_at"]
+    b = b["acted_at"]
+    if type(a) == str or type(b) == str:
+      # If either is a plain date without time, compare them only on the
+      # basis of the date parts, meaning the unspecified time is treated
+      # as unknown, rather than treated as midnight.
+      if type(a) == datetime.datetime: a = datetime.datetime.strftime(a, "%Y-%m-%d")
+      if type(b) == datetime.datetime: b = datetime.datetime.strftime(b, "%Y-%m-%d")
+    else:
+      # Otherwise if both are date+time's, do a normal comparison
+      pass
+    return cmp(a, b)
+  actions.sort(action_comparer) # .sort() is stable, so original order is preserved where cmp == 0
+  
   return actions
 
 
