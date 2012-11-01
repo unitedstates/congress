@@ -73,7 +73,7 @@ def parse_bill(bill_id, body, committee_names, options):
   cosponsors = cosponsors_for(body)
   summary = summary_for(body)
   titles = titles_for(body)
-  actions = actions_for(body)
+  actions = actions_for(body, bill_id)
   related_bills = related_bills_for(body, congress)
   subjects = subjects_for(body)
   committees = committees_for(body, congress, committee_names, options, bill_id)
@@ -122,7 +122,7 @@ def parse_bill_split(bill_id, body, committee_names, options):
     bill_cache_for(bill_id, "actions.html"),
     options.get('force', False))
   actions_body = utils.unescape(actions_body)
-  actions = actions_for(actions_body)
+  actions = actions_for(actions_body, bill_id)
 
   related_bills_body = utils.download(
     bill_url_for(bill_id, "K"), 
@@ -250,7 +250,7 @@ def output_bill(bill, options):
   for action in bill['actions']:
   	  a = make_node(actions, action['type'], None, datetime=utils.format_datetime(action['acted_at']))
   	  if action.get('text'): make_node(a, "text", action['text'])
-  	  if action.get('committee'): make_node(a, "committee", None, name=action['committee'])
+  	  if action.get('in_committee'): make_node(a, "committee", None, name=action['in_committee'])
   	  for cr in action['references']:
   	  	  make_node(a, "reference", None, ref=cr['reference'], label=cr['type'])
   # TODO committees, related bills
@@ -487,7 +487,7 @@ def current_title_for(titles, type):
   return current_title
 
 
-def actions_for(body):
+def actions_for(body, bill_id):
   match = re.search(">ALL ACTIONS:<.*?<dl>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
   if not match:
     if re.search("ALL ACTIONS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
@@ -496,6 +496,9 @@ def actions_for(body):
       raise Exception("Couldn't find action section.")
 
   actions = []
+  indentation_level = 0
+  last_top_level_action = None
+  last_committee_level_action = None
 
   text = match.group(1).strip()
 
@@ -504,11 +507,17 @@ def actions_for(body):
     if re.search("<strong>", piece) is None:
       continue
     
-    action_pieces = re.search("(<dl>)?<dt><strong>(.*?):</strong><dd>(.+?)$", piece)
+    action_pieces = re.search("((?:</?dl>)*)<dt><strong>(.*?):</strong><dd>(.+?)$", piece)
     if not action_pieces:
       raise Exception("Choked on parsing an action: %s" % piece)
 
-    committee, timestamp, text = action_pieces.groups()
+    indentation_changes, timestamp, text = action_pieces.groups()
+    
+    # indentation indicates a committee action, track the indentation level
+    for indentation_change in re.findall("</?dl>", indentation_changes):
+      if indentation_change == "<dl>": indentation_level += 1
+      if indentation_change == "</dl>": indentation_level -= 1
+    if indentation_level < 0 or indentation_level > 2: raise Exception("Action indentation level %d out of bounds." % indentation_level)
 
     # timestamp of the action
     if re.search("(am|pm)", timestamp):
@@ -526,6 +535,30 @@ def actions_for(body):
       'references': references
     }
     actions.append(action)
+    
+    # Associate subcommittee actions with the parent committee by including
+    # a reference to the last top-level action line's dict, since we haven't
+    # yet parsed which committee it is in. Likewise for 2nd-level indentation
+    # to the top-level and 1st-level indentation actions. In some cases,
+    # 2nd-level indentation occurs without any preceding 1st-level indentation.
+    if indentation_level == 0:
+      last_top_level_action = action
+      last_committee_level_action = None
+    elif indentation_level == 1:
+      if last_top_level_action:
+        action["committee_action_ref"] = last_top_level_action
+      else:
+          log("[%s] Committee-level action without a preceding top-level action." % bill_id)
+      last_committee_level_action = action
+    elif indentation_level == 2:
+      if last_top_level_action:
+        action["committee_action_ref"] = last_top_level_action
+        if last_committee_level_action:
+          action["subcommittee_action_ref"] = last_committee_level_action
+        else:
+          log("[%s] Sub-committee-level action without a preceding committee-level action." % bill_id)
+      else:
+          log("[%s] Sub-committee-level action without a preceding top-level action." % bill_id)
   
   # THOMAS has a funny way of outputting actions. It is sorted by date,
   # except that committee events are grouped together. Once we identify
@@ -741,6 +774,15 @@ def process_actions(actions, bill_id, title, introduced_date):
     if new_action:
       action.update(new_action)
       new_actions.append(action)
+      
+      if "subcommittee_action_ref" in action:
+        action["in_committee"] = action["committee_action_ref"].get("committee", None)
+        action["in_subcommittee"] = action["subcommittee_action_ref"].get("subcommittee", None)
+        del action["subcommittee_action_ref"]
+        del action["committee_action_ref"]
+      elif "committee_action_ref" in action:
+        action["in_committee"] = action["committee_action_ref"].get("committee", None)
+        del action["committee_action_ref"]
 
   return new_actions
 
@@ -1032,10 +1074,10 @@ def parse_bill_action(line, prev_status, bill_id, title):
     if prev_status == "INTRODUCED":
       status = "REFERRED"
     
-  m = re.search(r"Referred to the Subcommittee on (.*[^\.]).?", line, re.I)
+  m = re.search(r"Referred to (the )?Subcommittee on (.*[^\.]).?", line, re.I)
   if m != None:
     action["type"] = "referral"
-    action["subcommittee"] = m.group(1)
+    action["subcommittee"] = m.group(2)
     if prev_status == "INTRODUCED":
       status = "REFERRED"
     
