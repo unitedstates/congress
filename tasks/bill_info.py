@@ -33,9 +33,9 @@ def fetch_bill(bill_id, committee_names, options):
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
-  if reserved_for_speaker(body):
-    log("[%s] Reserved for the speaker, not a real bill, skipping..." % bill_id)
-    return {'saved': False, 'ok': True, 'reason': "reserved for the speaker"}
+  if reserved_bill(body):
+    log("[%s] Reserved bill, not real, skipping..." % bill_id)
+    return {'saved': False, 'ok': True, 'reason': "reserved bill"}
 
   # conditions where we want to parse the bill from multiple pages instead of one:
   # 1) the all info page is truncated (~5-10 bills a congress)
@@ -1217,8 +1217,16 @@ def amendments_for(body, bill_id):
 
   amendments = []
 
-  for code, chamber, number in re.findall("<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(SU|SP|HZ)\d+:\">(S|H)\.(?:UP\.)?AMDT\.(\d+)\s*</a> to ", body, re.I):
+  for code, chamber, number, thomas_id, sponsor_name in re.findall('<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(SU|SP|HZ)\d+:\">(S|H)\.(?:UP\.)?AMDT\.(\d+)\s*</a> to <a href=\"/cgi-bin/bdquery/z\?d\d+:.*:">.*</a>.*\s*<br /><b>Sponsor:</b>\s*<a href=.*\+(hsru00|\d{5}).*\">(.*)</a>\s+', body, re.M):
     chamber = chamber.lower()
+    
+    try:
+      thomas_id = str(int(thomas_id))
+    except:
+      thomas_id = thomas_id
+      
+    sponsor_name = sponsor_name.replace('Sen ','')
+    sponsor_name = sponsor_name.replace('Rep ','')
 
     # there are "senate unprinted amendments" for the 97th and 98th Congresses, with their own numbering scheme
     # make those use 'su' as the type instead of 's'
@@ -1230,6 +1238,8 @@ def amendments_for(body, bill_id):
       'chamber': chamber,
       'amendment_type': amendment_type,
       'number': number,
+      'thomas_id': thomas_id,
+      'sponsor_name': sponsor_name,
       'amendment_id': "%s%s-%s" % (amendment_type, number, congress)
     })
 
@@ -1249,10 +1259,10 @@ def too_many_amendments(body):
   amendments = re.findall("(<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(SP|HZ)\d+:\">(S|H)\.AMDT\.\d+\s*</a> to )", body, re.I)
   return (len(amendments) >= 150)
 
-# bills reserved for the speaker are not actual legislation, 
+# bills reserved for the Speaker or Minority Leader are not actual legislation, 
 # just markers that the number will not be used for ordinary members' bills
-def reserved_for_speaker(body):
-  if re.search("OFFICIAL TITLE AS INTRODUCED:((?:(?!\<hr).)+)Reserved for the Speaker", body, re.S | re.I):
+def reserved_bill(body):
+  if re.search("OFFICIAL TITLE AS INTRODUCED:((?:(?!\<hr).)+)Reserved for the (Speaker|Minority Leader)", body, re.S | re.I):
     return True
   else:
     return False
