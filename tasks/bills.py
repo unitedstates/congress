@@ -1,9 +1,9 @@
 import utils
-from utils import log
 import os
 import re
 import time
 from lxml import html
+import logging
 
 import bill_info
 
@@ -17,7 +17,7 @@ def run(options):
     congress = options.get('congress', utils.current_congress())
     to_fetch = bill_ids_for(congress, options)
     if not to_fetch:
-      log("Error figuring out which bills to download, aborting.")
+      logging.error("Error figuring out which bills to download, aborting.")
       return None
 
     limit = options.get('limit', None)
@@ -52,13 +52,13 @@ def run(options):
     if results.get('ok', False):
       if results.get('saved', False):
         saved.append(bill_id)
-        log("[%s] Updated bill" % bill_id)
+        logging.info("[%s] Updated bill" % bill_id)
       else:
         skips.append(bill_id)
-        log("[%s] Skipping bill: %s" % (bill_id, results['reason']))
+        logging.error("[%s] Skipping bill: %s" % (bill_id, results['reason']))
     else:
       errors.append((bill_id, results))
-      log("[%s] Error: %s" % (bill_id, results['reason']))
+      logging.error("[%s] Error: %s" % (bill_id, results['reason']))
 
   if len(errors) > 0:
     message = "\nErrors for %s bills:\n" % len(errors)
@@ -70,8 +70,8 @@ def run(options):
         message += "[%s] %s" % (bill_id, error)
     utils.admin(message) # email if possible
 
-  log("\nSkipped %s bills." % len(skips))
-  log("Saved data for %s bills." % len(saved))
+  logging.error("\nSkipped %s bills." % len(skips))
+  logging.warning("Saved data for %s bills." % len(saved))
 
 
 # page through listings for bills of a particular congress
@@ -102,7 +102,7 @@ def bill_ids_for(congress, options):
         options.get('force', False))
 
       if not page:
-        log("Couldn't download page with offset %i, aborting" % offset)
+        logging.error("Couldn't download page with offset %i, aborting" % offset)
         return None
 
       # extract matching links

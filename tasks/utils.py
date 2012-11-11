@@ -8,6 +8,7 @@ import datetime, time
 from lxml import html
 import scrapelib
 import pprint
+import logging
 
 import smtplib
 import email.utils
@@ -27,12 +28,6 @@ else:
 # scraper should be instantiated at class-load time, so that it can rate limit appropriately
 scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_attempts=3)
 
-
-def log(object):
-  if isinstance(object, (str, unicode)):
-    print object
-  else:
-    pprint.pprint(object)
 
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
@@ -60,16 +55,16 @@ def download(url, destination, force=False):
   cache = os.path.join(cache_dir(), destination)
 
   if not force and os.path.exists(cache):
-    log("Cached: (%s, %s)" % (cache, url))
+    logging.info("Cached: (%s, %s)" % (cache, url))
     with open(cache, 'r') as f:
       body = f.read()
   else:
     try:
-      log("Downloading: %s" % url)
+      logging.info("Downloading: %s" % url)
       response = scraper.urlopen(url)
       body = str(response)
     except scrapelib.HTTPError as e:
-      log("Error downloading %s:\n\n%s" % (url, format_exception(e)))
+      logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
       return None
 
     # don't allow 0-byte files
@@ -190,7 +185,7 @@ def admin(body):
     if isinstance(body, Exception):
       body = format_exception(body)
 
-    log(body) # always print it
+    logging.error(body) # always print it
 
     if config:
       details = config.get('email', None)
@@ -230,7 +225,7 @@ def send_email(message):
   finally:
     server.quit()
 
-  log("Sent email to %s" % settings['to'])
+  logging.info("Sent email to %s" % settings['to'])
 
 
 thomas_types = {

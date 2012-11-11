@@ -1,5 +1,5 @@
 import utils
-from utils import log
+import logging
 import re
 import json
 from lxml import etree
@@ -12,15 +12,15 @@ def run(options):
   
   if bill_id:
     result = fetch_bill(bill_id, None, options)
-    log("\n%s" % result)
+    logging.warn("\n%s" % result)
   else:
-    log("To run this task directly, supply a bill_id.")
+    logging.error("To run this task directly, supply a bill_id.")
 
 
 # download and cache landing page for bill
 # can raise an exception under various conditions
 def fetch_bill(bill_id, committee_names, options):
-  log("\n[%s] Fetching..." % bill_id)
+  logging.info("\n[%s] Fetching..." % bill_id)
 
   body = utils.download(
     bill_url_for(bill_id), 
@@ -34,25 +34,25 @@ def fetch_bill(bill_id, committee_names, options):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
   if reserved_bill(body):
-    log("[%s] Reserved bill, not real, skipping..." % bill_id)
+    logging.warn("[%s] Reserved bill, not real, skipping..." % bill_id)
     return {'saved': False, 'ok': True, 'reason': "reserved bill"}
 
   # conditions where we want to parse the bill from multiple pages instead of one:
   # 1) the all info page is truncated (~5-10 bills a congress)
   #     e.g. s1867-112, hr2112-112, s3240-112
   if "</html>" not in body:
-    log("[%s] Main page truncated, fetching many pages..." % bill_id)
+    logging.info("[%s] Main page truncated, fetching many pages..." % bill_id)
     bill = parse_bill_split(bill_id, body, committee_names, options)
 
   # 2) there are > 150 amendments, use undocumented amendments list (~5-10 bills a congress)
   #     e.g. hr3590-111, sconres13-111, s3240-112
   elif too_many_amendments(body):
-    log("[%s] Too many amendments, fetching many pages..." % bill_id)
+    logging.info("[%s] Too many amendments, fetching many pages..." % bill_id)
     bill = parse_bill_split(bill_id, body, committee_names, options)
 
   # 3) when I feel like it
   elif options.get('force_split', False):
-    log("[%s] Forcing a split, fetching many pages..." % bill_id)
+    logging.info("[%s] Forcing a split, fetching many pages..." % bill_id)
     bill = parse_bill_split(bill_id, body, committee_names, options)
 
   # Otherwise, get the bill's data from a single All Information page
@@ -208,7 +208,7 @@ def process_bill(bill_id, options,
   }
 
 def output_bill(bill, options):
-  log("[%s] Writing to disk..." % bill['bill_id'])
+  logging.info("[%s] Writing to disk..." % bill['bill_id'])
 
   # output JSON - so easy!
   utils.write(
@@ -372,7 +372,7 @@ def parse_committee_rows(rows, committee_names, bill_id):
       if match4:
         if not top_committee:
           # Subcommittees are a little finniky, so don't raise an exception if the subcommittee can't be processed.
-          log("[%s] Subcommittee specified without a parent committee: %s" % (bill_id, committee))
+          logging.warn("[%s] Subcommittee specified without a parent committee: %s" % (bill_id, committee))
           continue
         committee_info.append({"committee": top_committee, "activity": activity, "subcommittee": committee, "committee_id": committee_names[top_committee]})
         # Subcommittees are a little finniky, so don't raise an exception if the subcommittee is not found.
@@ -380,7 +380,7 @@ def parse_committee_rows(rows, committee_names, bill_id):
         try:
           committee_info[-1]["subcommittee_id"] = committee_names[committee_names[top_committee] + "|" + committee.replace("Subcommittee on ", "")]
         except KeyError:
-          log("[%s] Subcommittee not found in %s: %s" % (bill_id, committee_names[top_committee], committee))
+          logging.warn("[%s] Subcommittee not found in %s: %s" % (bill_id, committee_names[top_committee], committee))
 
       else:
         top_committee = committee # saves committee for the next row in case it is a subcommittee
@@ -548,7 +548,7 @@ def actions_for(body, bill_id):
       if last_top_level_action:
         action["committee_action_ref"] = last_top_level_action
       else:
-          log("[%s] Committee-level action without a preceding top-level action." % bill_id)
+          logging.warn("[%s] Committee-level action without a preceding top-level action." % bill_id)
       last_committee_level_action = action
     elif indentation_level == 2:
       if last_top_level_action:
@@ -556,9 +556,9 @@ def actions_for(body, bill_id):
         if last_committee_level_action:
           action["subcommittee_action_ref"] = last_committee_level_action
         else:
-          log("[%s] Sub-committee-level action without a preceding committee-level action." % bill_id)
+          logging.warn("[%s] Sub-committee-level action without a preceding committee-level action." % bill_id)
       else:
-          log("[%s] Sub-committee-level action without a preceding top-level action." % bill_id)
+          logging.warn("[%s] Sub-committee-level action without a preceding top-level action." % bill_id)
   
   # THOMAS has a funny way of outputting actions. It is sorted by date,
   # except that committee events are grouped together. Once we identify
@@ -1307,7 +1307,7 @@ def fetch_committee_names(congress, options):
   # Parse the THOMAS advanced search pages for the names that THOMAS uses for
   # committees on bill pages, and map those to the IDs for the committees that are
   # listed on the advanced search pages (but aren't shown on bill pages).
-  log("\nFetching committee names (%d)..." % congress)
+  logging.info("\nFetching committee names (%d)..." % congress)
   
   body = utils.download(
     "http://thomas.loc.gov/home/LegislativeData.php?&n=BSS&c=%d" % congress, 

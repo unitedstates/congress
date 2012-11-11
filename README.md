@@ -38,6 +38,7 @@ The script will cache all downloaded pages, and will not re-fetch them from the 
 
     ./run bills --force
 
+Debugging messages are hidden by default. To include them, run with --log=info. To hide even warnings, run with --log=error.
 
 Keeping data fresh
 -------------------
