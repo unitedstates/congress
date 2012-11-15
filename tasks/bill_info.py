@@ -748,6 +748,14 @@ def history_from_actions(actions):
   if senate_vote:
     history['senate_passage_result'] = senate_vote['result']
     history['senate_passage_result_at'] = senate_vote['acted_at']
+
+  senate_vote = None
+  for action in actions:
+    if (action['type'] == 'vote-aux') and (action['vote_type'] == 'cloture') and (action['where'] == 's') and (action['vote_type'] != "override"):
+      senate_vote = action
+  if senate_vote:
+    history['senate_cloture_result'] = senate_vote['result']
+    history['senate_cloture_result_at'] = senate_vote['acted_at']
   
   vetoed = None
   for action in actions:
