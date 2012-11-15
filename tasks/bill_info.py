@@ -1125,18 +1125,8 @@ def amendments_for_standalone(body, bill_id):
 
   amendments = []
 
-  for code, chamber, number, thomas_id, sponsor_name in re.findall('<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(SU|SP|HZ)\d+:\">(S|H)\.(?:UP\.)?AMDT\.(\d+)\s*</a> to <a href=\"/cgi-bin/bdquery/z\?d\d+:.*:">.*</a>.*\s*<br /><b>Sponsor:</b>\s*<a href=.*\+(hsru00|\d{5}).*\">(.*)</a>\s+', body, re.M):
+  for code, chamber, number in re.findall("<a href=\"/cgi-bin/bdquery/z\?d\d+:(SU|SP|HZ)\d+:\">(S|H)\.(?:UP\.)?AMDT\.(\d+)</a>", body, re.I):
     chamber = chamber.lower()
-    
-    try:
-      thomas_id = str(int(thomas_id))
-      sponsor_type = 'member'
-    except:
-      thomas_id = thomas_id
-      sponsor_type = 'committee'
-      
-    sponsor_name = sponsor_name.replace('Sen ','')
-    sponsor_name = sponsor_name.replace('Rep ','')
 
     # there are "senate unprinted amendments" for the 97th and 98th Congresses, with their own numbering scheme
     # make those use 'su' as the type instead of 's'
@@ -1148,9 +1138,6 @@ def amendments_for_standalone(body, bill_id):
       'chamber': chamber,
       'amendment_type': amendment_type,
       'number': number,
-      'thomas_id': thomas_id,
-      'sponsor_type': sponsor_type,
-      'sponsor_name': sponsor_name,
       'amendment_id': "%s%s-%s" % (amendment_type, number, congress)
     })
 
@@ -1176,10 +1163,8 @@ def amendments_for(body, bill_id):
     
     try:
       thomas_id = str(int(thomas_id))
-      sponsor_type = 'member'
     except:
       thomas_id = thomas_id
-      sponsor_type = 'committee'
       
     sponsor_name = sponsor_name.replace('Sen ','')
     sponsor_name = sponsor_name.replace('Rep ','')
@@ -1195,7 +1180,6 @@ def amendments_for(body, bill_id):
       'amendment_type': amendment_type,
       'number': number,
       'thomas_id': thomas_id,
-      'sponsor_type': sponsor_type,
       'sponsor_name': sponsor_name,
       'amendment_id': "%s%s-%s" % (amendment_type, number, congress)
     })
