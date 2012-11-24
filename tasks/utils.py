@@ -51,12 +51,19 @@ def current_congress(year=None):
 def split_bill_id(bill_id):
   return re.match("^([a-z]+)(\d+)-(\d+)$", bill_id).groups()
 
-def download(url, destination, force=False):
-  cache = os.path.join(cache_dir(), destination)
+def download(url, destination, force=False, options={}):
+  test = options.get('test', False)
 
-  if not force and os.path.exists(cache):
-    logging.info("Cached: (%s, %s)" % (cache, url))
-    with open(cache, 'r') as f:
+  if test:
+    cache = test_cache_dir()
+  else:
+    cache = cache_dir()
+
+  cache_path = os.path.join(cache, destination)
+
+  if not force and os.path.exists(cache_path):
+    if not test: logging.info("Cached: (%s, %s)" % (cache, url))
+    with open(cache_path, 'r') as f:
       body = f.read()
   else:
     try:
@@ -72,7 +79,7 @@ def download(url, destination, force=False):
       return None
 
     # cache content to disk
-    write(body, cache)
+    write(body, cache_path)
 
   return unescape(body)
 
@@ -165,6 +172,9 @@ def cache_dir():
 
   return cache
 
+def test_cache_dir():
+  return "test/fixtures/cache"
+
 # uses config values if present
 def data_dir():
   data = None
@@ -213,8 +223,6 @@ def send_email(message):
 
   server = smtplib.SMTP(settings['hostname'])
   try:
-    # server.set_debuglevel(True)
-
     server.ehlo()
     if settings['starttls'] and server.has_extn('STARTTLS'):
       server.starttls()
@@ -238,3 +246,67 @@ thomas_types = {
   'sjres': ('SJ', 'S.J.RES.'),
   'sconres': ('SC', 'S.CON.RES.'),
 }
+
+
+# cached committee map to map names to IDs
+committee_names = {}
+
+# get the mapping from THOMAS's committee names to THOMAS's committee IDs
+# found on the advanced search page. committee_names[congress][name] = ID
+# with subcommittee names as the committee name plus a pipe plus the subcommittee
+# name.
+def fetch_committee_names(congress, options):
+  congress = int(congress)
+  
+  # Parse the THOMAS advanced search pages for the names that THOMAS uses for
+  # committees on bill pages, and map those to the IDs for the committees that are
+  # listed on the advanced search pages (but aren't shown on bill pages).
+  if not options.get('test', False): log("[%d] Fetching committee names..." % congress)
+  
+  # allow body to be passed in from fixtures
+  if options.has_key('body'):
+    body = options['body']
+  else:
+    body = download(
+      "http://thomas.loc.gov/home/LegislativeData.php?&n=BSS&c=%d" % congress, 
+      "%s/meta/thomas_committee_names.html" % congress,
+      options.get('force', False), options)
+
+  for chamber, options in re.findall('>Choose (House|Senate) Committees</option>(.*?)</select>', body, re.I | re.S):
+    for name, id in re.findall(r'<option value="(.*?)\{(.*?)}">', options, re.I | re.S):
+      id = str(id).upper()
+      name = name.strip().replace("  ", " ") # weirdness
+      if id.endswith("00"):
+        # Map chamber + committee name to its ID, minus the 00 at the end. On bill pages,
+        # committees appear as e.g. "House Finance." Except the JCSE.
+        if id != "JCSE00":
+          name = chamber + " " + name
+        
+        # Correct for some oddness on THOMAS (but not on Congress.gov): The House Committee
+        # on House Administration appears just as "House Administration".
+        if name == "House House Administration": name = "House Administration"
+
+        committee_names[name] = id[0:-2]
+        
+      else:
+        # map committee ID + "|" + subcommittee name to the zero-padded subcommittee numeric ID
+        committee_names[id[0:-2] + "|" + name] = id[-2:]
+        
+  # Correct for a limited number of other ways committees appear, owing probably to the
+  # committee name being changed mid-way through a Congress.
+  if congress == 95:
+    committee_names["House Intelligence (Select)"] = committee_names["House Intelligence (Permanent Select)"]
+  if congress == 96:
+    committee_names["Senate Human Resources"] = "SSHR"
+  if congress == 97:
+    committee_names["Senate Small Business (Select)"] = committee_names["Senate Small Business"]
+  if congress == 98:
+    committee_names["Senate Indian Affairs (Select)"] = committee_names["Senate Indian Affairs (Permanent Select)"]
+  if congress == 100:
+    committee_names["HSPO|Hoc Task Force on Presidential Pay Recommendation"] = committee_names["HSPO|Ad Hoc Task Force on Presidential Pay Recommendation"]
+  if congress == 103:
+    committee_names["Senate Indian Affairs (Permanent Select)"] = committee_names["Senate Indian Affairs"]
+  if congress == 108:
+    # This appears to be a mistake, a subcommittee appearing as a full committee. Map it to
+    # the full committee for now.
+    committee_names["House Antitrust (Full Committee Task Force)"] = committee_names["House Judiciary"]

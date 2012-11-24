@@ -1,12 +1,15 @@
 import unittest
 import bill_info
 import fixtures
+import utils
 
 import datetime
 
 class BillHistory(unittest.TestCase):
 
   def test_normal_enacted_bill(self):
+    utils.fetch_committee_names(111, {'test': True})
+
     history = fixtures.bill("hr3590-111")['history']
 
     self.assertEqual(history['house_passage_result'], 'pass')
