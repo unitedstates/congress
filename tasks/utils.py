@@ -261,7 +261,7 @@ def fetch_committee_names(congress, options):
   # Parse the THOMAS advanced search pages for the names that THOMAS uses for
   # committees on bill pages, and map those to the IDs for the committees that are
   # listed on the advanced search pages (but aren't shown on bill pages).
-  if not options.get('test', False): log("[%d] Fetching committee names..." % congress)
+  if not options.get('test', False): logging.info("[%d] Fetching committee names..." % congress)
   
   # allow body to be passed in from fixtures
   if options.has_key('body'):

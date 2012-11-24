@@ -380,7 +380,7 @@ def parse_committee_rows(rows, bill_id):
     if match4:
       if not top_committee:
         # Subcommittees are a little finicky, so don't raise an exception if the subcommittee can't be processed.
-        log("[%s] Subcommittee specified without a parent committee: %s" % (bill_id, committee))
+        logging.warn("[%s] Subcommittee specified without a parent committee: %s" % (bill_id, committee))
         continue
       committee_info.append({"committee": top_committee, "activity": activity, "subcommittee": committee, "committee_id": committee_names[top_committee]})
       # Subcommittees are a little finicky, so don't raise an exception if the subcommittee is not found.
@@ -388,7 +388,7 @@ def parse_committee_rows(rows, bill_id):
       try:
         committee_info[-1]["subcommittee_id"] = committee_names[committee_names[top_committee] + "|" + committee.replace("Subcommittee on ", "")]
       except KeyError:
-        log("[%s] Subcommittee not found in %s: %s" % (bill_id, committee_names[top_committee], committee))
+        logging.warn("[%s] Subcommittee not found in %s: %s" % (bill_id, committee_names[top_committee], committee))
 
     else:
       top_committee = committee # saves committee for the next row in case it is a subcommittee
