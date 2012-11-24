@@ -6,6 +6,8 @@ from lxml import etree
 import time, datetime
 from lxml.html import fromstring
 
+person_id_map = None
+
 # can be run on its own, just require a bill_id
 def run(options):
   bill_id = options.get('bill_id', None)
@@ -222,51 +224,105 @@ def output_bill(bill, options):
   )
 
   # output XML
+  govtrack_type_codes = { 'hr': 'h', 's': 's', 'hres': 'hr', 'sres': 'sr', 'hjres': 'hj', 'sjres': 'sj', 'hconres': 'hc', 'sconres': 'sc' }
   root = etree.Element("bill")
-  root.set("congress", bill['congress'])
-  root.set("type", bill['bill_type'])
+  root.set("session", bill['congress'])
+  root.set("type", govtrack_type_codes[bill['bill_type']])
   root.set("number", bill['number'])
   root.set("updated", utils.format_datetime(bill['updated_at']))
   
   def make_node(parent, tag, text, **attrs):
-  	  n = etree.Element(tag)
-  	  parent.append(n)
-  	  n.text = text
-  	  for k, v in attrs.items():
-  	  	  if v:
-  	  	  	  n.set(k.replace("___", ""), v)
-	  return n
+    # Load the legislators database to map THOMAS IDs to GovTrack IDs.
+    # Cache in a pickled file because loading the whole YAML db is super slow.
+    global person_id_map
+    from utils import cache_dir
+    import os, os.path, pickle
+    if not person_id_map:
+      cachefn = os.path.join(cache_dir(), 'legislators-id-map')
+      if os.path.exists(cachefn) and os.stat(cachefn).st_mtime > max(os.stat("congress-legislators/legislators-current.yaml").st_mtime, os.stat("congress-legislators/legislators-current.yaml").st_mtime):
+        person_id_map = pickle.load(open(cachefn))
+      else:
+        logging.info("[%s] Loading legislator ID map..." % bill['bill_id'])
+        person_id_map = { }
+        import yaml
+        for fn in ('legislators-historical', 'legislators-current'):
+          for moc in yaml.load(open("congress-legislators/" + fn + ".yaml")):
+            if "thomas" in moc["id"] and "govtrack" in moc["id"]:
+              person_id_map[moc["id"]["thomas"]] = moc["id"]["govtrack"]
+        pickle.dump(person_id_map, open(cachefn, "w"))
+                  
+    # Make a node.
+    n = etree.Element(tag)
+    parent.append(n)
+    n.text = text
+    for k, v in attrs.items():
+      if v:
+        if k == "thomas_id":
+          # remap "thomas_id" attributes to govtrack "id"
+          k = "id"
+          v = str(person_id_map["%05d" % int(v)])
+        if isinstance(v, datetime.datetime):
+          v = utils.format_datetime(v)
+        n.set(k.replace("___", ""), v)
+    return n
   
-  make_node(root, "status", bill['status'], datetime=utils.format_datetime(bill['status_at']))
+  make_node(root, "state", bill['status'], datetime=bill['status_at'])
+  old_status = make_node(root, "status", None)
+  make_node(old_status, "introduced" if bill['status'] in ("INTRODUCED", "REFERRED") else "unknown", None, datetime=bill['status_at']) # dummy for the sake of comparison
+  
   make_node(root, "introduced", None, datetime=bill['introduced_at'])
   titles = make_node(root, "titles", None)
   for title in bill['titles']:
-  	  make_node(titles, "title", title['title'], type=title['type'], ___as=title['as']) # ___ to avoid a Python keyword
+      make_node(titles, "title", title['title'], type=title['type'], ___as=title['as']) # ___ to avoid a Python keyword
 
   if bill['sponsor']:
-    make_node(root, "sponsor", None, **bill['sponsor'])
+    make_node(root, "sponsor", None, thomas_id=bill['sponsor']['thomas_id'])
   else:
     make_node(root, "sponsor", None)
 
   cosponsors = make_node(root, "cosponsors", None)
   for cosp in bill['cosponsors']:
-  	  make_node(cosponsors, "cosponsor", None, **cosp)
+      make_node(cosponsors, "cosponsor", None, thomas_id=cosp["thomas_id"], joined=cosp["sponsored_at"], withdrawn=cosp["withdrawn_at"])
+      
   actions = make_node(root, "actions", None)
   for action in bill['actions']:
-  	  a = make_node(actions, action['type'], None, datetime=utils.format_datetime(action['acted_at']))
-  	  if action.get('text'): make_node(a, "text", action['text'])
-  	  if action.get('in_committee'): make_node(a, "committee", None, name=action['in_committee'])
-  	  for cr in action['references']:
-  	  	  make_node(a, "reference", None, ref=cr['reference'], label=cr['type'])
-  # TODO committees, related bills
+      a = make_node(actions,
+        action['type'] if action['type'] in ("vote",) else "action",
+        None,
+        datetime=action['acted_at'],
+        state=action.get("status", None))
+      if action['type'] == 'vote':
+        a.set("how", action["how"])
+        a.set("result", action["result"])
+        if action.get("roll") != None: a.set("roll", action["roll"])
+        a.set("type", action["vote_type"])
+        a.set("where", action["where"])
+      if action.get('text'): make_node(a, "text", action['text'])
+      if action.get('in_committee'): make_node(a, "committee", None, name=action['in_committee'])
+      for cr in action['references']:
+          make_node(a, "reference", None, ref=cr['reference'], label=cr['type'])
+          
+  committees = make_node(root, "committees", None)
+  for cmt in bill['committees']:
+      make_node(committees, "committee", None, code=(cmt["committee_id"] + cmt["subcommittee_id"]) if cmt.get("subcommittee_id", None) else cmt["committee_id"], name=cmt["committee"], subcommittee=cmt.get("subcommittee").replace("Subcommittee on ", "") if cmt.get("subcommittee") else "", activity=", ".join(c.title() for c in cmt["activity"]))
+          
+  relatedbills = make_node(root, "relatedbills", None)
+  for rb in bill['related_bills']:
+      rb_bill_type, rb_number, rb_congress = utils.split_bill_id(rb['bill_id'])
+      make_node(relatedbills, "bill", None, session=rb_congress, type=govtrack_type_codes[rb_bill_type], number=rb_number, relation="unknown" if rb['reason'] == "related" else rb['reason'])
+  
   subjects = make_node(root, "subjects", None)
-  if bill['subjects_top_term']: # top term always goes first
+  if bill['subjects_top_term']:
     make_node(subjects, "term", None, name=bill['subjects_top_term'])
-  for s in bill['subjects']: # top term?
+  for s in bill['subjects']:
     if s != bill['subjects_top_term']:
-  	  make_node(subjects, "term", None, name=s)
-  # TODO amendments
-  if bill.get('summary'): make_node(root, "summary", bill['summary']['text'], date=bill['summary'].get('date'), status=bill['summary'].get('as'))
+      make_node(subjects, "term", None, name=s)
+  
+  amendments = make_node(root, "amendments", None)
+  for amd in bill['amendments']:
+      make_node(amendments, "amendment", None, number=amd["chamber"] + str(amd["number"]))
+  
+  if bill.get('summary'): make_node(root, "summary", re.sub(r"^0|(/)0", lambda m : m.group(1), datetime.datetime.strftime(datetime.datetime.strptime(bill['summary']['date'], "%Y-%m-%d"), "%m/%d/%Y")) + "--" + bill['summary'].get('as', '?') + ".\n" + bill['summary']['text']) #, date=bill['summary'].get('date'), status=bill['summary'].get('as'))
 
   utils.write(
     etree.tostring(root, pretty_print=True),
