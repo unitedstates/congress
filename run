@@ -31,11 +31,15 @@ for arg in sys.argv[2:]:
 
 
 # configure logging
-log_level = getattr(logging, str(options.get("log", "warn")).upper(), None)
-if log_level == None:
+if options.get('debug', False):
+  log_level = "debug"
+else:
+  log_level = options.get("log", "warn")
+
+if log_level not in ["debug", "info", "warn", "error"]:
   print "Invalid log level (specify: debug, info, warn, error)."
   sys.exit(1)
-logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S", level=log_level)
+logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S", level=log_level.upper())
 
 
 # depends on tasks/[task_name].py being present relative to this directory
