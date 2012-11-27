@@ -232,24 +232,27 @@ def output_bill(bill, options):
   root.set("updated", utils.format_datetime(bill['updated_at']))
   
   def make_node(parent, tag, text, **attrs):
-    # Load the legislators database to map THOMAS IDs to GovTrack IDs.
-    # Cache in a pickled file because loading the whole YAML db is super slow.
-    global person_id_map
-    from utils import cache_dir
-    import os, os.path, pickle
-    if not person_id_map:
-      cachefn = os.path.join(cache_dir(), 'legislators-id-map')
-      if os.path.exists(cachefn) and os.stat(cachefn).st_mtime > max(os.stat("congress-legislators/legislators-current.yaml").st_mtime, os.stat("congress-legislators/legislators-current.yaml").st_mtime):
-        person_id_map = pickle.load(open(cachefn))
-      else:
-        logging.info("[%s] Loading legislator ID map..." % bill['bill_id'])
-        person_id_map = { }
-        import yaml
-        for fn in ('legislators-historical', 'legislators-current'):
-          for moc in yaml.load(open("congress-legislators/" + fn + ".yaml")):
-            if "thomas" in moc["id"] and "govtrack" in moc["id"]:
-              person_id_map[moc["id"]["thomas"]] = moc["id"]["govtrack"]
-        pickle.dump(person_id_map, open(cachefn, "w"))
+    govtrack_convert = options.get("govtrack", False)
+
+    if govtrack_convert:
+      # Load the legislators database to map THOMAS IDs to GovTrack IDs.
+      # Cache in a pickled file because loading the whole YAML db is super slow.
+      global person_id_map
+      from utils import cache_dir
+      import os, os.path, pickle
+      if not person_id_map:
+        cachefn = os.path.join(cache_dir(), 'legislators-id-map')
+        if os.path.exists(cachefn) and os.stat(cachefn).st_mtime > max(os.stat("congress-legislators/legislators-current.yaml").st_mtime, os.stat("congress-legislators/legislators-current.yaml").st_mtime):
+          person_id_map = pickle.load(open(cachefn))
+        else:
+          logging.info("[%s] Loading legislator ID map..." % bill['bill_id'])
+          person_id_map = { }
+          import yaml
+          for fn in ('legislators-historical', 'legislators-current'):
+            for moc in yaml.load(open("congress-legislators/" + fn + ".yaml")):
+              if "thomas" in moc["id"] and "govtrack" in moc["id"]:
+                person_id_map[moc["id"]["thomas"]] = moc["id"]["govtrack"]
+          pickle.dump(person_id_map, open(cachefn, "w"))
                   
     # Make a node.
     n = etree.Element(tag)
@@ -257,10 +260,11 @@ def output_bill(bill, options):
     n.text = text
     for k, v in attrs.items():
       if v:
-        if k == "thomas_id":
-          # remap "thomas_id" attributes to govtrack "id"
-          k = "id"
-          v = str(person_id_map["%05d" % int(v)])
+        if govtrack_convert:
+          if k == "thomas_id":
+            # remap "thomas_id" attributes to govtrack "id"
+            k = "id"
+            v = str(person_id_map["%05d" % int(v)])
         if isinstance(v, datetime.datetime):
           v = utils.format_datetime(v)
         n.set(k.replace("___", ""), v)
