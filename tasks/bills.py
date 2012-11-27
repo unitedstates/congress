@@ -64,7 +64,7 @@ def run(options):
         message += "[%s] %s" % (bill_id, error)
     utils.admin(message) # email if possible
 
-  logging.error("\nSkipped %s bills." % len(skips))
+  logging.warning("\nSkipped %s bills." % len(skips))
   logging.warning("Saved data for %s bills." % len(saved))
 
 
