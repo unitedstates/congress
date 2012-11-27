@@ -13,7 +13,7 @@ def run(options):
   bill_id = options.get('bill_id', None)
   
   if bill_id:
-    result = fetch_bill(bill_id, None, options)
+    result = fetch_bill(bill_id, options)
     logging.warn("\n%s" % result)
   else:
     logging.error("To run this task directly, supply a bill_id.")
