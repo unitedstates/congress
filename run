@@ -29,12 +29,14 @@ for arg in sys.argv[2:]:
     elif value == 'False': value = False
     options[key.lower()] = value
 
+
 # configure logging
 log_level = getattr(logging, str(options.get("log", "warn")).upper(), None)
 if log_level == None:
   print "Invalid log level (specify: debug, info, warn, error)."
   sys.exit(1)
 logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S", level=log_level)
+
 
 # depends on tasks/[task_name].py being present relative to this directory
 sys.path.append("tasks")
