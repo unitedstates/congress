@@ -39,7 +39,7 @@ else:
 if log_level not in ["debug", "info", "warn", "error"]:
   print "Invalid log level (specify: debug, info, warn, error)."
   sys.exit(1)
-logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt="%Y-%m-%d %H:%M:%S", level=log_level.upper())
+logging.basicConfig(format='%(message)s', level=log_level.upper())
 
 
 # depends on tasks/[task_name].py being present relative to this directory
