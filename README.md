@@ -77,8 +77,7 @@ To run this project's unit tests:
 TODO
 ----
 
-* Bills - related committees
-* Bill text - archive entire bill text from GPO
+* Bill text - figure out version information from GPO (links to full text)
 * Amendments - everything
 * Treaties - everything (may wait until they are in Congress.gov)
 * Nominations - everything (may wait until they are in Congress.gov)
