@@ -614,7 +614,7 @@ def actions_for(body, bill_id):
       if last_top_level_action:
         action["committee_action_ref"] = last_top_level_action
       else:
-          logging.warn("[%s] Committee-level action without a preceding top-level action." % bill_id)
+          logging.info("[%s] Committee-level action without a preceding top-level action." % bill_id)
       last_committee_level_action = action
     elif indentation_level == 2:
       if last_top_level_action:
@@ -622,9 +622,9 @@ def actions_for(body, bill_id):
         if last_committee_level_action:
           action["subcommittee_action_ref"] = last_committee_level_action
         else:
-          logging.warn("[%s] Sub-committee-level action without a preceding committee-level action." % bill_id)
+          logging.info("[%s] Sub-committee-level action without a preceding committee-level action." % bill_id)
       else:
-          logging.warn("[%s] Sub-committee-level action without a preceding top-level action." % bill_id)
+          logging.info("[%s] Sub-committee-level action without a preceding top-level action." % bill_id)
   
   # THOMAS has a funny way of outputting actions. It is sorted by date,
   # except that committee events are grouped together. Once we identify
