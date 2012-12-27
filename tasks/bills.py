@@ -29,43 +29,7 @@ def run(options):
 
   print "Going to fetch %i bills from congress #%s" % (len(to_fetch), congress)
   
-  errors = []
-  saved = []
-  skips = []
-
-  for bill_id in to_fetch:
-    try:
-      results = bill_info.fetch_bill(bill_id, options)
-    except Exception, e:
-      if options.get('raise', False):
-        raise
-      else:
-        errors.append((bill_id, e))
-        continue
-
-    if results.get('ok', False):
-      if results.get('saved', False):
-        saved.append(bill_id)
-        logging.info("[%s] Updated bill" % bill_id)
-      else:
-        skips.append(bill_id)
-        logging.error("[%s] Skipping bill: %s" % (bill_id, results['reason']))
-    else:
-      errors.append((bill_id, results))
-      logging.error("[%s] Error: %s" % (bill_id, results['reason']))
-
-  if len(errors) > 0:
-    message = "\nErrors for %s bills:\n" % len(errors)
-    for bill_id, error in errors:
-      if isinstance(error, Exception):
-        message += "[%s] Exception:\n\n" % bill_id
-        message += utils.format_exception(error)
-      else:
-        message += "[%s] %s" % (bill_id, error)
-    utils.admin(message) # email if possible
-
-  logging.warning("\nSkipped %s bills." % len(skips))
-  logging.warning("Saved data for %s bills." % len(saved))
+  utils.process_set(to_fetch, bill_info.fetch_bill, options)
 
 
 # page through listings for bills of a particular congress

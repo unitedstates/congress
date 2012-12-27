@@ -47,11 +47,60 @@ def current_congress(year=None):
   if not year:
     year = datetime.datetime.now().year
   return ((year + 1) / 2) - 894
+def current_session(year=None):
+  if not year:
+    year = datetime.datetime.now().year
+  return ((year - 2011) % 2) + 1
+def get_session_canonical_year(congress, session):
+  # map the 1/2 session number to a year
+  return (((congress+894)*2) - 1) + (session-1)
 
 def split_bill_id(bill_id):
   return re.match("^([a-z]+)(\d+)-(\d+)$", bill_id).groups()
 
-def download(url, destination, force=False, options={}):
+def split_vote_id(bill_id):
+  return re.match("^(h|s)(\d+)-(\d+).([12])$", bill_id).groups()
+
+def process_set(to_fetch, fetch_func, options):
+  errors = []
+  saved = []
+  skips = []
+
+  for id in to_fetch:
+    try:
+      results = fetch_func(id, options)
+    except Exception, e:
+      if options.get('raise', False):
+        raise
+      else:
+        errors.append((id, e))
+        continue
+
+    if results.get('ok', False):
+      if results.get('saved', False):
+        saved.append(id)
+        logging.info("[%s] Updated" % id)
+      else:
+        skips.append(id)
+        logging.error("[%s] Skipping: %s" % (id, results['reason']))
+    else:
+      errors.append((id, results))
+      logging.error("[%s] Error: %s" % (id, results['reason']))
+
+  if len(errors) > 0:
+    message = "\nErrors for %s items:\n" % len(errors)
+    for id, error in errors:
+      if isinstance(error, Exception):
+        message += "[%s] Exception:\n\n" % id
+        message += format_exception(error)
+      else:
+        message += "[%s] %s" % (id, error)
+    admin(message) # email if possible
+
+  logging.warning("\nSkipped %s." % len(skips))
+  logging.warning("Saved data for %s." % len(saved))
+
+def download(url, destination, force=False, is_xml=False, options={}):
   test = options.get('test', False)
 
   if test:
@@ -69,7 +118,7 @@ def download(url, destination, force=False, options={}):
     try:
       logging.info("Downloading: %s" % url)
       response = scraper.urlopen(url)
-      body = str(response)
+      body = response.bytes # str(...) tries to encode as ASCII the already-decoded unicode content
     except scrapelib.HTTPError as e:
       logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
       return None
@@ -81,7 +130,10 @@ def download(url, destination, force=False, options={}):
     # cache content to disk
     write(body, cache_path)
 
-  return unescape(body)
+  if not is_xml:
+    body = unescape(body)
+    
+  return body
 
 def write(content, destination):
   mkdir_p(os.path.dirname(destination))
