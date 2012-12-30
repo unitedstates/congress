@@ -65,10 +65,6 @@ def fetch_vote(vote_id, options):
 def output_vote(vote, options):
   logging.info("[%s] Writing to disk..." % vote['vote_id'])
   
-  # get this out of the data before saving to JSON
-  vote_source_order = vote["vote_source_order"]
-  del vote["vote_source_order"]
-
   # output JSON - so easy!
   utils.write(
     json.dumps(vote, sort_keys=True, indent=2, default=utils.format_datetime), 
@@ -86,13 +82,15 @@ def output_vote(vote, options):
   
   root.set("updated", utils.format_datetime(vote['updated_at']))
   
-  root.set("aye", str(len(vote.get("Yea", [])) + len(vote.get("Aye", []))))
-  root.set("nay", str(len(vote.get("Nay", [])) + len(vote.get("No", []))))
-  root.set("nv", str(len(vote.get("Not Voting", []))))
-  root.set("nv", str(len(vote.get("Present", []))))
+  def get_votes(option): return len(vote["votes"].get(option, []))
+  root.set("aye", str(get_votes("Yea") + get_votes("Aye")))
+  root.set("nay", str(get_votes("Nay") + get_votes("No")))
+  root.set("present", str(get_votes("Present")))
+  root.set("nv", str(get_votes("Not Voting")))
   
   root.set("source", "house.gov" if vote["chamber"] == "h" else "senate.gov")
   
+  utils.make_node(root, "category", vote["category"])
   utils.make_node(root, "type", vote["type"])
   utils.make_node(root, "question", vote["question"])
   utils.make_node(root, "required", vote["requires"])
@@ -100,31 +98,38 @@ def output_vote(vote, options):
   
   if "bill" in vote:
     govtrack_type_codes = { 'hr': 'h', 's': 's', 'hres': 'hr', 'sres': 'sr', 'hjres': 'hj', 'sjres': 'sj', 'hconres': 'hc', 'sconres': 'sc' }
-    utils.make_node(root, "bill", "", session=str(vote["bill"]["congress"]), type=govtrack_type_codes[vote["bill"]["type"]], number=str(vote["bill"]["number"]))
+    utils.make_node(root, "bill", None, session=str(vote["bill"]["congress"]), type=govtrack_type_codes[vote["bill"]["type"]], number=str(vote["bill"]["number"]))
     
   if "amendment" in vote:
     if vote["amendment"]["type"] == "s":
-      utils.make_node(root, "amendment", "", ref="regular", number=str(vote["amendment"]["number"]))
+      utils.make_node(root, "amendment", None, ref="regular", number="s" + str(vote["amendment"]["number"]))
     elif vote["amendment"]["type"] == "h-bill":
-      utils.make_node(root, "amendment", "", ref="bill-serial", number=str(vote["amendment"]["number"]))
+      utils.make_node(root, "amendment", None, ref="bill-serial", number=str(vote["amendment"]["number"]))
     
+  # well-known keys for certain vote types: +/-/P/0
   option_keys = { "Aye": "+", "Yea": "+", "Nay": "-", "No": "-", "Present": "P", "Not Voting": "0" }
+  
+  # preferred order of output: ayes, nays, present, then not voting, and similarly for guilty/not-guilty
+  # and handling other options like people's names for votes for the Speaker.
   option_sort_order = ('Aye', 'Yea', 'Guilty', 'No', 'Nay', 'Not Guilty', 'OTHER', 'Present', 'Not Voting')
   options_list = sorted(vote["votes"].keys(), key = lambda o : option_sort_order.index(o) if o in option_sort_order else option_sort_order.index("OTHER") )
   for option in options_list:
     if option not in option_keys: option_keys[option] = option
     utils.make_node(root, "option", option, key=option_keys[option])
     
-  for voter_vote, voter_index in vote_source_order:
-    v = vote["votes"][voter_vote][voter_index]
-    if v == "VP":
-      utils.make_node(root, "voter", "", id="0", VP="1", vote=option_keys[voter_vote], value=voter_vote)
-    elif not options.get("govtrack", False):
-      utils.make_node(root, "voter", "", id=str(v["id"]), vote=option_keys[voter_vote], value=voter_vote)
-    else:
-      utils.make_node(root, "voter", "",
-        id=str(utils.get_govtrack_person_id("bioguide" if vote["chamber"] == "h" else "lis", v["id"])),
-        vote=option_keys[voter_vote], value=voter_vote)
+  for option in options_list:
+    for v in vote["votes"][option]:
+      attrs = { "vote": option_keys[option], "value": option }
+      if v == "VP":
+        attrs["id"] = "0"
+        attrs["VP"] = "1"
+      elif not options.get("govtrack", False):
+        attrs["id"] = str(v["id"])
+        attrs["state"] = v["state"]
+      else:
+        attrs["id"] = str(utils.get_govtrack_person_id("bioguide" if vote["chamber"] == "h" else "lis", v["id"]))
+        attrs["state"] = v["state"]
+      utils.make_node(root, "voter", None, **attrs)
   
   utils.write(
     etree.tostring(root, pretty_print=True),
@@ -144,6 +149,7 @@ def parse_senate_vote(dom, vote):
   vote["question"] = unicode(dom.xpath("string(vote_question_text)"))
   vote["type"] = unicode(dom.xpath("string(vote_question)"))
   if vote["type"] == "": vote["type"] = vote["question"]
+  vote["type"] = normalize_vote_type(vote["type"])
   vote["category"] = get_vote_category(vote["type"])
   vote["subject"] = unicode(dom.xpath("string(vote_title)"))
   vote["requires"] = unicode(dom.xpath("string(majority_requirement)"))
@@ -158,6 +164,7 @@ def parse_senate_vote(dom, vote):
         "number": int(dom.xpath("number(document/document_number)")),
         "title": unicode(dom.xpath("string(document/document_title)")),
       }
+      vote["question"] += ": " + vote["nomination"]["title"]
     elif dom.xpath("string(document/document_type)") == "Treaty Doc.":
       vote["treaty"] = {
         "title": unicode(dom.xpath("string(document/document_title)")),
@@ -189,11 +196,9 @@ def parse_senate_vote(dom, vote):
     
   # Count up the votes.
   vote["votes"] = { }
-  vote["vote_source_order"] = [] # compatibility with GovTrack-style output only
   def add_vote(vote_option, voter):
     if vote_option == "Present, Giving Live Pair": vote_option = "Present"
     vote["votes"].setdefault(vote_option, []).append(voter)
-    vote["vote_source_order"].append((vote_option, len(vote["votes"][vote_option])-1)) # (vote, index into that array)
   
   # Ensure the options are noted, even if no one votes that way.
   if unicode(dom.xpath("string(vote_question)")) == "Guilty or Not Guilty":
@@ -231,6 +236,7 @@ def parse_house_vote(dom, vote):
   vote["date"] = parse_date(str(dom.xpath("string(vote-metadata/action-date)")) + " " + str(dom.xpath("string(vote-metadata/action-time)")))
   vote["question"] = unicode(dom.xpath("string(vote-metadata/vote-question)"))
   vote["type"] = unicode(dom.xpath("string(vote-metadata/vote-question)"))
+  vote["type"] = normalize_vote_type(vote["type"])
   vote["category"] = get_vote_category(vote["question"])
   vote["subject"] = unicode(dom.xpath("string(vote-metadata/vote-desc)"))
   if not vote["subject"]: del vote["subject"]
@@ -268,15 +274,14 @@ def parse_house_vote(dom, vote):
     vote["question"] += ": Amendment %s to [unknown bill]" % vote["amendment"]["number"]
   elif "bill" in vote:
     vote["question"] += ": " + unicode(dom.xpath("string(vote-metadata/legis-num)"))
+    if "subject" in vote: vote["question"] += " " + vote["subject"]
   elif "subject" in vote:
     vote["question"] += ": " + vote["subject"]
 
   # Count up the votes.
   vote["votes"] = { } # by vote type
-  vote["vote_source_order"] = [] # compatibility with GovTrack-style output only
   def add_vote(vote_option, voter):
     vote["votes"].setdefault(vote_option, []).append(voter)
-    vote["vote_source_order"].append((vote_option, len(vote["votes"][vote_option])-1)) # (vote, index into that array)
   
   # Ensure the options are noted, even if no one votes that way.
   if unicode(dom.xpath("string(vote-metadata/vote-question)")) == "Election of the Speaker":
@@ -303,47 +308,80 @@ def parse_house_vote(dom, vote):
         "party": str(member.xpath("string(legislator/@party)")),
         "display_name": unicode(member.xpath("string(legislator)")),
     })
-      
+
+
+def normalize_vote_type(vote_type):
+  # Takes the "type" field of a House or Senate vote and returns a normalized
+  # version of the same, as best as possible.
+  
+  # note that these allow .* after each pattern, so some things look like
+  # no-ops but they are really truncating the type after the specified text.
+  mapping = (
+    (r"On (Agreeing to )?the (Joint |Concurrent )?Resolution", "On the $2Resolution"),
+    (r"On (Agreeing to )?the Conference Report", "On the Conference Report"),
+    (r"On (Agreeing to )?the (En Bloc )?Amendments?", "On the Amendment"),
+    (r"On (?:the )?Motion to Recommit", "On the Motion to Recommit"),
+    (r"(On Motion to )?(Concur in|Concurring|On Concurring|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "Concurring in the Senate Amendment"),
+    (r"(On Motion to )?Suspend (the )?Rules and (Agree|Concur|Pass)(, As Amended)", "On Motion to Suspend the Rules and $3$4"),
+    (r"Will the House Now Consider the Resolution|On (Question of )?Consideration of the Resolution", "On Consideration of the Resolution"),
+    (r"On (the )?Motion to Adjourn", "On the Motion to Adjourn"),
+    (r"On (the )?Cloture Motion", "On the Cloture Motion"),
+    (r"On Cloture on the Motion to Proceed", "On the Cloture Motion"),
+    (r"On (the )?Nomination", "On the Nomination"),
+    (r"On Passage( of the Bill|$)", "On Passage of the Bill"),
+    (r"On (the )?Motion to Proceed", "On the Motion to Proceed"),
+  )
+  
+  for regex, replacement in mapping:
+    m = re.match(regex, vote_type, re.I)
+    if m:
+      if m.groups():
+        for i, val in enumerate(m.groups()):
+          replacement = replacement.replace("$%d" % (i+1), val if val else "")
+      return replacement
+
+  return vote_type
+
 def get_vote_category(vote_question):
   # Takes the "question" field of a House or Senate vote and returns a normalized
   # category for the vote type.
   #
   # Based on Eric's vote_type_for function in sunlightlabs/congress.
   
-  mapping = {
+  mapping = (
     # common
-    r"^On Overriding the Veto": "veto-override",
-    r"Objections of the President Not ?Withstanding": "veto-override", # order matters so must go before bill passage
-    r"^On Passage": "passage",
-    r"^On (Agreeing to )?the (Joint |Concurrent )?Resolution": "passage",
-    r"^On (Agreeing to )?the Conference Report": "passage",
-    r"^On (Agreeing to )?the (En Bloc )?Amendments?": "amendment",
+    (r"^On Overriding the Veto", "veto-override"),
+    (r"Objections of the President Not ?Withstanding", "veto-override"), # order matters so must go before bill passage
+    (r"^On Passage", "passage"),
+    (r"^On (Agreeing to )?the (Joint |Concurrent )?Resolution", "passage"),
+    (r"^On (Agreeing to )?the Conference Report", "passage"),
+    (r"^On (Agreeing to )?the (En Bloc )?Amendments?", "amendment"),
       
     # senate only
-    r"cloture": "cloture",
-    r"^On the Nomination": "nomination",
-    r"^Guilty or Not Guilty": "conviction", # was "impeachment" in sunlightlabs/congress but that's not quite right
-    r"^On the Resolution of Ratification": "treaty",
-    r"^On (?:the )?Motion to Recommit": "recommit",
+    (r"cloture", "cloture"),
+    (r"^On the Nomination", "nomination"),
+    (r"^Guilty or Not Guilty", "conviction"), # was "impeachment" in sunlightlabs/congress but that's not quite right
+    (r"^On the Resolution of Ratification", "treaty"),
+    (r"^On (?:the )?Motion to Recommit", "recommit"),
       
     # house only
-    r"^(On Motion to )?(Concur in|Concurring|On Concurring|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?": "passage",
-    r"^(On Motion to )?Suspend (the )?Rules and (Agree|Concur|Pass)": "passage-suspension",
-    r"^Call of the House$": "quorum",
-    r"^Election of the Speaker$": "leadership",
+    (r"^(On Motion to )?(Concur in|Concurring|On Concurring|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "passage"),
+    (r"^(On Motion to )?Suspend (the )?Rules and (Agree|Concur|Pass)", "passage-suspension"),
+    (r"^Call of the House$", "quorum"),
+    (r"^Election of the Speaker$", "leadership"),
     
     # various procedural things
     # order matters, so these must go last
-    r"^On Ordering the Previous Question": "procedural",
-    r"^On Approving the Journal": "procedural",
-    r"^Will the House Now Consider the Resolution|On (Question of )?Consideration of the Resolution": "procedural",
-    r"^On (the )?Motion to Adjourn": "procedural",
-    r"Authoriz(e|ing) Conferees": "procedural",
-    r"On the Point of Order|Sustaining the Ruling of the Chair": "procedural",
-    r"^On .*Motion ": "procedural", # $1 is a name like "Broun of Georgia"
-  }
+    (r"^On Ordering the Previous Question", "procedural"),
+    (r"^On Approving the Journal", "procedural"),
+    (r"^Will the House Now Consider the Resolution|On (Question of )?Consideration of the Resolution", "procedural"),
+    (r"^On (the )?Motion to Adjourn", "procedural"),
+    (r"Authoriz(e|ing) Conferees", "procedural"),
+    (r"On the Point of Order|Sustaining the Ruling of the Chair", "procedural"),
+    (r"^On .*Motion ", "procedural"), # $1 is a name like "Broun of Georgia"
+  )
   
-  for regex, category in mapping.items():
+  for regex, category in mapping:
     if re.search(regex, vote_question, re.I):
       return category
 
