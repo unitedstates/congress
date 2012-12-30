@@ -372,7 +372,7 @@ def make_node(parent, tag, text, **attrs):
   for k, v in attrs.items():
     if v is None: continue
     if isinstance(v, datetime.datetime):
-      v = utils.format_datetime(v)
+      v = format_datetime(v)
     n.set(k.replace("___", ""), v)
   return n
 
