@@ -1,7 +1,6 @@
 import os, errno, sys, traceback
 import time
 import re, htmlentitydefs
-from dateutil import tz
 import yaml
 from pytz import timezone
 import datetime, time
@@ -25,23 +24,19 @@ else:
   config = None
 
 
+eastern_time_zone = timezone('US/Eastern')
+
 # scraper should be instantiated at class-load time, so that it can rate limit appropriately
 scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_attempts=3)
 
 
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
-    return obj.replace(microsecond=0, tzinfo=timezone("US/Eastern")).isoformat()
+    return eastern_time_zone.localize(obj.replace(microsecond=0)).isoformat()
   elif isinstance(obj, str):
     return obj
   else:
     return None
-
-def EST():
-  return tz.gettz("America/New_York")
-
-def in_est(dt):
-  return dt.astimezone(EST())
 
 def current_congress(year=None):
   if not year:
