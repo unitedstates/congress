@@ -5,7 +5,7 @@ from dateutil import tz
 import yaml
 from pytz import timezone
 import datetime, time
-from lxml import html
+from lxml import html, etree
 import scrapelib
 import pprint
 import logging
@@ -28,6 +28,7 @@ else:
 # scraper should be instantiated at class-load time, so that it can rate limit appropriately
 scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_attempts=3)
 
+govtrack_person_id_map = None
 
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
@@ -362,3 +363,39 @@ def fetch_committee_names(congress, options):
     # This appears to be a mistake, a subcommittee appearing as a full committee. Map it to
     # the full committee for now.
     committee_names["House Antitrust (Full Committee Task Force)"] = committee_names["House Judiciary"]
+
+def make_node(parent, tag, text, **attrs):
+  """Make a node in an XML document."""
+  n = etree.Element(tag)
+  parent.append(n)
+  n.text = text
+  for k, v in attrs.items():
+    if v is None: continue
+    if isinstance(v, datetime.datetime):
+      v = utils.format_datetime(v)
+    n.set(k.replace("___", ""), v)
+  return n
+
+def get_govtrack_person_id(source_id_type, source_id):
+  # Load the legislators database to map THOMAS IDs to GovTrack IDs.
+  # Cache in a pickled file because loading the whole YAML db is super slow.
+  global govtrack_person_id_map
+  import os, os.path, pickle
+  if not govtrack_person_id_map:
+    cachefn = os.path.join(cache_dir(), 'legislators-id-map')
+    if os.path.exists(cachefn) and os.stat(cachefn).st_mtime > max(os.stat("congress-legislators/legislators-current.yaml").st_mtime, os.stat("congress-legislators/legislators-current.yaml").st_mtime):
+      govtrack_person_id_map = pickle.load(open(cachefn))
+    else:
+      logging.warn("Loading legislator ID map...")
+      govtrack_person_id_map = { }
+      import yaml
+      for fn in ('legislators-historical', 'legislators-current'):
+        for moc in yaml.load(open("congress-legislators/" + fn + ".yaml")):
+          if "govtrack" in moc["id"]:
+            for k, v in moc["id"].items():
+              if k != "govtrack" and isinstance(v, (str, unicode, int)):
+                govtrack_person_id_map[(k,v)] = moc["id"]["govtrack"]
+      pickle.dump(govtrack_person_id_map, open(cachefn, "w"))
+  
+  # Now do the lookup.
+  return govtrack_person_id_map[(source_id_type, source_id)]

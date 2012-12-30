@@ -3,7 +3,7 @@ import logging
 import re
 import json
 from lxml import etree
-import time, datetime
+import time, datetime, os, os.path
 
 def fetch_vote(vote_id, options):
   logging.info("\n[%s] Fetching..." % vote_id)
@@ -13,7 +13,6 @@ def fetch_vote(vote_id, options):
   if vote_chamber == "h":
     session_year = utils.get_session_canonical_year(int(vote_congress), int(vote_session))
     url = "http://clerk.house.gov/evs/%d/roll%03d.xml" % (session_year, int(vote_number))
-    # Vacated votes: 2011-484, 2012-327
   else:
     url = "http://www.senate.gov/legislative/LIS/roll_call_votes/vote%d%d/vote_%d_%d_%05d.xml" % (int(vote_congress), int(vote_session), int(vote_congress), int(vote_session), int(vote_number))
   
@@ -30,6 +29,14 @@ def fetch_vote(vote_id, options):
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
+  if "This vote was vacated" in body:
+    # Vacated votes: 2011-484, 2012-327, ...
+    # Remove file, since it may previously have existed with data.
+    for f in (output_for_vote(vote_id, "json"), output_for_vote(vote_id, "xml")):
+      if os.path.exists(f):
+        os.unlink(f)
+    return {'saved': False, 'ok': True, 'reason': "vote was vacated"}
+
   dom = etree.fromstring(body)
 
   vote = {
@@ -37,13 +44,19 @@ def fetch_vote(vote_id, options):
     'chamber': vote_chamber,
     'congress': int(vote_congress),
     'session': int(vote_session),
-    'number': int(vote_number)
+    'number': int(vote_number),
+    'updated_at': datetime.datetime.fromtimestamp(time.time()),
+    'source_url': url,
   }
+  
+  # do the heavy lifting
   
   if vote_chamber == "h":
     parse_house_vote(dom, vote)
   elif vote_chamber == "s":
     parse_senate_vote(dom, vote)
+    
+  # output and return
   
   output_vote(vote, options)
 
@@ -51,6 +64,10 @@ def fetch_vote(vote_id, options):
 
 def output_vote(vote, options):
   logging.info("[%s] Writing to disk..." % vote['vote_id'])
+  
+  # get this out of the data before saving to JSON
+  vote_source_order = vote["vote_source_order"]
+  del vote["vote_source_order"]
 
   # output JSON - so easy!
   utils.write(
@@ -60,6 +77,55 @@ def output_vote(vote, options):
 
   # output XML
   root = etree.Element("roll")
+  
+  root.set("where", "house" if vote['chamber'] == "h" else "senate")
+  root.set("session", str(vote["congress"]))
+  root.set("year", str(vote["date"].year))
+  root.set("roll", str(vote["number"]))
+  root.set("datetime", utils.format_datetime(vote['date']))
+  
+  root.set("updated", utils.format_datetime(vote['updated_at']))
+  
+  root.set("aye", str(len(vote.get("Yea", [])) + len(vote.get("Aye", []))))
+  root.set("nay", str(len(vote.get("Nay", [])) + len(vote.get("No", []))))
+  root.set("nv", str(len(vote.get("Not Voting", []))))
+  root.set("nv", str(len(vote.get("Present", []))))
+  
+  root.set("source", "house.gov" if vote["chamber"] == "h" else "senate.gov")
+  
+  utils.make_node(root, "type", vote["type"])
+  utils.make_node(root, "question", vote["question"])
+  utils.make_node(root, "required", vote["requires"])
+  utils.make_node(root, "result", vote["result"])
+  
+  if "bill" in vote:
+    govtrack_type_codes = { 'hr': 'h', 's': 's', 'hres': 'hr', 'sres': 'sr', 'hjres': 'hj', 'sjres': 'sj', 'hconres': 'hc', 'sconres': 'sc' }
+    utils.make_node(root, "bill", "", session=str(vote["bill"]["congress"]), type=govtrack_type_codes[vote["bill"]["type"]], number=str(vote["bill"]["number"]))
+    
+  if "amendment" in vote:
+    if vote["amendment"]["type"] == "s":
+      utils.make_node(root, "amendment", "", ref="regular", number=str(vote["amendment"]["number"]))
+    elif vote["amendment"]["type"] == "h-bill":
+      utils.make_node(root, "amendment", "", ref="bill-serial", number=str(vote["amendment"]["number"]))
+    
+  option_keys = { "Aye": "+", "Yea": "+", "Nay": "-", "No": "-", "Present": "P", "Not Voting": "0" }
+  option_sort_order = ('Aye', 'Yea', 'Guilty', 'No', 'Nay', 'Not Guilty', 'OTHER', 'Present', 'Not Voting')
+  options_list = sorted(vote["votes"].keys(), key = lambda o : option_sort_order.index(o) if o in option_sort_order else option_sort_order.index("OTHER") )
+  for option in options_list:
+    if option not in option_keys: option_keys[option] = option
+    utils.make_node(root, "option", option, key=option_keys[option])
+    
+  for voter_vote, voter_index in vote_source_order:
+    v = vote["votes"][voter_vote][voter_index]
+    if v == "VP":
+      utils.make_node(root, "voter", "", id="0", VP="1", vote=option_keys[voter_vote], value=voter_vote)
+    elif not options.get("govtrack", False):
+      utils.make_node(root, "voter", "", id=str(v["id"]), vote=option_keys[voter_vote], value=voter_vote)
+    else:
+      utils.make_node(root, "voter", "",
+        id=str(utils.get_govtrack_person_id("bioguide" if vote["chamber"] == "h" else "lis", v["id"])),
+        vote=option_keys[voter_vote], value=voter_vote)
+  
   utils.write(
     etree.tostring(root, pretty_print=True),
     output_for_vote(vote['vote_id'], "xml")
@@ -76,7 +142,9 @@ def parse_senate_vote(dom, vote):
   vote["date"] = parse_date(dom.xpath("string(vote_date)"))
   vote["record_modified"] = parse_date(dom.xpath("string(modify_date)"))
   vote["question"] = unicode(dom.xpath("string(vote_question_text)"))
-  vote["type_text"] = unicode(dom.xpath("string(vote_question)"))
+  vote["type"] = unicode(dom.xpath("string(vote_question)"))
+  if vote["type"] == "": vote["type"] = vote["question"]
+  vote["category"] = get_vote_category(vote["type"])
   vote["subject"] = unicode(dom.xpath("string(vote_title)"))
   vote["requires"] = unicode(dom.xpath("string(majority_requirement)"))
   vote["result_text"] = unicode(dom.xpath("string(vote_result_text)"))
@@ -85,18 +153,28 @@ def parse_senate_vote(dom, vote):
   bill_types = { "S.": "s", "S.Con.Res.": "sconres", "S.J.Res.": "sjres", "S.Res.": "sres", "H.R.": "hr", "H.Con.Res.": "hconres", "H.J.Res.": "hjres", "H.Res.": "hres" }
 
   if unicode(dom.xpath("string(document/document_type)")):
-    vote["bill"] = {
-      "congress": int(dom.xpath("number(document/document_congress)")),
-      "type": bill_types[unicode(dom.xpath("string(document/document_type)"))],
-      "number": int(dom.xpath("number(document/document_number)")),
-      "title": unicode(dom.xpath("string(document/document_title)")),
-    }
-    
+    if dom.xpath("string(document/document_type)") == "PN":
+      vote["nomination"] = {
+        "number": int(dom.xpath("number(document/document_number)")),
+        "title": unicode(dom.xpath("string(document/document_title)")),
+      }
+    elif dom.xpath("string(document/document_type)") == "Treaty Doc.":
+      vote["treaty"] = {
+        "title": unicode(dom.xpath("string(document/document_title)")),
+      }
+    else:
+      vote["bill"] = {
+        "congress": int(dom.xpath("number(document/document_congress)")),
+        "type": bill_types[unicode(dom.xpath("string(document/document_type)"))],
+        "number": int(dom.xpath("number(document/document_number)")),
+        "title": unicode(dom.xpath("string(document/document_title)")),
+      }
+      
   if unicode(dom.xpath("string(amendment/amendment_number)")):
-    m = re.match(r"S.Amdt. (\d+)$", unicode(dom.xpath("string(amendment/amendment_number)")))
+    m = re.match(r"^S.Amdt. (\d+)", unicode(dom.xpath("string(amendment/amendment_number)")))
     if m:
       vote["amendment"] = {
-        "chamber": "s",
+        "type": "s",
         "number": int(m.group(1)),
         "purpose": unicode(dom.xpath("string(amendment/amendment_purpose)")),
       }
@@ -110,43 +188,52 @@ def parse_senate_vote(dom, vote):
     }
     
   # Count up the votes.
-  votes = { } # by vote type
-  def add_vote(vote, voter):
-    if vote == "Present, Giving Live Pair": vote = "Present"
-    votes.setdefault(vote, []).append(voter)
+  vote["votes"] = { }
+  vote["vote_source_order"] = [] # compatibility with GovTrack-style output only
+  def add_vote(vote_option, voter):
+    if vote_option == "Present, Giving Live Pair": vote_option = "Present"
+    vote["votes"].setdefault(vote_option, []).append(voter)
+    vote["vote_source_order"].append((vote_option, len(vote["votes"][vote_option])-1)) # (vote, index into that array)
   
   # Ensure the options are noted, even if no one votes that way.
   if unicode(dom.xpath("string(vote_question)")) == "Guilty or Not Guilty":
-    votes['Guilty'] = []
-    votes['Not Guilty'] = []
+    vote["votes"]['Guilty'] = []
+    vote["votes"]['Not Guilty'] = []
   else:
-    votes['Yea'] = []
-    votes['Nay'] = []
-  votes['Present'] = []
-  votes['Not Voting'] = []
+    vote["votes"]['Yea'] = []
+    vote["votes"]['Nay'] = []
+  vote["votes"]['Present'] = []
+  vote["votes"]['Not Voting'] = []
   
   # VP tie-breaker?
   if str(dom.xpath("string(tie_breaker/by_whom)")):
     add_vote(str(dom.xpath("string(tie_breaker/tie_breaker_vote)")), "VP")
     
   for member in dom.xpath("members/member"):
-    # LIS ID, prefixed with "S" --- remove the "S"
-    who = str(member.xpath("string(lis_member_id)"))
-    who = who.replace("S", "")
-    who = int(who)
-    
-    add_vote(str(member.xpath("string(vote_cast)")), who)
-      
-  vote["votes"] = votes
+    add_vote(str(member.xpath("string(vote_cast)")), {
+        "id": str(member.xpath("string(lis_member_id)")),
+        "state": str(member.xpath("string(state)")),
+        "party": str(member.xpath("string(party)")),
+        "display_name": unicode(member.xpath("string(member_full)")),
+        "first_name": str(member.xpath("string(first_name)")),
+        "last_name": str(member.xpath("string(last_name)")),
+    })
   
 def parse_house_vote(dom, vote):
   def parse_date(d):
-    return datetime.datetime.strptime(d, "%d-%b-%Y %I:%M %p")
+    d = d.strip()
+    if " " in d:
+      return datetime.datetime.strptime(d, "%d-%b-%Y %I:%M %p")
+    else: # some votes have no times?
+      print vote
+      return datetime.datetime.strptime(d, "%d-%b-%Y")
 
   vote["date"] = parse_date(str(dom.xpath("string(vote-metadata/action-date)")) + " " + str(dom.xpath("string(vote-metadata/action-time)")))
   vote["question"] = unicode(dom.xpath("string(vote-metadata/vote-question)"))
-  vote["type_text"] = unicode(dom.xpath("string(vote-metadata/vote-question)"))
+  vote["type"] = unicode(dom.xpath("string(vote-metadata/vote-question)"))
+  vote["category"] = get_vote_category(vote["question"])
   vote["subject"] = unicode(dom.xpath("string(vote-metadata/vote-desc)"))
+  if not vote["subject"]: del vote["subject"]
   
   vote_types = { "YEA-AND-NAY": "1/2", "2/3 YEA-AND-NAY": "2/3", "3/5 YEA-AND-NAY": "3/5", "1/2": "1/2", "2/3" : "2/3", "QUORUM": "QUORUM", "RECORDED VOTE" : "1/2", "2/3 RECORDED VOTE": "2/3", "3/5 RECORDED VOTE": "3/5" }
   vote["requires"] = vote_types.get(str(dom.xpath("string(vote-metadata/vote-type)")), "unknown")
@@ -154,42 +241,113 @@ def parse_house_vote(dom, vote):
   vote["result_text"] = unicode(dom.xpath("string(vote-metadata/vote-result)"))
   vote["result"] = unicode(dom.xpath("string(vote-metadata/vote-result)"))
   
-  if unicode(dom.xpath("string(vote-metadata/legis-num)")):
-    bill_types = { "S": "s", "S Con Res": "sconres", "S J Res": "sjres", "S Res": "sres", "H R": "hr", "H Con Res": "hconres", "H J Res": "hjres", "H Res": "hres" }
-    bill_type, bill_number = unicode(dom.xpath("string(vote-metadata/legis-num)")).rsplit(" ", 1)
-    vote["bill"] = {
-      "congress": vote["congress"],
-      "type": bill_types[bill_type],
-      "number": int(bill_number),
-    }
+  if unicode(dom.xpath("string(vote-metadata/legis-num)")) not in ("", "QUORUM", "JOURNAL", "ADJOURN"):
+    bill_types = { "S": "s", "S CON RES": "sconres", "S J RES": "sjres", "S RES": "sres", "H R": "hr", "H CON RES": "hconres", "H J RES": "hjres", "H RES": "hres" }
+    bill_num = unicode(dom.xpath("string(vote-metadata/legis-num)"))
+    try:
+      bill_type, bill_number = bill_num.rsplit(" ", 1)
+      vote["bill"] = {
+        "congress": vote["congress"],
+        "type": bill_types[bill_type],
+        "number": int(bill_number),
+      }
+    except ValueError: # rsplit failed, i.e. there is no space in the legis-num field
+      logging.warn("Unhandled bill number: %s" % bill_num)
     
+  if str(dom.xpath("string(vote-metadata/amendment-num)")):
+    vote["amendment"] = {
+      "type": "h-bill",
+      "number": int(str(dom.xpath("string(vote-metadata/amendment-num)"))),
+      "author": unicode(dom.xpath("string(vote-metadata/amendment-author)")),
+    }
+
+  # Assemble a complete question from the vote type, amendment, and bill number.
+  if "amendment" in vote and "bill" in vote:
+    vote["question"] += ": Amendment %s to %s" % (vote["amendment"]["number"], unicode(dom.xpath("string(vote-metadata/legis-num)")))
+  elif "amendment" in vote:
+    vote["question"] += ": Amendment %s to [unknown bill]" % vote["amendment"]["number"]
+  elif "bill" in vote:
+    vote["question"] += ": " + unicode(dom.xpath("string(vote-metadata/legis-num)"))
+  elif "subject" in vote:
+    vote["question"] += ": " + vote["subject"]
+
   # Count up the votes.
-  votes = { } # by vote type
-  def add_vote(vote, voter):
-    if vote == "Present, Giving Live Pair": vote = "Present"
-    votes.setdefault(vote, []).append(voter)
+  vote["votes"] = { } # by vote type
+  vote["vote_source_order"] = [] # compatibility with GovTrack-style output only
+  def add_vote(vote_option, voter):
+    vote["votes"].setdefault(vote_option, []).append(voter)
+    vote["vote_source_order"].append((vote_option, len(vote["votes"][vote_option])-1)) # (vote, index into that array)
   
   # Ensure the options are noted, even if no one votes that way.
-  if unicode(dom.xpath("string(vote_question)")) == "Guilty or Not Guilty":
-    votes['Guilty'] = []
-    votes['Not Guilty'] = []
+  if unicode(dom.xpath("string(vote-metadata/vote-question)")) == "Election of the Speaker":
+    for n in dom.xpath('vote-metadata/vote-totals/totals-by-candidate/candidate'):
+      vote["votes"][n.text] = []
+  elif unicode(dom.xpath("string(vote-metadata/vote-question)")) == "Call of the House":
+    for n in dom.xpath('vote-metadata/vote-totals/totals-by-candidate/candidate'):
+      vote["votes"][n.text] = []
+  elif "YEA-AND-NAY" in dom.xpath('string(vote-metadata/vote-type)'):
+    vote["votes"]['Yea'] = []
+    vote["votes"]['Nay'] = []
+    vote["votes"]['Present'] = []
+    vote["votes"]['Not Voting'] = []
   else:
-    votes['Yea'] = []
-    votes['Nay'] = []
-  votes['Present'] = []
-  votes['Not Voting'] = []
+    vote["votes"]['Aye'] = []
+    vote["votes"]['No'] = []
+    vote["votes"]['Present'] = []
+    vote["votes"]['Not Voting'] = []
   
-  # VP tie-breaker?
-  if str(dom.xpath("string(tie_breaker/by_whom)")):
-    add_vote(str(dom.xpath("string(tie_breaker/tie_breaker_vote)")), "VP")
-    
-  for member in dom.xpath("members/member"):
-    # LIS ID, prefixed with "S" --- remove the "S"
-    who = str(member.xpath("string(lis_member_id)"))
-    who = who.replace("S", "")
-    who = int(who)
-    
-    add_vote(str(member.xpath("string(vote_cast)")), who)
+  for member in dom.xpath("vote-data/recorded-vote"):
+    add_vote(str(member.xpath("string(vote)")), {
+        "id": str(member.xpath("string(legislator/@name-id)")),
+        "state": str(member.xpath("string(legislator/@state)")),
+        "party": str(member.xpath("string(legislator/@party)")),
+        "display_name": unicode(member.xpath("string(legislator)")),
+    })
       
-  vote["votes"] = votes
+def get_vote_category(vote_question):
+  # Takes the "question" field of a House or Senate vote and returns a normalized
+  # category for the vote type.
+  #
+  # Based on Eric's vote_type_for function in sunlightlabs/congress.
+  
+  mapping = {
+    # common
+    r"^On Overriding the Veto": "veto-override",
+    r"Objections of the President Not ?Withstanding": "veto-override", # order matters so must go before bill passage
+    r"^On Passage": "passage",
+    r"^On (Agreeing to )?the (Joint |Concurrent )?Resolution": "passage",
+    r"^On (Agreeing to )?the Conference Report": "passage",
+    r"^On (Agreeing to )?the (En Bloc )?Amendments?": "amendment",
+      
+    # senate only
+    r"cloture": "cloture",
+    r"^On the Nomination": "nomination",
+    r"^Guilty or Not Guilty": "conviction", # was "impeachment" in sunlightlabs/congress but that's not quite right
+    r"^On the Resolution of Ratification": "treaty",
+    r"^On (?:the )?Motion to Recommit": "recommit",
+      
+    # house only
+    r"^(On Motion to )?(Concur in|Concurring|On Concurring|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?": "passage",
+    r"^(On Motion to )?Suspend (the )?Rules and (Agree|Concur|Pass)": "passage-suspension",
+    r"^Call of the House$": "quorum",
+    r"^Election of the Speaker$": "leadership",
+    
+    # various procedural things
+    # order matters, so these must go last
+    r"^On Ordering the Previous Question": "procedural",
+    r"^On Approving the Journal": "procedural",
+    r"^Will the House Now Consider the Resolution|On (Question of )?Consideration of the Resolution": "procedural",
+    r"^On (the )?Motion to Adjourn": "procedural",
+    r"Authoriz(e|ing) Conferees": "procedural",
+    r"On the Point of Order|Sustaining the Ruling of the Chair": "procedural",
+    r"^On .*Motion ": "procedural", # $1 is a name like "Broun of Georgia"
+  }
+  
+  for regex, category in mapping.items():
+    if re.search(regex, vote_question, re.I):
+      return category
+
+  # unhandled
+  logging.warn("Unhandled vote question: %s" % vote_question)
+  return "unknown"
 
