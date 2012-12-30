@@ -57,6 +57,13 @@ The script will cache downloaded pages in a top-level `cache` directory, and out
 
 Two bulk data output files will be generated for each bill: a JSON version (data.json) and an XML version (data.xml). The XML version attempts to maintain backwards compatibility with the XML bulk data that [GovTrack.us](http://govtrack.us) has provided for years.
 
+The GovTrack-style output will use thomas_id's for people (sponsors etc.). To use GovTrack IDs, first update the submodule:
+
+	git submodule init
+	git submodule update
+
+And then add --govtrack to the ./run command line to turn on GovTrack IDs in output. On first load it will be very slow.
+
 
 Contributing
 ------------
