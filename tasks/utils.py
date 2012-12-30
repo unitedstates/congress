@@ -377,25 +377,46 @@ def make_node(parent, tag, text, **attrs):
   return n
 
 def get_govtrack_person_id(source_id_type, source_id):
-  # Load the legislators database to map THOMAS IDs to GovTrack IDs.
+  # Load the legislators database to map various IDs to GovTrack IDs.
   # Cache in a pickled file because loading the whole YAML db is super slow.
   global govtrack_person_id_map
-  import os, os.path, pickle
+  import os, os.path, pickle, yaml
+  
+  # On the first call to this function...
   if not govtrack_person_id_map:
-    cachefn = os.path.join(cache_dir(), 'legislators-id-map')
-    if os.path.exists(cachefn) and os.stat(cachefn).st_mtime > max(os.stat("congress-legislators/legislators-current.yaml").st_mtime, os.stat("congress-legislators/legislators-current.yaml").st_mtime):
-      govtrack_person_id_map = pickle.load(open(cachefn))
-    else:
-      logging.warn("Loading legislator ID map...")
-      govtrack_person_id_map = { }
-      import yaml
-      for fn in ('legislators-historical', 'legislators-current'):
-        for moc in yaml.load(open("congress-legislators/" + fn + ".yaml")):
+    # Clone the congress-legislators repo if we don't have it.
+    if not os.path.exists("cache/congress-legislators"):
+      logging.warn("Cloning the congress-legislators repo into the cache directory...")
+      os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators cache/congress-legislators")
+      
+    # Update the repo so we have the latest.
+    logging.warn("Updating the congress-legislators repo...")
+    os.system("GIT_DIR=cache/congress-legislators/.git git fetch -pq") # these two == git pull, but git pull ignores -q on the merge part so is less quiet
+    os.system("GIT_DIR=cache/congress-legislators/.git git merge origin/master -q")
+    
+    govtrack_person_id_map = { }
+    for fn in ('legislators-historical', 'legislators-current'):
+      # Check if the pickled file is older than the YAML files.
+      cachefn = os.path.join(cache_dir(), fn + '-id-map')
+      if os.path.exists(cachefn) and os.stat(cachefn).st_mtime > os.stat("cache/congress-legislators/%s.yaml" % fn).st_mtime:
+        # Pickled file is newer, so use it.
+        m = pickle.load(open(cachefn))
+      else:
+        # Make a new mapping. Load the YAML file and create
+        # a master map from (id-type, id) to GovTrack ID,
+        # where id-type is e.g. thomas, lis, bioguide. Then
+        # save it to a pickled file.
+        logging.warn("Making %s ID map..." % fn)
+        m = { }
+        for moc in yaml.load(open("cache/congress-legislators/" + fn + ".yaml")):
           if "govtrack" in moc["id"]:
             for k, v in moc["id"].items():
-              if k != "govtrack" and isinstance(v, (str, unicode, int)):
-                govtrack_person_id_map[(k,v)] = moc["id"]["govtrack"]
-      pickle.dump(govtrack_person_id_map, open(cachefn, "w"))
+              if k in ('bioguide', 'lis', 'thomas'):
+                m[(k,v)] = moc["id"]["govtrack"]
+        pickle.dump(m, open(cachefn, "w"))
+        
+      # Combine the mappings from the historical and current files.
+      govtrack_person_id_map.update(m)
   
   # Now do the lookup.
   return govtrack_person_id_map[(source_id_type, source_id)]
