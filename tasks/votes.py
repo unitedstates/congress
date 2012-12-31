@@ -87,7 +87,7 @@ def vote_ids_for_senate(congress, session, options):
   vote_ids = []
   
   page = utils.download(
-    "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%d_%s.xml" % (congress, session),
+    "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%s.xml" % (congress, session),
     "%s/votes/%s/pages/senate.xml" % (congress, session),
     options.get('force', False),
     is_xml=True)
