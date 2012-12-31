@@ -376,7 +376,7 @@ def summary_for(body):
   text = re.sub("\s*<p><b>\(This measure.*?</b></p>\s*", "", text)
 
   # strip out the intro date thing
-  sumdate = "(\d+/\d+/\d+)--([^\s].*?)(\n|<p>)"
+  sumdate = u"(\d+/\d+/\d+)--([^\s].*?)(\u00a0\u00a0\u00a0\u00a0\(There (is|are) \d+ <a href=\"[^>]+\">other (summary|summaries)</a>\))?(\n|<p>)"
   m = re.search(sumdate, text)
   if m:
     d = m.group(1)
