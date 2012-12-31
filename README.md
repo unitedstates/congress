@@ -1,9 +1,13 @@
 Congress
 ========
 
-Public domain code that collects core data about the bills that travel through the US Congress.
+Public domain code that collects core data about the bills and roll call votes in the U.S. Congress.
 
-Includes a scraper for THOMAS.gov, the official source of information on the life and times of legislation in Congress.
+Includes:
+
+* A scraper for THOMAS.gov, the official source of information on the life and times of legislation in Congress.
+
+* Scrapers for House and Senate roll call votes.
 
 The resulting bulk data is [hosted on Github](https://github.com/unitedstates/congress/downloads), and is updated nightly. Read about the [contents and schema](https://github.com/unitedstates/congress/wiki).
 
@@ -22,7 +26,7 @@ Whether or not you use virtualenv:
 
     pip install -r requirements.txt
 
-To start grabbing everything:
+To start grabbing bills (and resolutions):
 
     ./run bills
 
@@ -38,7 +42,19 @@ The script will cache all downloaded pages, and will not re-fetch them from the 
 
     ./run bills --force
 
-Debugging messages are hidden by default. To include them, run with --log=info. To hide even warnings, run with --log=error.
+Similar commands are available for roll call votes. Start with:
+
+    ./run votes
+    
+You can supply a few kinds of flags, such as force, limit, and congress as above. Votes are grouped by the Senate and House into two sessions per Congress, which (in modern times) roughly follow the calendar years. Senate votes are numbered uniquely by session. House vote numbering continues consecutively throughout the Congress. To get votes from 2012, run:
+
+    ./run votes --congress=112 --session=2
+    
+To get only a specific vote, pass in the ID for the vote. For the Senate vote 50 in the 2nd session of the 112th Congress:
+
+    ./run votes --vote_id=s50-112.2
+
+Debugging messages are hidden by default. To include them, run with --log=info or --debug. To hide even warnings, run with --log=error.
 
 Keeping data fresh
 -------------------
@@ -55,7 +71,9 @@ Data Output
 
 The script will cache downloaded pages in a top-level `cache` directory, and output bulk data in a top-level `data` directory.
 
-Two bulk data output files will be generated for each bill: a JSON version (data.json) and an XML version (data.xml). The XML version attempts to maintain backwards compatibility with the XML bulk data that [GovTrack.us](http://govtrack.us) has provided for years.
+Two bulk data output files will be generated for each object: a JSON version (data.json) and an XML version (data.xml). The XML version attempts to maintain backwards compatibility with the XML bulk data that [GovTrack.us](http://govtrack.us) has provided for years. Add the --govtrack flag to get fully backward-compatible output using GovTrack IDs (otherwise the source IDs used for legislators is used).
+
+See the project wiki for documentation on the output format.
 
 
 Contributing
