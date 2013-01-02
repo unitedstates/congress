@@ -1,5 +1,4 @@
 import os, errno, sys, traceback
-import time
 import re, htmlentitydefs
 import yaml
 from pytz import timezone
@@ -38,10 +37,25 @@ def format_datetime(obj):
   else:
     return None
 
-def current_congress(year=None):
-  if not year:
-    year = datetime.datetime.now().year
+def current_congress():
+  year = current_legislative_year()
   return ((year + 1) / 2) - 894
+
+def current_legislative_year(date=None):
+  if not date:
+    date = datetime.datetime.now()
+
+  year = date.year
+
+  if date.month == 1:
+    if date.day == 1 or date.day == 2:
+      return date.year - 1
+    elif date.day == 3 and date.hour < 12:
+      return date.year - 1
+    else:
+      return date.year
+  else:
+    return date.year
 
 def split_bill_id(bill_id):
   return re.match("^([a-z]+)(\d+)-(\d+)$", bill_id).groups()
