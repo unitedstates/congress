@@ -8,18 +8,18 @@ import time, datetime, os, os.path
 def fetch_vote(vote_id, options):
   logging.info("\n[%s] Fetching..." % vote_id)
   
-  vote_chamber, vote_number, vote_congress, vote_session = utils.split_vote_id(vote_id)
+  vote_chamber, vote_number, vote_congress, vote_session_year = utils.split_vote_id(vote_id)
   
   if vote_chamber == "h":
-    session_year = utils.get_session_canonical_year(int(vote_congress), int(vote_session))
-    url = "http://clerk.house.gov/evs/%d/roll%03d.xml" % (session_year, int(vote_number))
+    url = "http://clerk.house.gov/evs/%s/roll%03d.xml" % (vote_session_year, int(vote_number))
   else:
-    url = "http://www.senate.gov/legislative/LIS/roll_call_votes/vote%d%d/vote_%d_%d_%05d.xml" % (int(vote_congress), int(vote_session), int(vote_congress), int(vote_session), int(vote_number))
+    session_num = int(vote_session_year) - utils.get_congress_first_year(int(vote_congress)) + 1
+    url = "http://www.senate.gov/legislative/LIS/roll_call_votes/vote%d%d/vote_%d_%d_%05d.xml" % (int(vote_congress), session_num, int(vote_congress), session_num, int(vote_number))
   
   # fetch vote XML page
   body = utils.download(
     url, 
-    "%s/votes/%s/%s%s" % (vote_congress, vote_session, vote_chamber, vote_number),
+    "%s/votes/%s/%s%s" % (vote_congress, vote_session_year, vote_chamber, vote_number),
     options.get('force', False),
     is_xml=True)
 
@@ -43,7 +43,7 @@ def fetch_vote(vote_id, options):
     'vote_id': vote_id,
     'chamber': vote_chamber,
     'congress': int(vote_congress),
-    'session': int(vote_session),
+    'session': vote_session_year,
     'number': int(vote_number),
     'updated_at': datetime.datetime.fromtimestamp(time.time()),
     'source_url': url,
@@ -137,8 +137,8 @@ def output_vote(vote, options):
   )
 
 def output_for_vote(vote_id, format):
-  vote_chamber, vote_number, vote_congress, vote_session = utils.split_vote_id(vote_id)
-  return "%s/%s/votes/%s/%s%s/%s" % (utils.data_dir(), vote_congress, vote_session, vote_chamber, vote_number, "data.%s" % format)
+  vote_chamber, vote_number, vote_congress, vote_session_year = utils.split_vote_id(vote_id)
+  return "%s/%s/votes/%s/%s%s/%s" % (utils.data_dir(), vote_congress, vote_session_year, vote_chamber, vote_number, "data.%s" % format)
 
 def parse_senate_vote(dom, vote):
   def parse_date(d):

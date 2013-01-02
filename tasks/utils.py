@@ -48,19 +48,14 @@ def current_congress(year=None):
   if not year:
     year = datetime.datetime.now().year
   return ((year + 1) / 2) - 894
-def current_session(year=None):
-  if not year:
-    year = datetime.datetime.now().year
-  return ((year - 2011) % 2) + 1
-def get_session_canonical_year(congress, session):
-  # map the 1/2 session number to a year
-  return (((congress+894)*2) - 1) + (session-1)
+def get_congress_first_year(congress):
+  return (((congress+894)*2) - 1)
 
 def split_bill_id(bill_id):
   return re.match("^([a-z]+)(\d+)-(\d+)$", bill_id).groups()
 
 def split_vote_id(bill_id):
-  return re.match("^(h|s)(\d+)-(\d+).([12])$", bill_id).groups()
+  return re.match("^(h|s)(\d+)-(\d+).(\d\d\d\d)$", bill_id).groups()
 
 def process_set(to_fetch, fetch_func, options):
   errors = []

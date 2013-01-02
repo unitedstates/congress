@@ -11,12 +11,12 @@ def run(options):
   vote_id = options.get('vote_id', None)
 
   if vote_id:
-    vote_chamber, vote_number, congress, session = utils.split_vote_id(vote_id)
+    vote_chamber, vote_number, congress, session_year = utils.split_vote_id(vote_id)
     to_fetch = [vote_id]
   else:
     congress = options.get('congress', utils.current_congress())
-    session = options.get('session', utils.current_session())
-    to_fetch = vote_ids_for_house(congress, session, options) + vote_ids_for_senate(congress, session, options)
+    session_year = options.get('session', str(datetime.datetime.now().year))
+    to_fetch = vote_ids_for_house(congress, session_year, options) + vote_ids_for_senate(congress, session_year, options)
     if not to_fetch:
       logging.error("Error figuring out which votes to download, aborting.")
       return None
@@ -28,14 +28,12 @@ def run(options):
   if options.get('pages_only', False):
     return None
 
-  print "Going to fetch %i votes from congress #%s session %s" % (len(to_fetch), congress, session)
+  print "Going to fetch %i votes from congress #%s session %s" % (len(to_fetch), congress, session_year)
   
   utils.process_set(to_fetch, vote_info.fetch_vote, options)
 
 # page through listing of House votes of a particular congress and session
-def vote_ids_for_house(congress, session, options):
-  session_year = utils.get_session_canonical_year(int(congress), int(session))
-  
+def vote_ids_for_house(congress, session_year, options):
   vote_ids = []
 
   index_page = "http://clerk.house.gov/evs/%s/index.asp" % session_year
@@ -45,7 +43,7 @@ def vote_ids_for_house(congress, session, options):
   # download index page, find the matching links to the paged listing of votes
   page = utils.download(
     index_page,
-    "%s/votes/%s/pages/house.html" % (congress, session),
+    "%s/votes/%s/pages/house.html" % (congress, session_year),
     options.get('force', False))
 
   if not page:
@@ -65,7 +63,7 @@ def vote_ids_for_house(congress, session, options):
     # download inside page, find the matching links
     page = utils.download(
       urlparse.urljoin(index_page, link.get("href")),
-      "%s/votes/%s/pages/house_%s.html" % (congress, session, grp),
+      "%s/votes/%s/pages/house_%s.html" % (congress, session_year, grp),
       options.get('force', False))
   
     if not page:
@@ -79,16 +77,18 @@ def vote_ids_for_house(congress, session, options):
       
     for votelink in votelinks:
       num = re.match(link_pattern, votelink.get("href")).group(1)
-      vote_ids.append("h" + num + "-" + str(congress) + "." + str(session))
+      vote_ids.append("h" + num + "-" + str(congress) + "." + session_year)
           
   return utils.uniq(vote_ids)
 
-def vote_ids_for_senate(congress, session, options):
+def vote_ids_for_senate(congress, session_year, options):
+  session_num = int(session_year) - utils.get_congress_first_year(int(congress)) + 1
+	
   vote_ids = []
   
   page = utils.download(
-    "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%s.xml" % (congress, session),
-    "%s/votes/%s/pages/senate.xml" % (congress, session),
+    "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%d.xml" % (congress, session_num),
+    "%s/votes/%s/pages/senate.xml" % (congress, session_year),
     options.get('force', False),
     is_xml=True)
 
@@ -99,6 +99,6 @@ def vote_ids_for_senate(congress, session, options):
   dom = etree.fromstring(page)
   for vote in dom.xpath("//vote"):
     num = int(vote.xpath("vote_number")[0].text)
-    vote_ids.append("s" + str(num) + "-" + str(congress) + "." + str(session))
+    vote_ids.append("s" + str(num) + "-" + str(congress) + "." + session_year)
   return vote_ids
   
