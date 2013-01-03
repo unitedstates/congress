@@ -6,8 +6,6 @@ from lxml import etree
 import time, datetime
 from lxml.html import fromstring
 
-person_id_map = None
-
 # can be run on its own, just require a bill_id
 def run(options):
   bill_id = options.get('bill_id', None)
@@ -232,43 +230,19 @@ def output_bill(bill, options):
   root.set("updated", utils.format_datetime(bill['updated_at']))
   
   def make_node(parent, tag, text, **attrs):
-    govtrack_convert = options.get("govtrack", False)
-
-    if govtrack_convert:
-      # Load the legislators database to map THOMAS IDs to GovTrack IDs.
-      # Cache in a pickled file because loading the whole YAML db is super slow.
-      global person_id_map
-      from utils import cache_dir
-      import os, os.path, pickle
-      if not person_id_map:
-        cachefn = os.path.join(cache_dir(), 'legislators-id-map')
-        if os.path.exists(cachefn) and os.stat(cachefn).st_mtime > max(os.stat("congress-legislators/legislators-current.yaml").st_mtime, os.stat("congress-legislators/legislators-current.yaml").st_mtime):
-          person_id_map = pickle.load(open(cachefn))
-        else:
-          logging.info("[%s] Loading legislator ID map..." % bill['bill_id'])
-          person_id_map = { }
-          import yaml
-          for fn in ('legislators-historical', 'legislators-current'):
-            for moc in yaml.load(open("congress-legislators/" + fn + ".yaml")):
-              if "thomas" in moc["id"] and "govtrack" in moc["id"]:
-                person_id_map[moc["id"]["thomas"]] = moc["id"]["govtrack"]
-          pickle.dump(person_id_map, open(cachefn, "w"))
-                  
-    # Make a node.
-    n = etree.Element(tag)
-    parent.append(n)
-    n.text = text
-    for k, v in attrs.items():
-      if v:
-        if govtrack_convert:
+    if options.get("govtrack", False):
+      # Rewrite thomas_id attributes as just id with GovTrack person IDs.
+      attrs2 = { }
+      for k, v in attrs.items():
+        if v:
           if k == "thomas_id":
             # remap "thomas_id" attributes to govtrack "id"
             k = "id"
-            v = str(person_id_map["%05d" % int(v)])
-        if isinstance(v, datetime.datetime):
-          v = utils.format_datetime(v)
-        n.set(k.replace("___", ""), v)
-    return n
+            v = str(utils.get_govtrack_person_id('thomas', "%05d" % int(v)))
+          attrs2[k] = v
+      attrs = attrs2
+        
+    return utils.make_node(parent, tag, text, **attrs)
   
   make_node(root, "state", bill['status'], datetime=bill['status_at'])
   old_status = make_node(root, "status", None)

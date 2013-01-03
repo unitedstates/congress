@@ -1,9 +1,9 @@
-import os, errno, sys, traceback
+import os, os.path, errno, sys, traceback
 import re, htmlentitydefs
-import yaml
+import yaml, json
 from pytz import timezone
 import datetime, time
-from lxml import html
+from lxml import html, etree
 import scrapelib
 import pprint
 import logging
@@ -28,6 +28,7 @@ eastern_time_zone = timezone('US/Eastern')
 # scraper should be instantiated at class-load time, so that it can rate limit appropriately
 scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_attempts=3)
 
+govtrack_person_id_map = None
 
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
@@ -57,10 +58,55 @@ def current_legislative_year(date=None):
   else:
     return date.year
 
+def get_congress_first_year(congress):
+  return (((congress+894)*2) - 1)
+
 def split_bill_id(bill_id):
   return re.match("^([a-z]+)(\d+)-(\d+)$", bill_id).groups()
 
-def download(url, destination, force=False, options={}):
+def split_vote_id(bill_id):
+  return re.match("^(h|s)(\d+)-(\d+).(\d\d\d\d)$", bill_id).groups()
+
+def process_set(to_fetch, fetch_func, options):
+  errors = []
+  saved = []
+  skips = []
+
+  for id in to_fetch:
+    try:
+      results = fetch_func(id, options)
+    except Exception, e:
+      if options.get('raise', False):
+        raise
+      else:
+        errors.append((id, e))
+        continue
+
+    if results.get('ok', False):
+      if results.get('saved', False):
+        saved.append(id)
+        logging.info("[%s] Updated" % id)
+      else:
+        skips.append(id)
+        logging.error("[%s] Skipping: %s" % (id, results['reason']))
+    else:
+      errors.append((id, results))
+      logging.error("[%s] Error: %s" % (id, results['reason']))
+
+  if len(errors) > 0:
+    message = "\nErrors for %s items:\n" % len(errors)
+    for id, error in errors:
+      if isinstance(error, Exception):
+        message += "[%s] Exception:\n\n" % id
+        message += format_exception(error)
+      else:
+        message += "[%s] %s" % (id, error)
+    admin(message) # email if possible
+
+  logging.warning("\nSkipped %s." % len(skips))
+  logging.warning("Saved data for %s." % len(saved))
+
+def download(url, destination, force=False, is_xml=False, options={}):
   test = options.get('test', False)
 
   if test:
@@ -78,7 +124,7 @@ def download(url, destination, force=False, options={}):
     try:
       logging.info("Downloading: %s" % url)
       response = scraper.urlopen(url)
-      body = str(response)
+      body = response.bytes # str(...) tries to encode as ASCII the already-decoded unicode content
     except scrapelib.HTTPError as e:
       logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
       return None
@@ -90,7 +136,10 @@ def download(url, destination, force=False, options={}):
     # cache content to disk
     write(body, cache_path)
 
-  return unescape(body)
+  if not is_xml:
+    body = unescape(body)
+    
+  return body
 
 def write(content, destination):
   mkdir_p(os.path.dirname(destination))
@@ -319,3 +368,80 @@ def fetch_committee_names(congress, options):
     # This appears to be a mistake, a subcommittee appearing as a full committee. Map it to
     # the full committee for now.
     committee_names["House Antitrust (Full Committee Task Force)"] = committee_names["House Judiciary"]
+
+def make_node(parent, tag, text, **attrs):
+  """Make a node in an XML document."""
+  n = etree.Element(tag)
+  parent.append(n)
+  n.text = text
+  for k, v in attrs.items():
+    if v is None: continue
+    if isinstance(v, datetime.datetime):
+      v = format_datetime(v)
+    n.set(k.replace("___", ""), v)
+  return n
+
+def get_govtrack_person_id(source_id_type, source_id):
+  # Load the legislators database to map various IDs to GovTrack IDs.
+  # Cache in a pickled file because loading the whole YAML db is super slow.
+  global govtrack_person_id_map
+  import os, os.path, pickle, yaml
+  
+  # On the first call to this function...
+  if not govtrack_person_id_map:
+    # Clone the congress-legislators repo if we don't have it.
+    if not os.path.exists("cache/congress-legislators"):
+      logging.warn("Cloning the congress-legislators repo into the cache directory...")
+      os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators cache/congress-legislators")
+      
+    # Update the repo so we have the latest.
+    logging.warn("Updating the congress-legislators repo...")
+    os.system("cd cache/congress-legislators; git fetch -pq") # these two == git pull, but git pull ignores -q on the merge part so is less quiet
+    os.system("cd cache/congress-legislators; git merge --ff-only -q origin/master")
+    
+    govtrack_person_id_map = { }
+    for fn in ('legislators-historical', 'legislators-current'):
+      # Check if the pickled file is older than the YAML files.
+      cachefn = os.path.join(cache_dir(), fn + '-id-map')
+      if os.path.exists(cachefn) and os.stat(cachefn).st_mtime > os.stat("cache/congress-legislators/%s.yaml" % fn).st_mtime:
+        # Pickled file is newer, so use it.
+        m = pickle.load(open(cachefn))
+      else:
+        # Make a new mapping. Load the YAML file and create
+        # a master map from (id-type, id) to GovTrack ID,
+        # where id-type is e.g. thomas, lis, bioguide. Then
+        # save it to a pickled file.
+        logging.warn("Making %s ID map..." % fn)
+        m = { }
+        for moc in yaml.load(open("cache/congress-legislators/" + fn + ".yaml")):
+          if "govtrack" in moc["id"]:
+            for k, v in moc["id"].items():
+              if k in ('bioguide', 'lis', 'thomas'):
+                m[(k,v)] = moc["id"]["govtrack"]
+        pickle.dump(m, open(cachefn, "w"))
+        
+      # Combine the mappings from the historical and current files.
+      govtrack_person_id_map.update(m)
+  
+  # Now do the lookup.
+  return govtrack_person_id_map[(source_id_type, source_id)]
+  
+def data_is_same(data, jsonfile, ignore_fields=()):
+  # Check if the data is unchanged, modulo a field.
+  
+  if not os.path.exists(jsonfile):
+    return False
+  
+  def clean(d):
+    d = dict(d) # clone
+    for k in ignore_fields:
+      if k in d:
+        del d[k]
+    return d
+    
+  d1 = json.loads(json.dumps(clean(data), default=format_datetime)) # dump/load is required because on load we get unicode strings back
+  d2 = clean(json.load(open(jsonfile)))
+  
+  # easiest way to check for deep equality, but maybe there is something more efficient?
+  import pprint
+  return pprint.pformat(d1) == pprint.pformat(d2)
