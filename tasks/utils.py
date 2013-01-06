@@ -306,8 +306,10 @@ thomas_types = {
   'sres': ('SE', 'S.RES.'),
   'sjres': ('SJ', 'S.J.RES.'),
   'sconres': ('SC', 'S.CON.RES.'),
+  'hamdt': ('HZ', 'H.AMDT.'),
+  'samdt': ('SP', 'S.AMDT.'),
 }
-
+thomas_types_2 = { v[0]: k for (k, v) in thomas_types.items() }  # map e.g. { SE: sres, ...}
 
 # cached committee map to map names to IDs
 committee_names = {}

@@ -15,7 +15,7 @@ def run(options):
     to_fetch = [bill_id]
   else:
     congress = options.get('congress', utils.current_congress())
-    to_fetch = bill_ids_for(congress, options)
+    to_fetch = bill_ids_for(congress, options, False)
     if not to_fetch:
       logging.error("Error figuring out which bills to download, aborting.")
       return None
@@ -33,7 +33,7 @@ def run(options):
 
 
 # page through listings for bills of a particular congress
-def bill_ids_for(congress, options):
+def bill_ids_for(congress, options, doing_amendments):
   bill_ids = []
 
   bill_type = options.get('bill_type', None)
@@ -43,6 +43,8 @@ def bill_ids_for(congress, options):
     bill_types = utils.thomas_types.keys()
 
   for bill_type in bill_types:
+    # This sub is re-used for pulling amendment IDs too.
+    if (bill_type in ('samdt', 'hamdt')) != doing_amendments: continue
     
     # match only links to landing pages of this bill type
     # it shouldn't catch stray links outside of the confines of the 100 on the page,

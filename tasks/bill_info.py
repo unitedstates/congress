@@ -309,7 +309,9 @@ def output_bill(bill, options):
 
 
 def sponsor_for(body):
-  match = re.search(r"<b>Sponsor: </b>(No Sponsor|<a href=[^>]+(\d{5}).*>(.*)</a>\s+\[((\w\w)(-(\d+))?)\])", body, re.I)
+  # This routine is also used by amendment processing. The only difference is the
+  # lack of <b> tags on amendment pages but their presence on bill pages.
+  match = re.search(r"(?:<b>)?Sponsor: (?:</b>)?(No Sponsor|<a href=[^>]+(\d{5}).*>(.*)</a>\s+\[((\w\w)(-(\d+))?)\])", body, re.I)
   if match:
     if (match.group(3) == "No Sponsor") or (match.group(1) == "No Sponsor"):
       return None
@@ -527,8 +529,16 @@ def current_title_for(titles, type):
   return current_title
 
 
-def actions_for(body, bill_id):
-  match = re.search(">ALL ACTIONS:<.*?<dl>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
+def actions_for(body, bill_id, is_amendment=False):
+  if not is_amendment:
+    match = re.search(">ALL ACTIONS:<.*?<dl>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
+  else:
+    # This function is also used by amendment_info.py.
+    match = re.search(">STATUS:<.*?<dl>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
+    
+    # The Status section is optional for amendments.
+    if not match: return None
+  
   if not match:
     if re.search("ALL ACTIONS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
       return [] # no actions, can happen for bills reserved for the Speaker
