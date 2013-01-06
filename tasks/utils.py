@@ -30,6 +30,9 @@ scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_
 
 govtrack_person_id_map = None
 
+class UnmatchedIdentifer(Exception):
+	pass
+
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
     return eastern_time_zone.localize(obj.replace(microsecond=0)).isoformat()
@@ -88,7 +91,7 @@ def process_set(to_fetch, fetch_func, options):
         logging.info("[%s] Updated" % id)
       else:
         skips.append(id)
-        logging.error("[%s] Skipping: %s" % (id, results['reason']))
+        logging.warn("[%s] Skipping: %s" % (id, results['reason']))
     else:
       errors.append((id, results))
       logging.error("[%s] Error: %s" % (id, results['reason']))
@@ -424,5 +427,8 @@ def get_govtrack_person_id(source_id_type, source_id):
       govtrack_person_id_map.update(m)
   
   # Now do the lookup.
+  if (source_id_type, source_id) not in govtrack_person_id_map:
+  	  logging.warn("GovTrack ID not known for %s %s." % (source_id_type, str(source_id)))
+  	  raise UnmatchedIdentifer()
   return govtrack_person_id_map[(source_id_type, source_id)]
 

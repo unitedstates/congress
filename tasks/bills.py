@@ -27,7 +27,7 @@ def run(options):
   if options.get('pages_only', False):
     return None
 
-  print "Going to fetch %i bills from congress #%s" % (len(to_fetch), congress)
+  logging.warn("Going to fetch %i bills from congress #%s" % (len(to_fetch), congress))
   
   utils.process_set(to_fetch, bill_info.fetch_bill, options)
 

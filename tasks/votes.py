@@ -28,7 +28,7 @@ def run(options):
   if options.get('pages_only', False):
     return None
 
-  print "Going to fetch %i votes from congress #%s session %s" % (len(to_fetch), congress, session_year)
+  logging.warn("Going to fetch %i votes from congress #%s session %s" % (len(to_fetch), congress, session_year))
   
   utils.process_set(to_fetch, vote_info.fetch_vote, options)
 
