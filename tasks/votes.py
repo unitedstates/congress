@@ -9,7 +9,6 @@ import vote_info
 
 def run(options):
   vote_id = options.get('vote_id', None)
-  if options.get('force', False): options['fetch'] = True
 
   if vote_id:
     vote_chamber, vote_number, congress, session_year = utils.split_vote_id(vote_id)
@@ -45,7 +44,7 @@ def vote_ids_for_house(congress, session_year, options):
   page = utils.download(
     index_page,
     "%s/votes/%s/pages/house.html" % (congress, session_year),
-    options.get('fetch', False))
+    options.get('force', False))
 
   if not page:
     logging.error("Couldn't download House vote index page, aborting")
@@ -65,7 +64,7 @@ def vote_ids_for_house(congress, session_year, options):
     page = utils.download(
       urlparse.urljoin(index_page, link.get("href")),
       "%s/votes/%s/pages/house_%s.html" % (congress, session_year, grp),
-      options.get('fetch', False))
+      options.get('force', False))
   
     if not page:
       logging.error("Couldn't download House vote group page (%s), aborting" % grp)
@@ -90,7 +89,7 @@ def vote_ids_for_senate(congress, session_year, options):
   page = utils.download(
     "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%d.xml" % (congress, session_num),
     "%s/votes/%s/pages/senate.xml" % (congress, session_year),
-    options.get('fetch', False),
+    options.get('force', False),
     is_xml=True)
 
   if not page:

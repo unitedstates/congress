@@ -425,23 +425,4 @@ def get_govtrack_person_id(source_id_type, source_id):
   
   # Now do the lookup.
   return govtrack_person_id_map[(source_id_type, source_id)]
-  
-def data_is_same(data, jsonfile, ignore_fields=()):
-  # Check if the data is unchanged, modulo a field.
-  
-  if not os.path.exists(jsonfile):
-    return False
-  
-  def clean(d):
-    d = dict(d) # clone
-    for k in ignore_fields:
-      if k in d:
-        del d[k]
-    return d
-    
-  d1 = json.loads(json.dumps(clean(data), default=format_datetime)) # dump/load is required because on load we get unicode strings back
-  d2 = clean(json.load(open(jsonfile)))
-  
-  # easiest way to check for deep equality, but maybe there is something more efficient?
-  import pprint
-  return pprint.pformat(d1) == pprint.pformat(d2)
+

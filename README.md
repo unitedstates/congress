@@ -38,10 +38,6 @@ To get only a specific bill, pass in the ID for that bill. For example, S. 968 i
 
     ./run bills --bill_id=s968-112
 
-The script will cache all downloaded pages, and will not re-fetch them from the network unless a force flag is passed:
-
-    ./run bills --force
-
 Similar commands are available for roll call votes. Start with:
 
     ./run votes
@@ -54,7 +50,14 @@ To get only a specific vote, pass in the ID for the vote. For the Senate vote 50
 
     ./run votes --vote_id=s50-112.2
 
-The script will cache pages and by default resources won't be fetched from the network if a cache exists. Additionally, files won't be written to disk if the output data hasn't changed. Use --fetch to download pages from the network again, and --force to write out all data files even if data hasn't changed. (--force implies --fetch.)
+Options
+-------
+
+The script will cache all downloaded pages, and it will not re-fetch them from the network unless a force flag is passed:
+
+    ./run bills --force
+
+And similarly for votes.
     
 Debugging messages are hidden by default. To include them, run with --log=info or --debug. To hide even warnings, run with --log=error.
 

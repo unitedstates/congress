@@ -20,7 +20,7 @@ def fetch_vote(vote_id, options):
   body = utils.download(
     url, 
     "%s/votes/%s/%s%s" % (vote_congress, vote_session_year, vote_chamber, vote_number),
-    options.get('fetch', False),
+    options.get('force', False),
     is_xml=True)
 
   if not body:
@@ -58,27 +58,17 @@ def fetch_vote(vote_id, options):
     
   # output and return
   
-  did_save = output_vote(vote, options)
-  if not did_save:
-  	  return {'ok': True, 'saved': False, 'reason': "no change"}
+  output_vote(vote, options)
 
   return {'ok': True, 'saved': True}
 
 def output_vote(vote, options):
   logging.info("[%s] Writing to disk..." % vote['vote_id'])
   
-  output_json_file = output_for_vote(vote["vote_id"], "json")
-  
-  # don't output if the contents (besides updated_at) hasn't changed,
-  # since we don't want to necessarily create spurrious file updates.
-  if not options.get('force', False) and \
-    utils.data_is_same(vote, output_json_file, ignore_fields=('updated_at',)):
-  	  return False
-  
   # output JSON - so easy!
   utils.write(
     json.dumps(vote, sort_keys=True, indent=2, default=utils.format_datetime), 
-    output_json_file,
+    output_for_vote(vote["vote_id"], "json"),
   )
 
   # output XML
@@ -145,8 +135,6 @@ def output_vote(vote, options):
     etree.tostring(root, pretty_print=True),
     output_for_vote(vote['vote_id'], "xml")
   )
-  
-  return True
 
 def output_for_vote(vote_id, format):
   vote_chamber, vote_number, vote_congress, vote_session_year = utils.split_vote_id(vote_id)
