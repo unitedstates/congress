@@ -338,13 +338,12 @@ def sponsor_for(body):
   else:
     raise Exception("Choked finding sponsor information.")
 
-def output_bill_cached_search_result(bill_id, bill_id_search_result_state):
+def output_bill_cached_search_result(bill_id, state):
   # If we've been passed bill_id_search_result_state, it is a dict containing the
   # original search result listing string, which we use for --fast mode parsing.
   # Cache this string to disk once we do a successful parse.
-  if bill_id_search_result_state:
-  	with open(utils.cache_dir() + "/" + bill_cache_for(bill_id, "search_result"), "w") as f:
-  	  f.write(bill_id_search_result_state[bill_id])
+  if state:
+  	utils.write(state[bill_id], utils.cache_dir() + "/" + bill_cache_for(bill_id, "search_result"))
 
 def summary_for(body):
   match = re.search("SUMMARY AS OF:</a></b>(.*?)(?:<hr|<div id=\"footer\">)", body, re.S)
