@@ -1,5 +1,5 @@
-import utils
-import os
+import utils, json, iso8601, datetime
+import os, os.path
 import re, urlparse
 import time, datetime
 from lxml import html, etree
@@ -18,7 +18,10 @@ def run(options):
     session_year = options.get('session', str(datetime.datetime.now().year))
     to_fetch = vote_ids_for_house(congress, session_year, options) + vote_ids_for_senate(congress, session_year, options)
     if not to_fetch:
-      logging.error("Error figuring out which votes to download, aborting.")
+      if not options.get("fast", False):
+        logging.error("Error figuring out which votes to download, aborting.")
+      else:
+        logging.error("No new or recent votes.")
       return None
 
     limit = options.get('limit', None)
@@ -77,7 +80,9 @@ def vote_ids_for_house(congress, session_year, options):
       
     for votelink in votelinks:
       num = re.match(link_pattern, votelink.get("href")).group(1)
-      vote_ids.append("h" + num + "-" + str(congress) + "." + session_year)
+      vote_id = "h" + num + "-" + str(congress) + "." + session_year
+      if not should_process(vote_id, options): continue
+      vote_ids.append(vote_id)
           
   return utils.uniq(vote_ids)
 
@@ -99,6 +104,21 @@ def vote_ids_for_senate(congress, session_year, options):
   dom = etree.fromstring(page)
   for vote in dom.xpath("//vote"):
     num = int(vote.xpath("vote_number")[0].text)
-    vote_ids.append("s" + str(num) + "-" + str(congress) + "." + session_year)
+    vote_id = "s" + str(num) + "-" + str(congress) + "." + session_year
+    if not should_process(vote_id, options): continue
+    vote_ids.append(vote_id)
   return vote_ids
+  
+def should_process(vote_id, options):
+  if not options.get("fast", False): return True
+  
+  # If --fast is used, only download new votes or votes taken in the last
+  # three days (when most vote changes and corrections should occur).
+  f = vote_info.output_for_vote(vote_id, "json")
+  if not os.path.exists(f):
+	return True
+	
+  v = json.load(open(f))
+  now = utils.eastern_time_zone.localize(datetime.datetime.now())
+  return (now - iso8601.parse_date(v["date"])) < datetime.timedelta(days=3)
   

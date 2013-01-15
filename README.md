@@ -65,6 +65,10 @@ For bills, you can also pass a --fast flag which will only download bills that a
 
     ./run bills --force --fast
 
+A similar --fast flag exists for votes which will have the scraper download only new votes for votes taken in the last three days, which is the time during which most vote changes and corrections are posted.
+
+	./run votes --force --fast
+    
 Debugging messages are hidden by default. To include them, run with --log=info or --debug. To hide even warnings, run with --log=error.
 
 To get emailed with errors, copy config.yml.example to config.yml and fill in the SMTP options. The script will automatically use the details when a parsing or execution error occurs.
