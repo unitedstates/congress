@@ -57,18 +57,17 @@ The script will cache all downloaded pages, and it will not re-fetch them from t
 
     ./run bills --force
 
-And similarly for votes.
-    
-Debugging messages are hidden by default. To include them, run with --log=info or --debug. To hide even warnings, run with --log=error.
-
-Keeping data fresh
--------------------
-
 If you are trying to automatically sync bill information on an ongoing basis, it's recommended to do this only once or twice a day, as THOMAS is not updated in real time, and most information is delayed by a day.
 
-To get emailed with errors, copy config.yml.example to config.yml and fill in the SMTP options. The script will automatically use the details when a parsing or execution error occurs.
+The --force option works similarly for votes.
 
-Pass the --force flag when syncing, to ensure that the newest data is downloaded.
+For bills, you can also pass a --fast flag which will only download bills that appear to have new activity based on whether the bill's search result listing on pages like http://thomas.loc.gov/cgi-bin/bdquery/d?d113:0:./list/bss/d113HR.lst: have changed. This doesn't detect all changes to a bill, but it results in a much faster scrapeby not having to fetch the pages for every bill:
+
+    ./run bills --force --fast
+
+Debugging messages are hidden by default. To include them, run with --log=info or --debug. To hide even warnings, run with --log=error.
+
+To get emailed with errors, copy config.yml.example to config.yml and fill in the SMTP options. The script will automatically use the details when a parsing or execution error occurs.
 
 
 Data Output
@@ -79,14 +78,6 @@ The script will cache downloaded pages in a top-level `cache` directory, and out
 Two bulk data output files will be generated for each object: a JSON version (data.json) and an XML version (data.xml). The XML version attempts to maintain backwards compatibility with the XML bulk data that [GovTrack.us](http://govtrack.us) has provided for years. Add the --govtrack flag to get fully backward-compatible output using GovTrack IDs (otherwise the source IDs used for legislators is used).
 
 See the project wiki for documentation on the output format.
-
-The GovTrack-style output will use thomas_id's for people (sponsors etc.). To use GovTrack IDs, first update the submodule:
-
-	git submodule init
-	git submodule update
-
-And then add --govtrack to the ./run command line to turn on GovTrack IDs in output. On first load it will be very slow.
-
 
 Contributing
 ------------

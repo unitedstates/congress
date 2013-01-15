@@ -70,14 +70,14 @@ def split_bill_id(bill_id):
 def split_vote_id(bill_id):
   return re.match("^(h|s)(\d+)-(\d+).(\d\d\d\d)$", bill_id).groups()
 
-def process_set(to_fetch, fetch_func, options):
+def process_set(to_fetch, fetch_func, options, *extra_args):
   errors = []
   saved = []
   skips = []
 
   for id in to_fetch:
     try:
-      results = fetch_func(id, options)
+      results = fetch_func(id, options, *extra_args)
     except Exception, e:
       if options.get('raise', False):
         raise

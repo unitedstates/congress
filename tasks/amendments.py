@@ -13,7 +13,7 @@ def run(options):
     to_fetch = [amdt_id]
   else:
     congress = options.get('congress', utils.current_congress())
-    to_fetch = bill_ids_for(congress, options, doing_amendments=True)
+    to_fetch, to_fetch_info = bill_ids_for(congress, options, doing_amendments=True)
     if not to_fetch:
       logging.error("Error figuring out which amendments to download, aborting.")
       return None

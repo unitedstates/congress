@@ -1,8 +1,8 @@
 import utils
-import os
+import os, os.path
 import re
 import time
-from lxml import html
+from lxml import html, etree
 import logging
 
 import bill_info
@@ -15,9 +15,12 @@ def run(options):
     to_fetch = [bill_id]
   else:
     congress = options.get('congress', utils.current_congress())
-    to_fetch = bill_ids_for(congress, options, False)
+    to_fetch, to_fetch_info = bill_ids_for(congress, options, False)
     if not to_fetch:
-      logging.error("Error figuring out which bills to download, aborting.")
+      if not options.get("fast", False):
+        logging.error("Error figuring out which bills to download, aborting.")
+      else:
+        logging.warn("No bills changed.")
       return None
 
     limit = options.get('limit', None)
@@ -29,7 +32,7 @@ def run(options):
 
   logging.warn("Going to fetch %i bills from congress #%s" % (len(to_fetch), congress))
   
-  utils.process_set(to_fetch, bill_info.fetch_bill, options)
+  utils.process_set(to_fetch, bill_info.fetch_bill, options, to_fetch_info)
 
 
 # page through listings for bills of a particular congress
@@ -41,11 +44,13 @@ def bill_ids_for(congress, options, doing_amendments):
     bill_types = [bill_type]
   else:
     bill_types = utils.thomas_types.keys()
-
+    
+  bill_states = { }
+    
   for bill_type in bill_types:
     # This sub is re-used for pulling amendment IDs too.
     if (bill_type in ('samdt', 'hamdt')) != doing_amendments: continue
-    
+
     # match only links to landing pages of this bill type
     # it shouldn't catch stray links outside of the confines of the 100 on the page,
     # but if it does, no big deal
@@ -74,7 +79,24 @@ def bill_ids_for(congress, options, doing_amendments):
       # extract the bill ID from each link
       for link in links:
         code = link.text.lower().replace(".", "").replace(" ", "")
-        bill_ids.append("%s-%s" % (code, congress))
+        bill_id = "%s-%s" % (code, congress)
+        
+        if options.get("fast", False):
+          # Compare all of the output in the search result's <p> tag, which
+          # has last major action, number of cosponsors, etc. to a cache on
+          # disk to see if any major information about the bill changed.
+          parent_node = link.getparent() # the <p> tag containing the whole search hit
+          parent_node.remove(parent_node.xpath("b")[0]) # remove the <b>###.</b> node that isn't relevant for comparison
+          current_state = etree.tostring(parent_node) # serialize this tag
+          fast_cache_file = utils.cache_dir() + "/" + bill_info.bill_cache_for(bill_id, "search_result") # cached version
+          if os.path.exists(fast_cache_file):
+            with open(fast_cache_file) as f:
+              if f.read() == current_state:
+                logging.info("No change in search result listing: %s" % bill_id)
+                continue
+          bill_states[bill_id] = current_state
+        
+        bill_ids.append(bill_id)
 
       if len(links) < 100:
         break
@@ -85,7 +107,7 @@ def bill_ids_for(congress, options, doing_amendments):
       if offset > 100000:
         break
 
-  return utils.uniq(bill_ids)
+  return utils.uniq(bill_ids), bill_states
 
 
 

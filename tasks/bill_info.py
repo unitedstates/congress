@@ -19,7 +19,7 @@ def run(options):
 
 # download and cache landing page for bill
 # can raise an exception under various conditions
-def fetch_bill(bill_id, options):
+def fetch_bill(bill_id, options, bill_id_search_result_state=None):
   logging.info("\n[%s] Fetching..." % bill_id)
   
   # fetch committee name map, if it doesn't already exist
@@ -40,6 +40,7 @@ def fetch_bill(bill_id, options):
 
   if reserved_bill(body):
     logging.warn("[%s] Reserved bill, not real, skipping..." % bill_id)
+    output_bill_cached_search_result(bill_id, bill_id_search_result_state)
     return {'saved': False, 'ok': True, 'reason': "reserved bill"}
 
   # conditions where we want to parse the bill from multiple pages instead of one:
@@ -65,6 +66,7 @@ def fetch_bill(bill_id, options):
     bill = parse_bill(bill_id, body, options)
 
   output_bill(bill, options)
+  output_bill_cached_search_result(bill_id, bill_id_search_result_state)
 
   return {'ok': True, 'saved': True}
 
@@ -335,6 +337,14 @@ def sponsor_for(body):
       }
   else:
     raise Exception("Choked finding sponsor information.")
+
+def output_bill_cached_search_result(bill_id, bill_id_search_result_state):
+  # If we've been passed bill_id_search_result_state, it is a dict containing the
+  # original search result listing string, which we use for --fast mode parsing.
+  # Cache this string to disk once we do a successful parse.
+  if bill_id_search_result_state:
+  	with open(utils.cache_dir() + "/" + bill_cache_for(bill_id, "search_result"), "w") as f:
+  	  f.write(bill_id_search_result_state[bill_id])
 
 def summary_for(body):
   match = re.search("SUMMARY AS OF:</a></b>(.*?)(?:<hr|<div id=\"footer\">)", body, re.S)
@@ -1332,3 +1342,4 @@ def bill_url_for(bill_id, page = "L"):
 def bill_cache_for(bill_id, file):
   bill_type, number, congress = utils.split_bill_id(bill_id)
   return "%s/bills/%s/%s%s/%s" % (congress, bill_type, bill_type, number, file)
+  
