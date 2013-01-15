@@ -150,6 +150,11 @@ def write(content, destination):
   f.write(content)
   f.close()
 
+def read(destination):
+  if os.path.exists(destination):
+    with open(destination) as f:
+      return f.read()
+
 # de-dupe a list, taken from:
 # http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
 def uniq(seq):
