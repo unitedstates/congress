@@ -17,18 +17,15 @@ def run(options):
     congress = options.get('congress', utils.current_congress())
     to_fetch, to_fetch_info = bill_ids_for(congress, options, False)
     if not to_fetch:
-      if not options.get("fast", False):
-        logging.error("Error figuring out which bills to download, aborting.")
-      else:
+      if options.get("fast", False):
         logging.warn("No bills changed.")
+      else:
+        logging.error("Error figuring out which bills to download, aborting.")
       return None
 
     limit = options.get('limit', None)
     if limit:
       to_fetch = to_fetch[:int(limit)]
-
-  if options.get('pages_only', False):
-    return None
 
   logging.warn("Going to fetch %i bills from congress #%s" % (len(to_fetch), congress))
   
