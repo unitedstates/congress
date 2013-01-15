@@ -309,7 +309,7 @@ thomas_types = {
   'hamdt': ('HZ', 'H.AMDT.'),
   'samdt': ('SP', 'S.AMDT.'),
 }
-thomas_types_2 = { v[0]: k for (k, v) in thomas_types.items() }  # map e.g. { SE: sres, ...}
+thomas_types_2 = dict( (v[0], k) for (k, v) in thomas_types.items() )  # map e.g. { SE: sres, ...}
 
 # cached committee map to map names to IDs
 committee_names = {}
