@@ -9,13 +9,15 @@ import bill_info
 
 def run(options):
   bill_id = options.get('bill_id', None)
+  
+  search_state = { }
 
   if bill_id:
     bill_type, number, congress = utils.split_bill_id(bill_id)
     to_fetch = [bill_id]
   else:
     congress = options.get('congress', utils.current_congress())
-    to_fetch = bill_ids_for(congress, options, False)
+    to_fetch = bill_ids_for(congress, options, False, bill_states=search_state)
     if not to_fetch:
       if options.get("fast", False):
         logging.warn("No bills changed.")
@@ -29,11 +31,20 @@ def run(options):
 
   logging.warn("Going to fetch %i bills from congress #%s" % (len(to_fetch), congress))
   
-  utils.process_set(to_fetch, bill_info.fetch_bill, options)
+  saved_bills = utils.process_set(to_fetch, bill_info.fetch_bill, options)
+  
+  # For --fast mode, cache the current search result listing (in search_state)
+  # to disk so we can detect major changes to the bill through the search
+  # listing rather than having to parse the bill.
+  for bill_id in saved_bills:
+    if bill_id in search_state:
+      fast_cache_path = utils.cache_dir() + "/" + bill_info.bill_cache_for(bill_id, "search_result.html")
+      new_state = search_state[bill_id]
+      utils.write(new_state, fast_cache_path)
 
 
 # page through listings for bills of a particular congress
-def bill_ids_for(congress, options, doing_amendments):
+def bill_ids_for(congress, options, doing_amendments, bill_states={}):
   bill_ids = []
 
   bill_type = options.get('bill_type', None)
@@ -90,8 +101,8 @@ def bill_ids_for(congress, options, doing_amendments):
           if old_state == new_state:
             logging.info("No change in search result listing: %s" % bill_id)
             continue
-          else:
-            utils.write(new_state, fast_cache_path)
+          
+          bill_states[bill_id] = new_state
         
         bill_ids.append(bill_id)
 

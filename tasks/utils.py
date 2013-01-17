@@ -108,6 +108,8 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
 
   logging.warning("\nSkipped %s." % len(skips))
   logging.warning("Saved data for %s." % len(saved))
+  
+  return saved+skips # all of the OK's
 
 def download(url, destination, force=False, is_xml=False, options={}):
   test = options.get('test', False)
