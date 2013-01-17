@@ -1,4 +1,5 @@
 import re, logging, datetime, time, json
+from lxml import etree
 
 import utils
 
@@ -24,6 +25,9 @@ def fetch_amendment(amdt_id, options):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
     
   amdt_type, number, congress = utils.split_bill_id(amdt_id)
+  
+  actions = actions_for(body, amdt_id, is_amendment=True)
+  parse_amendment_actions(actions)
 
   amdt = {
     'amendment_id': amdt_id,
@@ -31,9 +35,10 @@ def fetch_amendment(amdt_id, options):
     'chamber': amdt_type[0],
     'number': number,
     'congress': congress,
-    'house_number': house_number_for(body),
     
-    'amends': amends_for(body),
+    'amends': amends_for(body, grab_bill=False),
+    'amends_bill': amends_for(body, grab_bill=True),
+    'house_number': house_number_for(body),
 
     'offered_at': offered_at_for(body, 'offered'),
     'submitted_at': offered_at_for(body, 'submitted'),
@@ -44,10 +49,12 @@ def fetch_amendment(amdt_id, options):
     'description': amendment_simple_text_for(body, "description"),
     'purpose': amendment_simple_text_for(body, "purpose"),
     
-    'actions': actions_for(body, amdt_id, is_amendment=True),
+    'actions': actions,
 
     'updated_at': datetime.datetime.fromtimestamp(time.time()),
   }
+  
+  set_amendment_status(amdt)
   
   output_amendment(amdt, options)
 
@@ -62,6 +69,60 @@ def output_amendment(amdt, options):
     output_for_amdt(amdt['amendment_id'], "json")
   )
 
+  # output XML
+  govtrack_type_codes = { 'hr': 'h', 's': 's', 'hres': 'hr', 'sres': 'sr', 'hjres': 'hj', 'sjres': 'sj', 'hconres': 'hc', 'sconres': 'sc' }
+  root = etree.Element("amendment")
+  root.set("session", amdt['congress'])
+  root.set("chamber", amdt['amendment_type'][0])
+  root.set("number", amdt['number'])
+  root.set("updated", utils.format_datetime(amdt['updated_at']))
+  
+  make_node = utils.make_node
+  
+  make_node(root, "amends", None,
+    type=govtrack_type_codes[amdt["amends_bill"]["bill_type"]],
+    number=str(amdt["amends_bill"]["number"]),
+    sequence=str(int(amdt["house_number"][1:])) if amdt["house_number"] else "") # chop off A from the house_number
+  
+  make_node(root, "status", amdt['status'], datetime=amdt['status_at'])
+
+  if amdt['sponsor']:
+    # TODO: Sponsored by committee.
+    v = amdt['sponsor']['thomas_id']
+    if not options.get("govtrack", False):
+      make_node(root, "sponsor", None, thomas_id=v)
+    else:
+      v = str(utils.get_govtrack_person_id('thomas', "%05d" % int(v)))
+      make_node(root, "sponsor", None, id=v)
+  else:
+    make_node(root, "sponsor", None)
+
+  make_node(root, "offered", None, datetime=amdt['offered_at'] if amdt['offered_at'] else amdt['submitted_at'])
+      
+  if amdt["title"]: make_node(root, "title", amdt["title"])
+  make_node(root, "description", amdt["description"] if amdt["description"] else amdt["purpose"])
+  make_node(root, "purpose", amdt["purpose"])
+      
+  actions = make_node(root, "actions", None)
+  for action in amdt['actions']:
+      a = make_node(actions,
+        action['type'] if action['type'] in ("vote",) else "action",
+        None,
+        datetime=action['acted_at'])
+      if action['type'] == 'vote':
+        a.set("how", action["how"])
+        a.set("result", action["result"])
+        if action.get("roll") != None: a.set("roll", str(action["roll"]))
+      if action.get('text'): make_node(a, "text", action['text'])
+      if action.get('in_committee'): make_node(a, "committee", None, name=action['in_committee'])
+      for cr in action['references']:
+          make_node(a, "reference", None, ref=cr['reference'], label=cr['type'])
+          
+  utils.write(
+    etree.tostring(root, pretty_print=True),
+    output_for_amdt(amdt['amendment_id'], "xml")
+  )
+
 def house_number_for(body):
   match = re.search(r"H.AMDT.\d+</b>\n \((A\d+)\)", body, re.I)
   if match:
@@ -69,10 +130,13 @@ def house_number_for(body):
   else:
     return None
     
-def amends_for(body):
+def amends_for(body, grab_bill):
   # When an amendment amends an amendment, the bill is listed first, followed by a comma
   # and newline. Skip the bill when it exists and just parse the amendment.
-  match = re.search(r"Amends: (?:.*\n, )?<a href=\"/cgi-bin/bdquery/z\?d(\d+):([A-Z]+)(\d+):", body)
+  match = re.search(r"Amends: "
+      + ("(?:.*\n, )?" if not grab_bill else "")
+      + "<a href=\"/cgi-bin/bdquery/z\?d(\d+):([A-Z]+)(\d+):",
+      body)
   if match:
     congress = int(match.group(1))
     bill_type = utils.thomas_types_2[match.group(2)]
@@ -106,6 +170,61 @@ def amendment_simple_text_for(body, heading):
     return title
   else:
     return None
+
+def parse_amendment_actions(actions):
+  for action in actions:
+    # House Vote
+    m = re.match(r"On agreeing to the .* amendment (\(.*\) )?(Agreed to|Failed) (without objection|by [^\.:]+|by recorded vote: (\d+) - (\d+)(, \d+ Present)? \(Roll no. (\d+)\))\.", action['text'])
+    if m:
+      action["type"] = "vote"
+      
+      if m.group(2) == "Agreed to":
+        action["result"] = "pass"
+      else:
+        action["result"] = "fail"
+      
+      action["how"] = m.group(3)
+      if "recorded vote" in m.group(3):
+        action["how"] = "roll"
+        action["roll"] = int(m.group(7))
+      
+    # Senate Vote
+    m = re.match(r"(Motion to table )?Amendment SA \d+ (as modified )?(agreed to|not agreed to) in Senate by ([^\.:\-]+|Yea-Nay( Vote)?. (\d+) - (\d+)(, \d+ Present)?. Record Vote Number: (\d+))\.", action['text'])
+    if m:
+      action["type"] = "vote"
+      if m.group(3) == "agreed to":
+        action["result"] = "pass"
+        if m.group(1): # is a motion to table, so result is sort of reversed.... eeek
+          action["result"] = "fail"
+      else:
+        if m.group(1): # is a failed motion to table, so this doesn't count as a vote on agreeing to the amendment
+          continue
+        action["result"] = "fail"
+        
+      action["how"] = m.group(4)
+      if "Yea-Nay" in m.group(4):
+        action["how"] = "roll"
+        action["roll"] = int(m.group(9))
+        
+    # Withdrawn
+    m = re.match(r"Proposed amendment SA \d+ withdrawn in Senate", action['text'])
+    if m:
+      action['type'] = 'withdrawn'
+      
+def set_amendment_status(amdt):
+  status = 'offered'
+  status_date = amdt['offered_at'] if amdt['offered_at'] else amdt['submitted_at']
+
+  for action in amdt['actions']:
+    if action['type'] == 'vote':
+      status = action['result'] # 'pass', 'fail'
+      status_date = action['acted_at']
+    if action['type'] == 'withdrawn':
+      status = 'withdrawn'
+      status_date = action['acted_at']
+      
+  amdt['status'] = status
+  amdt['status_at'] = status_date
 
 def amdt_url_for(amdt_id):
   amdt_type, number, congress = utils.split_bill_id(amdt_id)

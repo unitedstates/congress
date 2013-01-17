@@ -254,6 +254,7 @@ def output_bill(bill, options):
       make_node(titles, "title", title['title'], type=title['type'], ___as=title['as']) # ___ to avoid a Python keyword
 
   if bill['sponsor']:
+    # TODO: Sponsored by committee?
     make_node(root, "sponsor", None, thomas_id=bill['sponsor']['thomas_id'])
   else:
     make_node(root, "sponsor", None)
