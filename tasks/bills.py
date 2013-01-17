@@ -33,15 +33,7 @@ def run(options):
   
   saved_bills = utils.process_set(to_fetch, bill_info.fetch_bill, options)
   
-  # For --fast mode, cache the current search result listing (in search_state)
-  # to disk so we can detect major changes to the bill through the search
-  # listing rather than having to parse the bill.
-  for bill_id in saved_bills:
-    if bill_id in search_state:
-      fast_cache_path = utils.cache_dir() + "/" + bill_info.bill_cache_for(bill_id, "search_result.html")
-      new_state = search_state[bill_id]
-      utils.write(new_state, fast_cache_path)
-
+  save_bill_search_state(saved_bills, search_state)
 
 # page through listings for bills of a particular congress
 def bill_ids_for(congress, options, doing_amendments, bill_states={}):
@@ -117,7 +109,15 @@ def bill_ids_for(congress, options, doing_amendments, bill_states={}):
 
   return utils.uniq(bill_ids)
 
-
+def save_bill_search_state(saved_bills, search_state):
+  # For --fast mode, cache the current search result listing (in search_state)
+  # to disk so we can detect major changes to the bill through the search
+  # listing rather than having to parse the bill.
+  for bill_id in saved_bills:
+    if bill_id in search_state:
+      fast_cache_path = utils.cache_dir() + "/" + bill_info.bill_cache_for(bill_id, "search_result.html")
+      new_state = search_state[bill_id]
+      utils.write(new_state, fast_cache_path)
 
 def page_for(congress, bill_type, offset):
   thomas_type = utils.thomas_types[bill_type][0]
