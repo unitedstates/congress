@@ -27,6 +27,7 @@ def fetch_amendment(amdt_id, options):
   amdt_type, number, congress = utils.split_bill_id(amdt_id)
   
   actions = actions_for(body, amdt_id, is_amendment=True)
+  if actions is None: actions = []
   parse_amendment_actions(actions)
 
   amdt = {
