@@ -11,11 +11,6 @@
 # ./run fdsys --collections=BILLS,STATUTE
 # Only fetch sitemaps for these collections.
 #
-# ./run fdsys --collections=BILLS --congress=XXX
-# Updates the sitemaps for the years of the indicated Congress
-# and then outputs text-versions.json next to each bill data.json
-# file from the bills scraper.
-#
 # ./run fdsys --cached|force
 # Always/never use the cache.
 
@@ -43,13 +38,6 @@ def run(options):
   # Locally store MODS, PDF, etc.
   if "store" in options:
     mirror_files(fetch_collections, options)
-  
-  # Create a JSON file listing all available bill text documents.
-  # Only if --collections is omitted or specifies BILLS, and if
-  # --congress is specified.
-  if (not fetch_collections or "BILLS" in fetch_collections) \
-    and options.get('congress', None):
-    update_bill_version_list(int(options.get('congress')))
 
 def update_sitemap_cache(fetch_collections, options):
   seen_collections = set()
@@ -68,12 +56,12 @@ def update_sitemap_cache(fetch_collections, options):
     year = m.group(1)
     
     # Should we process this year's sitemaps?
-    if options.get("congress", None) and int(year) not in get_congress_years(int(options.get("congress"))): continue
+    if options.get("congress", None) and int(year) not in utils.get_congress_years(int(options.get("congress"))): continue
     if options.get("year", None) and int(year) != int(options.get("year")): continue
 
     # Get the sitemap.
     year_sitemap = get_sitemap(year, None, lastmod, options)
-    if year_sitemap.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}sitemapindex": raise Exception("Mismatched sitemap type in %s sitemap." % year)
+    if sitemap.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}sitemapindex": raise Exception("Mismatched sitemap type in %s sitemap." % year)
     
     # Process the collection sitemaps.
     for collection_node in year_sitemap.xpath("x:sitemap", namespaces=ns):
@@ -127,7 +115,7 @@ def get_sitemap(year, collection, lastmod, options):
     force = (lastmod != cache_lastmod) or options.get("force", False)
     
   if force:
-    logging.warn(url)
+    logging.warn("Downloading: %s" % url)
     
   body = utils.download(url, path, utils.merge(options, {
     'force': force, 
@@ -141,9 +129,28 @@ def get_sitemap(year, collection, lastmod, options):
   # we need to fetch the file.
   if lastmod and not options.get("cached", False):
     utils.write(lastmod, lastmod_cache_file)
-  	
+  
   return etree.fromstring(body)
   
+
+# uses get_sitemap, but returns a list of tuples of date and url
+def entries_from_collection(year, collection, lastmod, options):
+  if (not collection) or (not year):
+    raise Exception("This method requires a specific year and collection.")
+
+  sitemap = get_sitemap(year, collection, lastmod, options)
+
+  entries = []
+
+  for entry_node in sitemap.xpath("x:url", namespaces=ns):
+    url = str(entry_node.xpath("string(x:loc)", namespaces=ns))
+    lastmod = str(entry_node.xpath("string(x:lastmod)", namespaces=ns))
+    entries.append((url, lastmod))
+
+  return entries
+
+
+
 def mirror_files(fetch_collections, options):
   # Locally mirror certain file types for the specified collections.
   
@@ -219,6 +226,7 @@ def mirror_files(fetch_collections, options):
       if lastmod and not options.get("cached", False):
         utils.write(lastmod, lastmod_cache_file) 
 
+
 def update_bill_version_list(only_congress):
   bill_versions = { }
   
@@ -227,7 +235,7 @@ def update_bill_version_list(only_congress):
     sitemap_files = glob.glob(utils.cache_dir() + "/fdsys/sitemap/*/BILLS.xml")
   else:
     # If --congress=X is specified, only look at the relevant years.
-    sitemap_files = [utils.cache_dir() + "/fdsys/sitemap/" + str(year) + "/BILLS.xml" for year in get_congress_years(only_congress)]
+    sitemap_files = [utils.cache_dir() + "/fdsys/sitemap/" + str(year) + "/BILLS.xml" for year in utils.get_congress_years(only_congress)]
     sitemap_files = [f for f in sitemap_files if os.path.exists(f)]
   
   # For each year-by-year BILLS sitemap...
@@ -275,12 +283,7 @@ def update_bill_version_list(only_congress):
           output_for_bill(congress, bill_type, bill_number, "text-versions.json")
         )
 
-def get_congress_years(congress):
-  # get the three calendar years that the Congress extends through (Jan 3 to Jan 3).
-  y1 = utils.get_congress_first_year(congress)
-  return (y1, y1+1, y1+2)
 
 def output_for_bill(congress, bill_type, number, fn):
   # Similar to bills.output_for_bill
   return "%s/%d/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, fn)
-
