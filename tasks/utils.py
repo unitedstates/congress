@@ -62,10 +62,20 @@ def current_legislative_year(date=None):
     return date.year
 
 def get_congress_first_year(congress):
-  return (((congress+894)*2) - 1)
+  return (((int(congress)+894)*2) - 1)
 
+# get the three calendar years that the Congress extends through (Jan 3 to Jan 3).
+def get_congress_years(congress):
+  y1 = get_congress_first_year(congress)
+  return (y1, y1+1, y1+2)
+
+# bill_type, bill_number, congress
 def split_bill_id(bill_id):
   return re.match("^([a-z]+)(\d+)-(\d+)$", bill_id).groups()
+
+# bill_type, bill_number, congress, version_code
+def split_bill_version_id(bill_version_id):
+  return re.match("^([a-z]+)(\d+)-(\d+)-(\d+)$", bill_version_id).groups()
 
 def split_vote_id(bill_id):
   return re.match("^(h|s)(\d+)-(\d+).(\d\d\d\d)$", bill_id).groups()
