@@ -75,7 +75,7 @@ def split_bill_id(bill_id):
 
 # bill_type, bill_number, congress, version_code
 def split_bill_version_id(bill_version_id):
-  return re.match("^([a-z]+)(\d+)-(\d+)-(\d+)$", bill_version_id).groups()
+  return re.match("^([a-z]+)(\d+)-(\d+)-([a-z\d]+)$", bill_version_id).groups()
 
 def split_vote_id(bill_id):
   return re.match("^(h|s)(\d+)-(\d+).(\d\d\d\d)$", bill_id).groups()
@@ -125,7 +125,7 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
 # Download file at `url`, cache to `destination`. 
 # Takes many options to customize behavior.
 
-def download(url, destination, options={}):
+def download(url, destination=None, options={}):
   # uses cache by default, override (True) to ignore
   force = options.get('force', False)
 
@@ -143,12 +143,13 @@ def download(url, destination, options={}):
   else:
     cache = cache_dir()
 
-  if to_cache:
-    cache_path = os.path.join(cache, destination)
-  else:
-    cache_path = destination
+  if destination:
+    if to_cache:
+      cache_path = os.path.join(cache, destination)
+    else:
+      cache_path = destination
 
-  if not force and os.path.exists(cache_path):
+  if destination and (not force) and os.path.exists(cache_path):
     if not test: logging.info("Cached: (%s, %s)" % (cache, url))
     with open(cache_path, 'r') as f:
       body = f.read()
@@ -166,7 +167,8 @@ def download(url, destination, options={}):
       return None
 
     # cache content to disk
-    write(body, cache_path)
+    if destination:
+      write(body, cache_path)
 
   if not xml:
     body = unescape(body)

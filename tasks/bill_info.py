@@ -1330,7 +1330,6 @@ def bill_url_for(bill_id, page = "L"):
   congress = int(congress)
   return "http://thomas.loc.gov/cgi-bin/bdquery/z?d%03d:%s%s:@@@%s&summ2=m&" % (congress, thomas_type, number, page)
 
-# also used by bill_versions.py
 def bill_cache_for(bill_id, file):
   bill_type, number, congress = utils.split_bill_id(bill_id)
   return "%s/bills/%s/%s%s/%s" % (congress, bill_type, bill_type, number, file)

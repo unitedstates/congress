@@ -65,7 +65,7 @@ def update_sitemap_cache(fetch_collections, options):
 
     # Get the sitemap.
     year_sitemap = get_sitemap(year, None, lastmod, options)
-    if sitemap.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}sitemapindex": raise Exception("Mismatched sitemap type in %s sitemap." % year)
+    if year_sitemap.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}sitemapindex": raise Exception("Mismatched sitemap type in %s sitemap." % year)
     
     # Process the collection sitemaps.
     for collection_node in year_sitemap.xpath("x:sitemap", namespaces=ns):
@@ -329,3 +329,40 @@ def update_bill_version_list(only_congress):
 def output_for_bill(congress, bill_type, number, fn):
   # Similar to bills.output_for_bill
   return "%s/%d/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, fn)
+
+# given a FDsys filename (e.g. BILLS-113hr302ih), fetch the MODS doc, and return:
+#   issued_on: the date the referenced document was issued (<dateIssued>)
+#   urls: a dict of forms of this doc (<location>)
+def document_info_for(filename, cache, options):
+  mods_url = mods_for(filename)
+  mods_cache = ""
+  body = utils.download(mods_url, 
+    cache,
+    utils.merge(options, {'xml': True})
+  )
+
+  doc = etree.fromstring(body)
+  mods_ns = {"mods": "http://www.loc.gov/mods/v3"}
+
+  locations = doc.xpath("//mods:location/mods:url", namespaces=mods_ns)
+
+  urls = {}
+  for location in locations:
+    label = location.attrib['displayLabel']
+    if "HTML" in label:
+      format = "html"
+    elif "PDF" in label:
+      format = "pdf"
+    elif "XML" in label:
+      format = "xml"
+    else:
+      format = "unknown"
+    urls[format] = location.text
+
+  issued_on = doc.xpath("string(//mods:dateIssued)", namespaces=mods_ns)
+
+  return issued_on, urls
+
+
+def mods_for(filename):
+  return "http://www.gpo.gov/fdsys/pkg/%s/mods.xml" % filename

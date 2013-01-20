@@ -1,6 +1,7 @@
 import utils
 import os, os.path
 import re
+import json
 import datetime
 import logging
 
@@ -8,12 +9,19 @@ import fdsys
 
 def run(options):
   bill_id = options.get('bill_id', None)
+  bill_version_id = options.get('bill_version_id', None)
 
+  # using a specific bill or version overrides the congress flag/default
   if bill_id:
     bill_type, number, congress = utils.split_bill_id(bill_id)
-    to_fetch = bill_version_ids_for(congress, options)
+  elif bill_version_id:
+    bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
   else:
     congress = options.get('congress', utils.current_congress())
+
+  if bill_version_id:
+    to_fetch = [bill_version_id]
+  else:
     to_fetch = bill_version_ids_for(congress, options)
     if not to_fetch:
       logging.error("Error figuring out which bills to download, aborting.")
@@ -25,7 +33,7 @@ def run(options):
 
   logging.warn("Going to fetch %i bill versions for congress #%s" % (len(to_fetch), congress))
   
-  saved_versions = utils.process_set(to_fetch, fetch_bill, options)
+  saved_versions = utils.process_set(to_fetch, fetch_version, options)
 
 
 # uses downloaded/cached FDSys sitemap to find all available bill version IDs for this Congress
@@ -75,6 +83,52 @@ def split_url(url):
   return congress, bill_id, bill_version_id
 
 
-# cache a versions.json file for every bill
-def version_cache(bill_id):
-  return bill_info.bill_cache_for(bill_id, "versions.json")
+# an output text-versions.json for every bill
+def output_for_bill_version(bill_version_id):
+  bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
+  return "%s/%s/bills/%s/%s%s/text-versions/%s.json" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code)
+
+
+# cache a file for an individual bill version
+def version_cache_for(bill_version_id, filename):
+  bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
+  return "%s/%s/bills/%s/%s%s/versions/%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code, filename)
+
+
+# e.g. BILLS-113hr302ih
+def filename_for(bill_version_id):
+  bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
+  return "BILLS-%s%s%s%s" % (congress, bill_type, number, version_code)
+
+
+
+# given an individual bill version ID, download at least the MODs file 
+# (and, if requested with --store, the PREMIS file and text documents too)
+# and produce a text-versions.json with version codes, version names, 
+# the date of publication, and URLs to the MODs, PREMIS, and original docs
+def fetch_version(bill_version_id, options):
+  logging.info("\n[%s] Fetching..." % bill_version_id)
+  
+  bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
+  # bill_id = "%s%s-%s" % (bill_type, number, congress)
+
+  mods_filename = filename_for(bill_version_id)
+  mods_cache = version_cache_for(bill_version_id, "mods.xml")
+  issued_on, urls = fdsys.document_info_for(mods_filename, mods_cache, options)
+  
+  bill_version = {
+    'issued_on': issued_on,
+    'urls': urls,
+    'version_code': version_code,
+    'bill_version_id': bill_version_id
+  }
+
+  # 'bill_version_id': bill_version_id,
+  #   'version_code': version_code
+
+  utils.write(
+    json.dumps(bill_version, sort_keys=True, indent=2, default=utils.format_datetime), 
+    output_for_bill_version(bill_version_id)
+  )
+
+  return {'ok': True, 'saved': True}
