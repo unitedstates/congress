@@ -20,8 +20,8 @@ def fetch_vote(vote_id, options):
   body = utils.download(
     url, 
     "%s/votes/%s/%s%s" % (vote_congress, vote_session_year, vote_chamber, vote_number),
-    options.get('force', False),
-    is_xml=True)
+    utils.merge(options, {'xml': True}),
+    )
 
   if not body:
     return {'saved': False, 'ok': False, 'reason': "failed to download"}

@@ -30,7 +30,7 @@ def fetch_bill(bill_id, options):
   body = utils.download(
     bill_url_for(bill_id), 
     bill_cache_for(bill_id, "information.html"),
-    options.get('force', False))
+    options)
 
   if not body:
     return {'saved': False, 'ok': False, 'reason': "failed to download"}
@@ -101,7 +101,7 @@ def parse_bill_split(bill_id, body, options):
   cosponsors_body = utils.download(
     bill_url_for(bill_id, "P"), 
     bill_cache_for(bill_id, "cosponsors.html"),
-    options.get('force', False))
+    options)
   cosponsors_body = utils.unescape(cosponsors_body)
   cosponsors = cosponsors_for(cosponsors_body)
 
@@ -109,7 +109,7 @@ def parse_bill_split(bill_id, body, options):
   summary_body = utils.download(
     bill_url_for(bill_id, "D"), 
     bill_cache_for(bill_id, "summary.html"),
-    options.get('force', False))
+    options)
   summary_body = utils.unescape(summary_body)
   summary = summary_for(summary_body)
 
@@ -117,7 +117,7 @@ def parse_bill_split(bill_id, body, options):
   titles_body = utils.download(
     bill_url_for(bill_id, "T"), 
     bill_cache_for(bill_id, "titles.html"),
-    options.get('force', False))
+    options)
   titles_body = utils.unescape(titles_body)
   titles = titles_for(titles_body)
 
@@ -125,28 +125,28 @@ def parse_bill_split(bill_id, body, options):
   actions_body = utils.download(
     bill_url_for(bill_id, "X"), 
     bill_cache_for(bill_id, "actions.html"),
-    options.get('force', False))
+    options)
   actions_body = utils.unescape(actions_body)
   actions = actions_for(actions_body, bill_id)
 
   related_bills_body = utils.download(
     bill_url_for(bill_id, "K"), 
     bill_cache_for(bill_id, "related_bills.html"),
-    options.get('force', False))
+    options)
   related_bills_body = utils.unescape(related_bills_body)
   related_bills = related_bills_for(related_bills_body, congress)
   
   amendments_body = utils.download(
     bill_url_for(bill_id, "A"), 
     bill_cache_for(bill_id, "amendments.html"),
-    options.get('force', False))
+    options)
   amendments_body = utils.unescape(amendments_body)
   amendments = amendments_for_standalone(amendments_body, bill_id)
 
   committees_body = utils.download(
     bill_url_for(bill_id, "C"), 
     bill_cache_for(bill_id, "committees.html"),
-    options.get('force', False))
+    options)
   committees_body = utils.unescape(committees_body)
   committees = committees_for(committees_body, bill_id)
 

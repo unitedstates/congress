@@ -111,7 +111,21 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
   
   return saved+skips # all of the OK's
 
-def download(url, destination, force=False, is_xml=False, to_cache=True, options={}):
+
+# Download file at `url`, cache to `destination`. 
+# Takes many options to customize behavior.
+
+def download(url, destination, options={}):
+  # uses cache by default, override (True) to ignore
+  force = options.get('force', False)
+
+  # saves in cache dir by default, override (False) to save to exact destination
+  to_cache = options.get('to_cache', True)
+
+  # unescapes HTML encoded characters by default, set this (True) to not do that
+  xml = options.get('xml', False)
+
+  # used by test suite to use special (versioned) test cache dir
   test = options.get('test', False)
 
   if test:
@@ -144,7 +158,7 @@ def download(url, destination, force=False, is_xml=False, to_cache=True, options
     # cache content to disk
     write(body, cache_path)
 
-  if not is_xml:
+  if not xml:
     body = unescape(body)
     
   return body
@@ -159,6 +173,10 @@ def read(destination):
   if os.path.exists(destination):
     with open(destination) as f:
       return f.read()
+
+# dict1 gets overwritten with anything in dict2
+def merge(dict1, dict2):
+  return dict(dict1.items() + dict2.items())
 
 # de-dupe a list, taken from:
 # http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
@@ -343,7 +361,7 @@ def fetch_committee_names(congress, options):
     body = download(
       "http://thomas.loc.gov/home/LegislativeData.php?&n=BSS&c=%d" % congress, 
       "%s/meta/thomas_committee_names.html" % congress,
-      options.get('force', False), options)
+      options)
 
   for chamber, options in re.findall('>Choose (House|Senate) Committees</option>(.*?)</select>', body, re.I | re.S):
     for name, id in re.findall(r'<option value="(.*?)\{(.*?)}">', options, re.I | re.S):

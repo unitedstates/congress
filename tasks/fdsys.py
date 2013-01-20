@@ -129,11 +129,10 @@ def get_sitemap(year, collection, lastmod, options):
   if force:
     logging.warn(url)
     
-  body = utils.download(url,
-    path,
-    force=force,
-    is_xml=True,
-    options=options)
+  body = utils.download(url, path, utils.merge(options, {
+    'force': force, 
+    'xml': True
+  }))
   
   if not body:
   	raise Exception("Failed to download %s" % url)
@@ -205,12 +204,12 @@ def mirror_files(fetch_collections, options):
         f_url, f_path = files[file_type]
         
         if force: logging.warn(f_path)
-        data = utils.download(f_url,
-          f_path,
-          force=force,
-          is_xml=True,
-          to_cache=False,
-          options=options)
+
+        data = utils.download(f_url, f_path, utils.merge(options, {
+          'xml': True, 
+          'force': force, 
+          'to_cache': False
+        }))
         
         if not data:
           raise Exception("Failed to download %s" % url)

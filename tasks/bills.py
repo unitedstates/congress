@@ -62,7 +62,7 @@ def bill_ids_for(congress, options, doing_amendments, bill_states={}):
       page = utils.download(
         page_for(congress, bill_type, offset),
         page_cache_for(congress, bill_type, offset),
-        options.get('force', False))
+        options)
 
       if not page:
         logging.error("Couldn't download page with offset %i, aborting" % offset)

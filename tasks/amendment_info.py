@@ -16,7 +16,7 @@ def fetch_amendment(amdt_id, options):
   body = utils.download(
     amdt_url_for(amdt_id), 
     amdt_cache_for(amdt_id, "information.html"),
-    options.get('force', False))
+    options)
 
   if not body:
     return {'saved': False, 'ok': False, 'reason': "failed to download"}
