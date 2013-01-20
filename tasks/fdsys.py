@@ -23,6 +23,9 @@ from lxml import etree
 import glob, json, re, logging, os.path
 import utils
 
+# for xpath
+ns = { "x": "http://www.sitemaps.org/schemas/sitemap/0.9" }
+
 def run(options):
   # GPO FDSys organizes its sitemaps by publication year (the date of
   # original print publication) and then by colletion (bills, statutes,
@@ -37,6 +40,10 @@ def run(options):
   update_sitemap_cache(fetch_collections, options)
   if options.get("list-collections", False): return
   
+  # Locally store MODS, PDF, etc.
+  if "store" in options:
+    mirror_files(fetch_collections, options)
+  
   # Create a JSON file listing all available bill text documents.
   # Only if --collections is omitted or specifies BILLS, and if
   # --congress is specified.
@@ -47,9 +54,6 @@ def run(options):
 def update_sitemap_cache(fetch_collections, options):
   seen_collections = set()
   
-  # for xpath
-  ns = { "x": "http://www.sitemaps.org/schemas/sitemap/0.9" }
-
 	# Load the root sitemap.
   master_sitemap = get_sitemap(None, None, None, options)
   if master_sitemap.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}sitemapindex": raise Exception("Mismatched sitemap type at the root sitemap.")
@@ -140,12 +144,84 @@ def get_sitemap(year, collection, lastmod, options):
     utils.write(lastmod, lastmod_cache_file)
   	
   return etree.fromstring(body)
+  
+def mirror_files(fetch_collections, options):
+  # Locally mirror certain file types for the specified collections.
+  
+  file_types = options["store"].split(",")
+
+  for sitemap in glob.glob(utils.cache_dir() + "/fdsys/sitemap/*/*.xml"):
+    # Should we process this file?
+    year, collection = re.search(r"/(\d+)/([^/]+).xml$", sitemap).groups()
+    if "year" in options and year != options["year"]: continue
+    if fetch_collections and collection not in fetch_collections: continue
+    
+    # Load the sitemap for this year & collection.
+    dom = etree.parse(sitemap).getroot()
+    if dom.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}urlset": raise Exception("Mismatched sitemap type.")
+    
+    # Loop through each document in the collection in this year...
+    for file_node in dom.xpath("x:url", namespaces=ns):
+      # Get URL and last modified timestamp.
+      url = str(file_node.xpath("string(x:loc)", namespaces=ns))
+      lastmod = str(file_node.xpath("string(x:lastmod)", namespaces=ns))
+      if not url.endswith("/content-detail.html"): raise Exception("Unrecognized file pattern.")
+      
+      # Get the package name.
+      m = re.match("http://www.gpo.gov/fdsys/pkg/(.*)/content-detail.html", url)
+      if not m: raise Exception("Unmatched document URL")
+      package_name = m.group(1)
+      
+      # Where to store the document files?
+      # The path will depend a bit on the collection.
+      if collection == "BILLS":
+        # Store with the other bill data.
+        m = re.match(r"http://www.gpo.gov/fdsys/pkg/BILLS-(\d+)([a-z]+)(\d+)(\D.*)/content-detail.html", url)
+        if not m: raise Exception("Unmatched bill document URL: " + url)
+        congress, bill_type, bill_number, version_code = m.groups()
+        congress = int(congress)
+        path = output_for_bill(congress, bill_type, bill_number, "text-versions/" + version_code)
+      else:
+        # Store in fdsys/COLLECTION/YEAR/PKGNAME.
+        path = "%s/fdsys/%s/%s/%s" % (utils.data_dir(), collection, year, package_name)
+      
+      # Do we need to update this record?
+      lastmod_cache_file = path + "/lastmod.txt"
+      cache_lastmod = utils.read(lastmod_cache_file)
+      force = ((lastmod != cache_lastmod) or options.get("force", False)) and not options.get("cached", False)
+      
+      # What to download?
+      files = {
+        'mods': (url.replace("content-detail.html", "mods.xml"), path + "/mods.xml"),
+        'premis': (url.replace("content-detail.html", "premis.xml"), path + "/premis.xml"),
+        'pdf': (url.replace("content-detail.html", "pdf/" + package_name + ".pdf"), path + "/document.pdf"),
+        'xml': (url.replace("content-detail.html", "xml/" + package_name + ".xml"), path + "/document.xml"),
+        'text': (url.replace("content-detail.html", "html/" + package_name + ".html"), path + "/document.html"), # text wrapped in HTML
+      }
+
+      # Download the file.
+      for file_type in file_types:
+        if file_type not in files: raise Exception("Invalid file type: %s" % file_type)
+        f_url, f_path = files[file_type]
+        
+        if force: logging.warn(f_path)
+        data = utils.download(f_url,
+          f_path,
+          force=force,
+          is_xml=True,
+          to_cache=False,
+          options=options)
+        
+        if not data:
+          raise Exception("Failed to download %s" % url)
+        
+      # Write the current last modified date to disk so we know the next time whether
+      # we need to fetch the file.
+      if lastmod and not options.get("cached", False):
+        utils.write(lastmod, lastmod_cache_file) 
 
 def update_bill_version_list(only_congress):
   bill_versions = { }
-  
-  # for xpath
-  ns = { "x": "http://www.sitemaps.org/schemas/sitemap/0.9" }
   
   # Which sitemap years should we look at?
   if not only_congress:
@@ -160,7 +236,7 @@ def update_bill_version_list(only_congress):
     dom = etree.parse(year_sitemap).getroot()
     if dom.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}urlset": raise Exception("Mismatched sitemap type.")
     
-   # Loop through each bill text version...
+    # Loop through each bill text version...
     for file_node in dom.xpath("x:url", namespaces=ns):
       # get URL and last modified date
       url = str(file_node.xpath("string(x:loc)", namespaces=ns))
@@ -197,7 +273,7 @@ def update_bill_version_list(only_congress):
         utils.write(
           json.dumps(bill_versions[congress][bill_type][bill_number],
             sort_keys=True, indent=2, default=utils.format_datetime), 
-          output_for_bill(congress, bill_type, bill_number)
+          output_for_bill(congress, bill_type, bill_number, "text-versions.json")
         )
 
 def get_congress_years(congress):
@@ -205,7 +281,7 @@ def get_congress_years(congress):
   y1 = utils.get_congress_first_year(congress)
   return (y1, y1+1, y1+2)
 
-def output_for_bill(congress, bill_type, number):
+def output_for_bill(congress, bill_type, number, fn):
   # Similar to bills.output_for_bill
-  return "%s/%d/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, "text-versions.json")
+  return "%s/%d/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, fn)
 

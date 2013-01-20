@@ -111,7 +111,7 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
   
   return saved+skips # all of the OK's
 
-def download(url, destination, force=False, is_xml=False, options={}):
+def download(url, destination, force=False, is_xml=False, to_cache=True, options={}):
   test = options.get('test', False)
 
   if test:
@@ -119,7 +119,10 @@ def download(url, destination, force=False, is_xml=False, options={}):
   else:
     cache = cache_dir()
 
-  cache_path = os.path.join(cache, destination)
+  if to_cache:
+    cache_path = os.path.join(cache, destination)
+  else:
+    cache_path = destination
 
   if not force and os.path.exists(cache_path):
     if not test: logging.info("Cached: (%s, %s)" % (cache, url))
