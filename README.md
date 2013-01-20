@@ -1,7 +1,7 @@
 Congress
 ========
 
-Public domain code that collects core data about the bills and roll call votes in the U.S. Congress.
+Public domain code that collects core data about the bills, amendments, and roll call votes in the U.S. Congress.
 
 Includes:
 
@@ -12,8 +12,8 @@ Includes:
 The resulting bulk data is [hosted on Github](https://github.com/unitedstates/congress/downloads), and is updated nightly. Read about the [contents and schema](https://github.com/unitedstates/congress/wiki).
 
 
-Collecting the data
--------------------
+Setting Up
+----------
 
 It's recommended you first create and activate a virtualenv with:
 
@@ -26,11 +26,29 @@ Whether or not you use virtualenv:
 
     pip install -r requirements.txt
 
-To start grabbing bills (and resolutions):
+Collecting the data
+-------------------
+
+The general form to start the scraping process is:
+
+    ./run <data-type> [--force] [--fast] [other options]
+    
+where <data-type> is one of:
+
+    * bills
+    * amendments
+    * votes
+
+To scrape bills and resolutions from THOMAS run:
 
     ./run bills
 
-You can supply a few kinds of flags. To limit it to 10 House simple resolutions in the 111th congress:
+The script will output bulk data into a top-level `data` directory. Two data output files will be generated for each object: a JSON version (data.json) and an XML version (data.xml).
+
+Scraping bills
+--------------
+
+You can supply a few kinds of flags when scraping bills and resolutions. To limit it to 10 House simple resolutions in the 111th Congress:
 
     ./run bills --limit=10 --bill_type=hres --congress=111
 
@@ -38,17 +56,31 @@ To get only a specific bill, pass in the ID for that bill. For example, S. 968 i
 
     ./run bills --bill_id=s968-112
 
+Scraping amendments
+-------------------
+
+You can supply a few kinds of flags when scraping amendments, similar to the options for bills. To limit to 10 House amendments in the 111th Congress:
+
+    ./run bills --limit=10 --amendment_type=hamdt --congress=111
+
+To get only a specific amendment:
+
+    ./run bills --amendment_id=samdt5-112
+
+Scraping votes
+--------------
+
 Similar commands are available for roll call votes. Start with:
 
     ./run votes
     
 You can supply a few kinds of flags, such as limit and congress as above. Votes are grouped by the Senate and House into two sessions per Congress, which (in modern times) roughly follow the calendar years. Senate votes are numbered uniquely by session. House vote numbering continues consecutively throughout the Congress. To get votes from 2012, run:
 
-    ./run votes --congress=112 --session=2
+    ./run votes --congress=112 --session=2012
     
 To get only a specific vote, pass in the ID for the vote. For the Senate vote 50 in the 2nd session of the 112th Congress:
 
-    ./run votes --vote_id=s50-112.2
+    ./run votes --vote_id=s50-112.2012
 
 Options
 -------
@@ -57,17 +89,15 @@ The script will cache all downloaded pages, and it will not re-fetch them from t
 
     ./run bills --force
 
-If you are trying to automatically sync bill information on an ongoing basis, it's recommended to do this only once or twice a day, as THOMAS is not updated in real time, and most information is delayed by a day.
+The --force flag applies to all data types. If you are trying to automatically sync bill information on an ongoing basis, it's recommended to do this only once or twice a day, as THOMAS is not updated in real time, and most information is delayed by a day.
 
-The --force option works similarly for votes.
-
-For bills, you can also pass a --fast flag which will only download bills that appear to have new activity based on whether the bill's search result listing on pages like http://thomas.loc.gov/cgi-bin/bdquery/d?d113:0:./list/bss/d113HR.lst: have changed. This doesn't detect all changes to a bill, but it results in a much faster scrapeby not having to fetch the pages for every bill:
+Since the --force flag forces a download and parse of every object, the --fast flag will attempt to process only objects that are believed to have changed. Always use --fast with --force.
 
     ./run bills --force --fast
 
-A similar --fast flag exists for votes which will have the scraper download only new votes for votes taken in the last three days, which is the time during which most vote changes and corrections are posted.
+For bills and amendments, the --fast flag will only download bills that appear to have new activity based on whether the bill's search result listing on pages like http://thomas.loc.gov/cgi-bin/bdquery/d?d113:0:./list/bss/d113HR.lst: have changed. This doesn't detect all changes to a bill, but it results in a much faster scrape by not having to fetch the pages for every bill.
 
-	./run votes --force --fast
+For votes, the --fast flag will have the scraper download only votes taken in the last three days, which is the time during which most vote changes and corrections are posted.
     
 Debugging messages are hidden by default. To include them, run with --log=info or --debug. To hide even warnings, run with --log=error.
 
@@ -103,7 +133,6 @@ TODO
 ----
 
 * Bill text - figure out version information from GPO (links to full text)
-* Amendments - everything
 * Treaties - everything (may wait until they are in Congress.gov)
 * Nominations - everything (may wait until they are in Congress.gov)
 

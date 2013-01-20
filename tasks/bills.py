@@ -39,7 +39,7 @@ def run(options):
 def bill_ids_for(congress, options, doing_amendments, bill_states={}):
   bill_ids = []
 
-  bill_type = options.get('bill_type', None)
+  bill_type = options.get('bill_type' if not doing_amendments else 'amendment_type', None)
   if bill_type:
     bill_types = [bill_type]
   else:
