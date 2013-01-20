@@ -33,7 +33,7 @@ The general form to start the scraping process is:
 
     ./run <data-type> [--force] [--fast] [other options]
     
-where <data-type> is one of:
+where data-type is one of:
 
     * bills
     * amendments
