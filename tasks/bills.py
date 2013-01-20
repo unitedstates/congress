@@ -1,7 +1,6 @@
 import utils
 import os, os.path
 import re
-import time
 from lxml import html, etree
 import logging
 
@@ -17,7 +16,7 @@ def run(options):
     to_fetch = [bill_id]
   else:
     congress = options.get('congress', utils.current_congress())
-    to_fetch = bill_ids_for(congress, options, False, bill_states=search_state)
+    to_fetch = bill_ids_for(congress, options, bill_states=search_state)
     if not to_fetch:
       if options.get("fast", False):
         logging.warn("No bills changed.")
@@ -36,7 +35,11 @@ def run(options):
   save_bill_search_state(saved_bills, search_state)
 
 # page through listings for bills of a particular congress
-def bill_ids_for(congress, options, doing_amendments, bill_states={}):
+def bill_ids_for(congress, options, bill_states={}):
+  
+  # override if we're actually using this method to get amendments
+  doing_amendments = options.get('amendments', False)
+
   bill_ids = []
 
   bill_type = options.get('bill_type' if not doing_amendments else 'amendment_type', None)

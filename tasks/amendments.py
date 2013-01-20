@@ -15,7 +15,7 @@ def run(options):
     to_fetch = [amdt_id]
   else:
     congress = options.get('congress', utils.current_congress())
-    to_fetch = bill_ids_for(congress, options, doing_amendments=True, bill_states=search_state)
+    to_fetch = bill_ids_for(congress, utils.merge(options, {'amendments': True}), bill_states=search_state)
     if not to_fetch:
       if options.get("fast", False):
         logging.warn("No amendments changed.")
