@@ -18,8 +18,12 @@
 #
 # ./run fdsys --cached|force
 # Always/never use the cache.
+#
+# ./run fdsys ... --store mods,pdf
+# When downloading, also locally mirror the MODS and PDF documents
+# associated with each package. Update as the sitemap indicates.
 
-from lxml import etree
+from lxml import etree, html
 import glob, json, re, logging, os.path
 import utils
 
@@ -153,6 +157,7 @@ def mirror_files(fetch_collections, options):
     # Should we process this file?
     year, collection = re.search(r"/(\d+)/([^/]+).xml$", sitemap).groups()
     if "year" in options and year != options["year"]: continue
+    if "congress" in options and int(year) not in get_congress_years(int(options["congress"])): continue 
     if fetch_collections and collection not in fetch_collections: continue
     
     # Load the sitemap for this year & collection.
@@ -189,35 +194,72 @@ def mirror_files(fetch_collections, options):
       cache_lastmod = utils.read(lastmod_cache_file)
       force = ((lastmod != cache_lastmod) or options.get("force", False)) and not options.get("cached", False)
       
-      # What to download?
-      files = {
-        'mods': (url.replace("content-detail.html", "mods.xml"), path + "/mods.xml"),
-        'premis': (url.replace("content-detail.html", "premis.xml"), path + "/premis.xml"),
-        'pdf': (url.replace("content-detail.html", "pdf/" + package_name + ".pdf"), path + "/document.pdf"),
-        'xml': (url.replace("content-detail.html", "xml/" + package_name + ".xml"), path + "/document.xml"),
-        'text': (url.replace("content-detail.html", "html/" + package_name + ".html"), path + "/document.html"), # text wrapped in HTML
-      }
-
-      # Download the file.
-      for file_type in file_types:
-        if file_type not in files: raise Exception("Invalid file type: %s" % file_type)
-        f_url, f_path = files[file_type]
-        
-        if force: logging.warn(f_path)
-
-        data = utils.download(f_url, f_path, utils.merge(options, {
-          'xml': True, 
+      # Add this package to the download list.
+      file_list = []
+      file_list.append( (None, path) )
+      
+      # In some collections, like STATUTE, each document has subparts which are not
+      # described in the sitemap. Load the main HTML page and scrape for the sub-files.
+      content_index = utils.download(url,
+          "fdsys/package/%s/%s/%s.html" % (year, collection, package_name),
+          utils.merge(options, {
+          'xml': True, # it's not XML but this avoid unescaping HTML which fails if there are unicode characters 
           'force': force, 
-          'to_cache': False
         }))
+      if not content_index: raise Exception("Failed to download %s" % url)
+      for link in html.fromstring(content_index).cssselect("table.page-details-data-table td.rightLinkCell a"):
+        if link.text == "More":
+          m = re.match("granule/(.*)/(.*)/content-detail.html", link.get("href"))
+          if not m or m.group(1) != package_name: raise Exception("Unmatched granule URL %s" % link.get("href"))
+          granule_name = m.group(2)
+          file_list.append( (granule_name, path + "/" + granule_name) )
         
-        if not data:
-          raise Exception("Failed to download %s" % url)
-        
+      # Download the files of the desired types.
+      for granule_name, path in file_list:
+        targets = get_package_files(package_name, granule_name, path)
+        for file_type in file_types:
+          if file_type not in targets: raise Exception("Invalid file type: %s" % file_type)
+          f_url, f_path = targets[file_type]
+          
+          if force: logging.warn(f_path)
+          data = utils.download(f_url, f_path, utils.merge(options, {
+            'xml': True, 
+            'force': force, 
+            'to_cache': False
+          }))
+          
+          if not data:
+            raise Exception("Failed to download %s" % url)
+          
       # Write the current last modified date to disk so we know the next time whether
       # we need to fetch the file.
       if lastmod and not options.get("cached", False):
         utils.write(lastmod, lastmod_cache_file) 
+
+def get_package_files(package_name, granule_name, path):
+  if not granule_name:
+    document_type = "pkg"
+    file_name = package_name
+    opt_granule_dir = ""
+  else:
+    document_type = "granule"
+    file_name = granule_name
+    opt_granule_dir = granule_name + "/"
+    
+  baseurl = "http://www.gpo.gov/fdsys/%s/%s/" % (document_type, package_name)
+  
+  ret = {
+    'mods': (baseurl + opt_granule_dir + "mods.xml", path + "/mods.xml"),
+    'pdf': (baseurl + "pdf/" + file_name + ".pdf", path + "/document.pdf"),
+    'xml': (baseurl + "xml/" + file_name + ".xml", path + "/document.xml"),
+    'text': (baseurl + "html/" + file_name + ".html", path + "/document.html"), # text wrapped in HTML
+  }
+  if not granule_name:
+    # granules don't have PREMIS files?
+    ret['premis'] = (baseurl + "premis.xml", path + "/premis.xml")
+    
+  return ret
+
 
 def update_bill_version_list(only_congress):
   bill_versions = { }
