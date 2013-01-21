@@ -79,7 +79,7 @@ def parse_bill(bill_id, body, options):
   summary = summary_for(body)
   titles = titles_for(body)
   actions = actions_for(body, bill_id)
-  related_bills = related_bills_for(body, congress)
+  related_bills = related_bills_for(body, congress, bill_id)
   subjects = subjects_for(body)
   committees = committees_for(body, bill_id)
   amendments = amendments_for(body, bill_id)
@@ -134,7 +134,7 @@ def parse_bill_split(bill_id, body, options):
     bill_cache_for(bill_id, "related_bills.html"),
     options)
   related_bills_body = utils.unescape(related_bills_body)
-  related_bills = related_bills_for(related_bills_body, congress)
+  related_bills = related_bills_for(related_bills_body, congress, bill_id)
   
   amendments_body = utils.download(
     bill_url_for(bill_id, "A"), 
@@ -753,7 +753,7 @@ def subjects_for(body):
       
   return top_term, subjects
 
-def related_bills_for(body, congress):
+def related_bills_for(body, congress, bill_id):
   match = re.search("RELATED BILL DETAILS.*?<p>.*?<table border=\"0\">(.*?)(?:<hr|<div id=\"footer\">)", body, re.S)
   if not match:
     if re.search("RELATED BILL DETAILS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
@@ -775,20 +775,28 @@ def related_bills_for(body, congress):
 
     bill_code, reason = m.groups()
 
-    bill_id = "%s-%s" % (bill_code.lower().replace(".", "").replace(" ", ""), congress)
+    rbill_id = "%s-%s" % (bill_code.lower().replace(".", "").replace(" ", ""), congress)
     
-    reasons = {
-      "Identical bill identified by CRS": "identical",
-      "Related bill identified by CRS": "related",
-      "Related bill as identified by the House Clerk's office": "related",
-      "passed in House in lieu of this bill": "supersedes",
-      "passed in Senate in lieu of this bill": "supersedes",
-    }
-
-    reason = reasons.get(reason.strip(), "unknown")
+    reasons = (
+      ("Identical bill identified by (CRS|House|Senate)", "identical"),
+      ("Companion bill", "identical"),
+      ("Related bill (as )?identified by (CRS|the House Clerk's office|House committee|Senate)", "related"),
+      ("passed in (House|Senate) in lieu of this bill", "supersedes"),
+      ("Rule related to .* in (House|Senate)", "rule"),
+      ("This bill has text inserted from .*", "includes"),
+      ("Text from this bill was inserted in .*", "included-in"),
+      ("Bill related to rule .* in House", "ruled-by"),
+    )
+    for reason_re, reason_code in reasons:
+      if re.match(reason_re + "$", reason, re.I):
+        reason = reason_code
+        break
+    else:
+      logging.error("[%s] Unknown bill relation: %s" % (bill_id, reason.strip()))
+      reason = "unknown"
 
     related_bills.append({
-      'bill_id': bill_id,
+      'bill_id': rbill_id,
       'reason': reason
     })
 
