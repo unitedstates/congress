@@ -266,7 +266,7 @@ def output_bill(bill, options):
   actions = make_node(root, "actions", None)
   for action in bill['actions']:
       a = make_node(actions,
-        action['type'] if action['type'] in ("vote",) else "action",
+        action['type'] if action['type'] in ("vote","calendar","topresident","signed","enacted") else "action",
         None,
         datetime=action['acted_at'],
         state=action.get("status", None))
@@ -276,6 +276,14 @@ def output_bill(bill, options):
         if action.get("roll") != None: a.set("roll", action["roll"])
         a.set("type", action["vote_type"])
         a.set("where", action["where"])
+        if action.get("suspension"): a.set("suspension", "1")
+      if action['type'] == 'calendar' and "calendar" in action:
+        a.set("calendar", action["calendar"])
+        if action["under"]: a.set("under", action["under"])
+        if action["number"]: a.set("number", action["number"])
+      if action['type'] == 'enacted':
+        a.set("type", action["law"])
+        a.set("number", "%s-%s" % (bill['congress'], action["number"]))
       if action.get('text'): make_node(a, "text", action['text'])
       if action.get('in_committee'): make_node(a, "committee", None, name=action['in_committee'])
       for cr in action['references']:
@@ -1000,6 +1008,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
     action['result'] = pass_fail
     if roll:
       action["roll"] = roll
+    action["suspension"] = suspension
 
     # get the new status of the bill after this vote
     new_status = new_status_after_vote(vote_type, pass_fail=="pass", "h", bill_type, suspension, as_amended, title, prev_status)
@@ -1082,10 +1091,11 @@ def parse_bill_action(line, prev_status, bill_id, title):
     
     action["type"] = "calendar"
     
-    # TODO: Useless.
-    action["calendar"] = m.group(2)
-    action["under"] = m.group(4)
-    action["number"] = m.group(5)
+    # TODO: Useless. But good for GovTrack compatibility.
+    if m.group(2): # not 'Ordered to be Reported'
+      action["calendar"] = m.group(2)
+      action["under"] = m.group(4)
+      action["number"] = m.group(5)
   
   m = re.search(r"Committee on (.*)\. Reported by", line, re.I)
   if m != None:
