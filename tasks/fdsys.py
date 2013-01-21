@@ -14,6 +14,11 @@
 # ./run fdsys --cached|force
 # Always/never use the cache.
 #
+# # ./run fdsys --collections=BILLS --congress=XXX
+# Updates the sitemaps for the years of the indicated Congress
+# and then outputs text-versions.json next to each bill data.json
+# file from the bills scraper.
+#
 # ./run fdsys ... --store mods,pdf
 # When downloading, also locally mirror the MODS and PDF documents
 # associated with each package. Update as the sitemap indicates.
@@ -42,6 +47,12 @@ def run(options):
   # Locally store MODS, PDF, etc.
   if "store" in options:
     mirror_files(fetch_collections, options)
+
+  # Create a JSON file listing all available bill text documents.
+  # Only if --collections is omitted or specifies BILLS, and if
+  # --congress is specified.
+  if (not fetch_collections or "BILLS" in fetch_collections) and options.get('congress', None):
+    update_bill_version_list(int(options.get('congress')))
 
 def update_sitemap_cache(fetch_collections, options):
   seen_collections = set()
