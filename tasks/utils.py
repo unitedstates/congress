@@ -31,7 +31,8 @@ scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_
 govtrack_person_id_map = None
 
 class UnmatchedIdentifer(Exception):
-	pass
+  def __init__(self, id_type, id_value, help_url):
+    super(UnmatchedIdentifer, self).__init__("%s=%s %s" % (id_type, str(id_value), help_url))
 
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
@@ -470,7 +471,10 @@ def get_govtrack_person_id(source_id_type, source_id):
   
   # Now do the lookup.
   if (source_id_type, source_id) not in govtrack_person_id_map:
-  	  logging.warn("GovTrack ID not known for %s %s." % (source_id_type, str(source_id)))
-  	  raise UnmatchedIdentifer()
+      see_also = ""
+      if source_id_type == "thomas":
+        see_also = "http://beta.congress.gov/member/xxx/" + source_id
+      logging.error("GovTrack ID not known for %s %s. (%s)" % (source_id_type, str(source_id), see_also))
+      raise UnmatchedIdentifer(source_id_type, source_id, see_also)
   return govtrack_person_id_map[(source_id_type, source_id)]
 
