@@ -330,7 +330,7 @@ def sponsor_for(body):
       else:
         state, district = match.group(4), None
       
-      thomas_id = str(int(match.group(2)))
+      thomas_id = "%05d" % int(match.group(2))
 
       name = match.group(3).strip()
       title, name = re.search("^(Rep|Sen|Del|Com)\.? (.*?)$", name).groups()
@@ -738,7 +738,7 @@ def cosponsors_for(body):
       withdrawn_date = datetime.datetime.strftime(withdrawn_date, "%Y-%m-%d")
 
     cosponsors.append({
-      'thomas_id': str(int(thomas_id)),
+      'thomas_id': "%05d" % int(thomas_id),
       'title': title,
       'name': name,
       'state': state,
