@@ -428,8 +428,11 @@ def make_node(parent, tag, text, **attrs):
   return n
 
 def get_govtrack_person_id(source_id_type, source_id):
-  # Correct mistakes on THOMAS.
+  # Correct mistakes on THOMAS
+
+  # C.A. Dutch Ruppersberger
   if source_id_type == "thomas" and source_id == "02188": source_id = "01728"
+
 
   # Load the legislators database to map various IDs to GovTrack IDs.
   # Cache in a pickled file because loading the whole YAML db is super slow.
