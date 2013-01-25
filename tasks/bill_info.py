@@ -318,30 +318,45 @@ def output_bill(bill, options):
 
 
 def sponsor_for(body):
-  # This routine is also used by amendment processing. The only difference is the
+  # This routine is also used by amendment processing. One difference is the
   # lack of <b> tags on amendment pages but their presence on bill pages.
-  match = re.search(r"(?:<b>)?Sponsor: (?:</b>)?(No Sponsor|<a href=[^>]+(\d{5}).*>(.*)</a>\s+\[((\w\w)(-(\d+))?)\])", body, re.I)
+  # Also, amendmends can be sponsored by committees.
+  match = re.search(r"(?:<b>)?Sponsor: (?:</b>)?(No Sponsor|<a href=[^>]+\+(\d{5}|[hs]...\d\d).*>(.+)</a>(?:\s+\[((\w\w)(-(\d+))?)\])?)", body, re.I)
   if match:
     if (match.group(3) == "No Sponsor") or (match.group(1) == "No Sponsor"):
       return None
-    else:
+    elif match.group(4): # has a state/district, so it's a rep
       if len(match.group(4).split('-')) == 2:
         state, district = match.group(4).split('-')
       else:
         state, district = match.group(4), None
       
+      if not re.match(r"\d{5}$", match.group(2)):
+        raise Exception("Choked parsing sponsor.")
       thomas_id = "%05d" % int(match.group(2))
 
       name = match.group(3).strip()
       title, name = re.search("^(Rep|Sen|Del|Com)\.? (.*?)$", name).groups()
 
       return {
+        'type': 'person',
         'title': title,
         'name': name,
         'thomas_id': thomas_id, 
         'state': state, 
         'district': district
       }
+    else: # it's a committee
+      committee_id = match.group(2)
+      name = match.group(3).strip()
+      if not re.match(r"[hs]...\d\d$", committee_id):
+        raise Exception("Choked parsing apparent committee sponsor.")
+      return {
+        'type': 'committee',
+        'name': name,
+        'committee_id': committee_id,
+      }
+    
   else:
     raise Exception("Choked finding sponsor information.")
 
