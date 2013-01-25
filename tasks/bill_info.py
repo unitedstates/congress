@@ -330,7 +330,11 @@ def sponsor_for(body):
       else:
         state, district = match.group(4), None
       
-      thomas_id = "%05d" % int(match.group(2))
+      thomas_id = match.group(2)
+
+      # zero-pad and apply corrections
+      thomas_id = "%05d" % int(thomas_id)
+      thomas_id = utils.thomas_corrections(thomas_id)
 
       name = match.group(3).strip()
       title, name = re.search("^(Rep|Sen|Del|Com)\.? (.*?)$", name).groups()
@@ -725,6 +729,10 @@ def cosponsors_for(body):
       raise Exception("Choked scanning cosponsor line: %s" % line)
     
     thomas_id, title, name, district, join_date, withdrawn_date = m.groups()
+
+    # zero-pad thomas ID and apply corrections
+    thomas_id = "%05d" % int(thomas_id)
+    thomas_id = utils.thomas_corrections(thomas_id)
     
     if len(district.split('-')) == 2:
         state, district_number = district.split('-')
@@ -738,7 +746,7 @@ def cosponsors_for(body):
       withdrawn_date = datetime.datetime.strftime(withdrawn_date, "%Y-%m-%d")
 
     cosponsors.append({
-      'thomas_id': "%05d" % int(thomas_id),
+      'thomas_id': thomas_id,
       'title': title,
       'name': name,
       'state': state,
