@@ -92,7 +92,7 @@ def output_amendment(amdt, options):
     if not options.get("govtrack", False):
       make_node(root, "sponsor", None, thomas_id=v)
     else:
-      v = str(utils.get_govtrack_person_id('thomas', "%05d" % int(v)))
+      v = str(utils.get_govtrack_person_id('thomas', v))
       make_node(root, "sponsor", None, id=v)
   elif amdt['sponsor'] and amdt['sponsor']['type'] == 'committee':
     make_node(root, "sponsor", None, committee=amdt['sponsor']['name'])

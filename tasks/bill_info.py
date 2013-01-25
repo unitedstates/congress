@@ -238,7 +238,7 @@ def output_bill(bill, options):
           if k == "thomas_id":
             # remap "thomas_id" attributes to govtrack "id"
             k = "id"
-            v = str(utils.get_govtrack_person_id('thomas', "%05d" % int(v)))
+            v = str(utils.get_govtrack_person_id('thomas', v))
           attrs2[k] = v
       attrs = attrs2
         
