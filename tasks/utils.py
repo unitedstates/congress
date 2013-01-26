@@ -144,6 +144,9 @@ def download(url, destination=None, options={}):
   # used by test suite to use special (versioned) test cache dir
   test = options.get('test', False)
 
+  # if need a POST request with data
+  postdata = options.get('postdata', False)
+
   if test:
     cache = test_cache_dir()
   else:
@@ -162,7 +165,11 @@ def download(url, destination=None, options={}):
   else:
     try:
       logging.info("Downloading: %s" % url)
-      response = scraper.urlopen(url)
+      
+      if postdata:
+        response = scraper.urlopen(url, 'POST', postdata)
+      else:
+        response = scraper.urlopen(url)
       body = response.bytes # str(...) tries to encode as ASCII the already-decoded unicode content
     except scrapelib.HTTPError as e:
       logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
