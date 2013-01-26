@@ -82,7 +82,7 @@ def nomination_url_for(nomination_id):
 
 def nomination_cache_for(nomination_id, file):
   nomination_type, number, congress = utils.split_nomination_id(nomination_id)
-  return "%s/nomination/%s/%s" % (congress, number, file)
+  return "%s/nominations/%s/%s" % (congress, number, file)
 
 def output_nomination(nomination, options):
   logging.info("[%s] Writing to disk..." % nomination['nomination_id'])
@@ -93,7 +93,7 @@ def output_nomination(nomination, options):
     output_for_nomination(nomination['nomination_id'], "json")
   )
 
-#for testing purposes only
-fetch_nomination("PN100-112", {}) 
-fetch_nomination("PN1-113", {}) 
-fetch_nomination("PN900-102", {}) 
+#for testing purposes
+#fetch_nomination("PN100-112", {}) 
+#fetch_nomination("PN1-113", {}) 
+#fetch_nomination("PN850-104", {}) 
