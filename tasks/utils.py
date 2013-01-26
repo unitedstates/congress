@@ -81,6 +81,11 @@ def split_bill_version_id(bill_version_id):
 def split_vote_id(bill_id):
   return re.match("^(h|s)(\d+)-(\d+).(\d\d\d\d)$", bill_id).groups()
 
+# nomination_type, congress, nomination_number
+# I think it's always PN, but might as well include
+def split_nomination_id(nomination_id):
+  return re.match("^([A-z]{2})(\d+)-(\d+)$", nomination_id).groups()
+
 def process_set(to_fetch, fetch_func, options, *extra_args):
   errors = []
   saved = []
