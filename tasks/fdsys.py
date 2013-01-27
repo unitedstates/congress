@@ -22,6 +22,9 @@
 # ./run fdsys ... --store mods,pdf
 # When downloading, also locally mirror the MODS and PDF documents
 # associated with each package. Update as the sitemap indicates.
+# Also pass --granules to locally cache granule files (e.g. the
+# individual statute files w/in a volume), although the data may
+# be redundant with the package files.
 
 from lxml import etree, html
 import glob, json, re, logging, os.path
@@ -171,7 +174,7 @@ def mirror_files(fetch_collections, options):
   
   file_types = options["store"].split(",")
 
-  for sitemap in glob.glob(utils.cache_dir() + "/fdsys/sitemap/*/*.xml"):
+  for sitemap in sorted(glob.glob(utils.cache_dir() + "/fdsys/sitemap/*/*.xml")):
     # Should we process this file?
     year, collection = re.search(r"/(\d+)/([^/]+).xml$", sitemap).groups()
     if "year" in options and year != options["year"]: continue
@@ -216,21 +219,25 @@ def mirror_files(fetch_collections, options):
       file_list = []
       file_list.append( (None, path) )
       
-      # In some collections, like STATUTE, each document has subparts which are not
-      # described in the sitemap. Load the main HTML page and scrape for the sub-files.
-      content_index = utils.download(url,
-          "fdsys/package/%s/%s/%s.html" % (year, collection, package_name),
-          utils.merge(options, {
-          'xml': True, # it's not XML but this avoid unescaping HTML which fails if there are unicode characters 
-          'force': force, 
-        }))
-      if not content_index: raise Exception("Failed to download %s" % url)
-      for link in html.fromstring(content_index).cssselect("table.page-details-data-table td.rightLinkCell a"):
-        if link.text == "More":
-          m = re.match("granule/(.*)/(.*)/content-detail.html", link.get("href"))
-          if not m or m.group(1) != package_name: raise Exception("Unmatched granule URL %s" % link.get("href"))
-          granule_name = m.group(2)
-          file_list.append( (granule_name, path + "/" + granule_name) )
+      if options.get("granules", False):
+        # In some collections, like STATUTE, each document has subparts which are not
+        # described in the sitemap. Load the main HTML page and scrape for the sub-files.
+        # Josh originally thought the STATUTE granule files (individual statutes) were
+        # useful, but then it turned out the information is redudant with information
+        # in the top-level package MODS file.
+        content_index = utils.download(url,
+            "fdsys/package/%s/%s/%s.html" % (year, collection, package_name),
+            utils.merge(options, {
+            'xml': True, # it's not XML but this avoid unescaping HTML which fails if there are unicode characters 
+            'force': force, 
+          }))
+        if not content_index: raise Exception("Failed to download %s" % url)
+        for link in html.fromstring(content_index).cssselect("table.page-details-data-table td.rightLinkCell a"):
+          if link.text == "More":
+            m = re.match("granule/(.*)/(.*)/content-detail.html", link.get("href"))
+            if not m or m.group(1) != package_name: raise Exception("Unmatched granule URL %s" % link.get("href"))
+            granule_name = m.group(2)
+            file_list.append( (granule_name, path + "/" + granule_name) )
         
       # Download the files of the desired types.
       for granule_name, path in file_list:
