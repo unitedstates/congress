@@ -1,25 +1,76 @@
-#!/usr/bin/env python
+# Convert GPO Fdsys STATUTE metadata into bill files.
+#
+# GPO has the Statutes at Large from 1951 (the 65th
+# volume, 82nd Congress) to the present, with metadata
+# at the level of the law.
+#
+# The bill files have sort of made up action entries
+# since we don't know the legislative history of the bill.
+# We also assume all bills are enacted by being signed
+# by the President for the sake of outputting status
+# information.
+#
+# First download the Statutes at Large from GPO:
+#
+# ./run fdsys --collections=STATUTE --store=mods
+#
+# Then run this script:
+#
+# ./run statutes
+# Processes all downloaded statutes files and saves
+# bill files (e.g. data/82/bills/hr/hr1/data.json).
+#
+# ./run statutes --volume=65
+# ./run statutes --volumes=65-86
+# ./run statutes --year=1951
+# ./run statutes --years=1951-1972
+# Processes just the indicate volume or range of volumes.
+# Starting with the 93rd Congress (1973-1974, corresponding
+# to volume 78 of the Statutes of Large), we have bill
+# data from THOMAS. Be careful not to overwrite those files.
+
 
 import logging
 import time, datetime
 from lxml import etree
-import json
+import glob
 
 import utils
 import bill_info
 
-def run( options ):
-  mods_path = options.get( "path", None )
-
-  if mods_path:
-    mods = etree.parse( "./data/fdsys/%s/mods.xml" % mods_path )
+def run(options):
+  root_dir = utils.data_dir() + '/fdsys/STATUTE'
+  
+  if "volume" in options:
+    to_fetch = glob.glob(root_dir + "/*/STATUTE-" + str(int(options["volume"]))) 
+  elif "volumes" in options:
+    start, end = options["volumes"].split("-")
+    to_fetch = []
+    for v in xrange(int(start), int(end)+1):
+      to_fetch.extend(glob.glob(root_dir + "/*/STATUTE-" + str(v)))
+  elif "year" in options:
+    to_fetch = glob.glob(root_dir + "/" + str(int(options["year"])) + "/STATUTE-*") 
+  elif "years" in options:
+    start, end = options["years"].split("-")
+    to_fetch = []
+    for y in xrange(int(start), int(end)+1):
+      to_fetch.extend(glob.glob(root_dir + "/" + str(y) + "/STATUTE-*"))
   else:
-    logging.error("Specify a path, like %s" % "STATUTE/1951/STATUTE-65" )
-    return False
+    to_fetch = sorted(glob.glob(root_dir + "/*/STATUTE-*"))
 
-  bills = []
+  logging.warn("Going to process %i volumes" % len(to_fetch))
+  
+  utils.process_set(to_fetch, proc_statute, options)
+  
+def proc_statute(path, options):
+  mods = etree.parse(path + "/mods.xml")
 
-  if not utils.committee_names: utils.fetch_committee_names( mods.find( "/{http://www.loc.gov/mods/v3}extension[2]/{http://www.loc.gov/mods/v3}congress" ).text, options)
+  # Load the THOMAS committee names for this Congress, which is our best
+  # bet for normalizing committee names in the GPO data.
+  congress = mods.find( "/{http://www.loc.gov/mods/v3}extension[2]/{http://www.loc.gov/mods/v3}congress" ).text
+  utils.fetch_committee_names(congress, options)
+  
+  logging.warn("Prcessing %s (%s Congress)" % (path, congress))
 
   for bill in mods.findall( "/{http://www.loc.gov/mods/v3}relatedItem" ):
     titles = []
@@ -62,7 +113,7 @@ def run( options ):
     bill_elements = bill.findall( "{http://www.loc.gov/mods/v3}extension/{http://www.loc.gov/mods/v3}bill" )
 
     if ( bill_elements is None ) or ( len( bill_elements ) != 1 ):
-      logging.error("Could not get bill data for %s" % ( official_title ) )
+      logging.error("Could not get bill data for %s" % repr(titles) )
       continue
     else:
       congress = bill_elements[0].attrib["congress"]
@@ -142,8 +193,6 @@ def run( options ):
       'updated_at': datetime.datetime.fromtimestamp(time.time()),
     }
 
-    bills.append( bill_data )
-
     bill_info.output_bill( bill_data, options )
 
-  return bills
+  return {'ok': True, 'saved': True}
