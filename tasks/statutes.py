@@ -24,7 +24,7 @@
 # ./run statutes --volumes=65-86
 # ./run statutes --year=1951
 # ./run statutes --years=1951-1972
-# Processes just the indicate volume or range of volumes.
+# Processes just the indicated volume or range of volumes.
 # Starting with the 93rd Congress (1973-1974, corresponding
 # to volume 78 of the Statutes of Large), we have bill
 # data from THOMAS. Be careful not to overwrite those files.
@@ -40,16 +40,16 @@ import bill_info
 
 def run(options):
   root_dir = utils.data_dir() + '/fdsys/STATUTE'
-  
+
   if "volume" in options:
-    to_fetch = glob.glob(root_dir + "/*/STATUTE-" + str(int(options["volume"]))) 
+    to_fetch = glob.glob(root_dir + "/*/STATUTE-" + str(int(options["volume"])))
   elif "volumes" in options:
     start, end = options["volumes"].split("-")
     to_fetch = []
     for v in xrange(int(start), int(end)+1):
       to_fetch.extend(glob.glob(root_dir + "/*/STATUTE-" + str(v)))
   elif "year" in options:
-    to_fetch = glob.glob(root_dir + "/" + str(int(options["year"])) + "/STATUTE-*") 
+    to_fetch = glob.glob(root_dir + "/" + str(int(options["year"])) + "/STATUTE-*")
   elif "years" in options:
     start, end = options["years"].split("-")
     to_fetch = []
@@ -59,9 +59,9 @@ def run(options):
     to_fetch = sorted(glob.glob(root_dir + "/*/STATUTE-*"))
 
   logging.warn("Going to process %i volumes" % len(to_fetch))
-  
+
   utils.process_set(to_fetch, proc_statute, options)
-  
+
 def proc_statute(path, options):
   mods = etree.parse(path + "/mods.xml")
 
@@ -69,8 +69,8 @@ def proc_statute(path, options):
   # bet for normalizing committee names in the GPO data.
   congress = mods.find( "/{http://www.loc.gov/mods/v3}extension[2]/{http://www.loc.gov/mods/v3}congress" ).text
   utils.fetch_committee_names(congress, options)
-  
-  logging.warn("Prcessing %s (%s Congress)" % (path, congress))
+
+  logging.warn("Processing %s (Congress %s)" % (path, congress))
 
   for bill in mods.findall( "/{http://www.loc.gov/mods/v3}relatedItem" ):
     titles = []
@@ -116,10 +116,10 @@ def proc_statute(path, options):
       logging.error("Could not get bill data for %s" % repr(titles) )
       continue
     else:
-      congress = bill_elements[0].attrib["congress"]
+      bill_congress = bill_elements[0].attrib["congress"]
       bill_type = bill_elements[0].attrib["type"].lower()
-      number = bill_elements[0].attrib["number"]
-      bill_id = "%s%s-%s" % (bill_type, number, congress)
+      bill_number = bill_elements[0].attrib["number"]
+      bill_id = "%s%s-%s" % (bill_type, bill_number, bill_congress)
 
     actions = []
 
@@ -142,16 +142,16 @@ def proc_statute(path, options):
         "references": [], # XXX
       }
     else:
-      congress = law_elements[0].attrib["congress"]
-      number = law_elements[0].attrib["number"]
+      law_congress = law_elements[0].attrib["congress"]
+      law_number = law_elements[0].attrib["number"]
       law_type = ( "private" if ( law_elements[0].attrib["isPrivate"] == "true" ) else "public" )
 
       action = {
-        "congress": congress,
-        "number": number,
+        "congress": law_congress,
+        "number": law_number,
         "type": "enacted",
         "law": law_type,
-        "text": "Became %s Law No: %s-%s." % ( law_type.capitalize(), congress, number ),
+        "text": "Became %s Law No: %s-%s." % ( law_type.capitalize(), law_congress, law_number ),
         "acted_at": bill.find( "{http://www.loc.gov/mods/v3}extension/{http://www.loc.gov/mods/v3}granuleDate" ).text, # XXX
         "status": "ENACTED:SIGNED", # XXX: Check for overridden vetoes!
         "references": [], # XXX
@@ -164,8 +164,8 @@ def proc_statute(path, options):
     bill_data = {
       'bill_id': bill_id,
       'bill_type': bill_type,
-      'number': number,
-      'congress': congress,
+      'number': bill_number,
+      'congress': bill_congress,
 
       'introduced_at': None, # XXX
       'sponsor': None, # XXX
