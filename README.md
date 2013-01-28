@@ -61,11 +61,11 @@ Scraping amendments
 
 You can supply a few kinds of flags when scraping amendments, similar to the options for bills. To limit to 10 House amendments in the 111th Congress:
 
-    ./run bills --limit=10 --amendment_type=hamdt --congress=111
+    ./run amendments --limit=10 --amendment_type=hamdt --congress=111
 
 To get only a specific amendment:
 
-    ./run bills --amendment_id=samdt5-112
+    ./run amendments --amendment_id=samdt5-112
 
 Scraping votes
 --------------
