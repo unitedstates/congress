@@ -77,7 +77,7 @@ def proc_statute(path, options):
     titles = []
 
     titles.append( {
-      "title": bill.find( "mods:titleInfo/mods:title", mods_ns ).text,
+      "title": bill.find( "mods:titleInfo/mods:title", mods_ns ).text.replace( '""', '"' ),
       "as": "enacted",
       "type": "official",
     } )
