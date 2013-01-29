@@ -477,9 +477,15 @@ def get_govtrack_person_id(source_id_type, source_id):
         # a master map from (id-type, id) to GovTrack ID,
         # where id-type is e.g. thomas, lis, bioguide. Then
         # save it to a pickled file.
+        
+        try:
+          from yaml import CLoader as Loader, CDumper as Dumper
+        except ImportError:
+          from yaml import Loader, Dumper        
+        
         logging.warn("Making %s ID map..." % fn)
         m = { }
-        for moc in yaml.load(open("cache/congress-legislators/" + fn + ".yaml")):
+        for moc in yaml.load(open("cache/congress-legislators/" + fn + ".yaml"), Loader=Loader):
           if "govtrack" in moc["id"]:
             for k, v in moc["id"].items():
               if k in ('bioguide', 'lis', 'thomas'):
