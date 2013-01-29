@@ -201,4 +201,19 @@ def proc_statute(path, options):
 
     bill_info.output_bill( bill_data, options )
 
+    # XXX: Can't use bill_versions.fetch_version() because it depends on fdsys.
+    version_code = "enr"
+    bill_version_id = "%s%s-%s-%s" % ( bill_type, bill_number, bill_congress, version_code )
+    bill_version = {
+      'bill_version_id': bill_version_id,
+      'version_code': version_code,
+      'issued_on': status_date,
+      'urls': { "pdf": bill.find( "mods:location/mods:url[@displayLabel='PDF rendition']", mods_ns ).text },
+    }
+    import json, bill_versions
+    utils.write(
+      json.dumps(bill_version, sort_keys=True, indent=2, default=utils.format_datetime),
+      bill_versions.output_for_bill_version(bill_version_id)
+    )
+
   return {'ok': True, 'saved': True}
