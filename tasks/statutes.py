@@ -159,6 +159,11 @@ def proc_statute(path, options):
 
     actions.append( action )
 
+    # Check for typos in the metadata.
+    if law_congress != bill_congress:
+      logging.error("Congress mismatch for %s%s: %s or %s?" % ( bill_type, bill_number, bill_congress, law_congress ) )
+      continue
+
     status, status_date = bill_info.latest_status( actions )
 
     bill_data = {
