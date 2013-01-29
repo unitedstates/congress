@@ -64,24 +64,25 @@ def run(options):
 
 def proc_statute(path, options):
   mods = etree.parse(path + "/mods.xml")
+  mods_ns = { "mods": "http://www.loc.gov/mods/v3" }
 
   # Load the THOMAS committee names for this Congress, which is our best
   # bet for normalizing committee names in the GPO data.
-  congress = mods.find( "/{http://www.loc.gov/mods/v3}extension[2]/{http://www.loc.gov/mods/v3}congress" ).text
+  congress = mods.find( "/mods:extension[2]/mods:congress", mods_ns ).text
   utils.fetch_committee_names(congress, options)
 
   logging.warn("Processing %s (Congress %s)" % (path, congress))
 
-  for bill in mods.findall( "/{http://www.loc.gov/mods/v3}relatedItem" ):
+  for bill in mods.findall( "/mods:relatedItem", mods_ns ):
     titles = []
 
     titles.append( {
-      "title": bill.find( "{http://www.loc.gov/mods/v3}titleInfo/{http://www.loc.gov/mods/v3}title" ).text,
+      "title": bill.find( "mods:titleInfo/mods:title", mods_ns ).text,
       "as": "enacted",
       "type": "official",
     } )
 
-    descriptor = bill.find( "{http://www.loc.gov/mods/v3}extension/{http://www.loc.gov/mods/v3}descriptor" )
+    descriptor = bill.find( "mods:extension/mods:descriptor", mods_ns )
 
     if descriptor is not None:
       subject = descriptor.text
@@ -90,17 +91,17 @@ def proc_statute(path, options):
 
     # MODS files also contain information about:
     # ['BACKMATTER', 'FRONTMATTER', 'CONSTAMEND', 'PROCLAMATION', 'REORGPLAN']
-    if bill.find( "{http://www.loc.gov/mods/v3}extension/{http://www.loc.gov/mods/v3}granuleClass" ).text not in [ "PUBLICLAW", "PRIVATELAW", "HCONRES", "SCONRES" ]:
+    if bill.find( "mods:extension/mods:granuleClass", mods_ns ).text not in [ "PUBLICLAW", "PRIVATELAW", "HCONRES", "SCONRES" ]:
       continue
 
     committees = []
 
-    cong_committee = bill.find( "{http://www.loc.gov/mods/v3}extension/{http://www.loc.gov/mods/v3}congCommittee" )
+    cong_committee = bill.find( "mods:extension/mods:congCommittee", mods_ns )
 
     if cong_committee is not None:
       chambers = { "H": "House", "S": "Senate", "J": "Joint" }
 
-      committee = chambers[cong_committee.attrib["chamber"]] + " " + cong_committee.find( "{http://www.loc.gov/mods/v3}name" ).text
+      committee = chambers[cong_committee.attrib["chamber"]] + " " + cong_committee.find( "mods:name", mods_ns ).text
 
       committee_info = {
         "committee": committee,
@@ -110,7 +111,7 @@ def proc_statute(path, options):
 
       committees.append( committee_info )
 
-    bill_elements = bill.findall( "{http://www.loc.gov/mods/v3}extension/{http://www.loc.gov/mods/v3}bill" )
+    bill_elements = bill.findall( "mods:extension/mods:bill", mods_ns )
 
     if ( bill_elements is None ) or ( len( bill_elements ) != 1 ):
       logging.error("Could not get bill data for %s" % repr(titles) )
@@ -123,7 +124,7 @@ def proc_statute(path, options):
 
     actions = []
 
-    law_elements = bill.findall( "{http://www.loc.gov/mods/v3}extension/{http://www.loc.gov/mods/v3}law" )
+    law_elements = bill.findall( "mods:extension/mods:law", mods_ns )
 
     # XXX: If <law> is missing, this assumes it is a concurrent resolution.
     #      This may be a problem if the code is updated to accept joint resolutions for constitutional amendments.
@@ -133,11 +134,11 @@ def proc_statute(path, options):
       action = {
         "type": "vote",
         "vote_type": "vote2",
-        "where": other_chamber[bill.find( "{http://www.loc.gov/mods/v3}extension/{http://www.loc.gov/mods/v3}originChamber" ).text],
+        "where": other_chamber[bill.find( "mods:extension/mods:originChamber", mods_ns ).text],
         "result": "pass", # XXX
         "how": "unknown", # XXX
 #        "text": "",
-        "acted_at": bill.find( "{http://www.loc.gov/mods/v3}extension/{http://www.loc.gov/mods/v3}granuleDate" ).text, # XXX
+        "acted_at": bill.find( "mods:extension/mods:granuleDate", mods_ns ).text, # XXX
         "status": "PASSED:CONCURRENTRES",
         "references": [], # XXX
       }
@@ -152,7 +153,7 @@ def proc_statute(path, options):
         "type": "enacted",
         "law": law_type,
         "text": "Became %s Law No: %s-%s." % ( law_type.capitalize(), law_congress, law_number ),
-        "acted_at": bill.find( "{http://www.loc.gov/mods/v3}extension/{http://www.loc.gov/mods/v3}granuleDate" ).text, # XXX
+        "acted_at": bill.find( "mods:extension/mods:granuleDate", mods_ns ).text, # XXX
         "status": "ENACTED:SIGNED", # XXX: Check for overridden vetoes!
         "references": [], # XXX
       }
