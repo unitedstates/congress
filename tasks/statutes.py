@@ -122,6 +122,9 @@ def proc_statute(path, options):
       bill_number = bill_elements[0].attrib["number"]
       bill_id = "%s%s-%s" % (bill_type, bill_number, bill_congress)
 
+    access_id = bill.find( "mods:extension/mods:accessId", mods_ns ).text
+    granule_date = bill.find( "mods:extension/mods:granuleDate", mods_ns ).text
+
     actions = []
 
     law_elements = bill.findall( "mods:extension/mods:law", mods_ns )
@@ -138,9 +141,10 @@ def proc_statute(path, options):
         "result": "pass", # XXX
         "how": "unknown", # XXX
 #        "text": "",
-        "acted_at": bill.find( "mods:extension/mods:granuleDate", mods_ns ).text, # XXX
+        "acted_at": granule_date, # XXX
         "status": "PASSED:CONCURRENTRES",
         "references": [], # XXX
+        "sources": [ access_id ],
       }
     else:
       law_congress = law_elements[0].attrib["congress"]
@@ -153,9 +157,10 @@ def proc_statute(path, options):
         "type": "enacted",
         "law": law_type,
         "text": "Became %s Law No: %s-%s." % ( law_type.capitalize(), law_congress, law_number ),
-        "acted_at": bill.find( "mods:extension/mods:granuleDate", mods_ns ).text, # XXX
+        "acted_at": granule_date, # XXX
         "status": "ENACTED:SIGNED", # XXX: Check for overridden vetoes!
         "references": [], # XXX
+        "sources": [ access_id ],
       }
 
     actions.append( action )
