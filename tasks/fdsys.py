@@ -178,8 +178,10 @@ def mirror_files(fetch_collections, options):
     # Should we process this file?
     year, collection = re.search(r"/(\d+)/([^/]+).xml$", sitemap).groups()
     if "year" in options and year != options["year"]: continue
-    if "congress" in options and int(year) not in get_congress_years(int(options["congress"])): continue 
+    if "congress" in options and int(year) not in utils.get_congress_years(int(options["congress"])): continue 
     if fetch_collections and collection not in fetch_collections: continue
+    
+    logging.warn(sitemap + "...")
     
     # Load the sitemap for this year & collection.
     dom = etree.parse(sitemap).getroot()
@@ -205,6 +207,7 @@ def mirror_files(fetch_collections, options):
         if not m: raise Exception("Unmatched bill document URL: " + url)
         congress, bill_type, bill_number, version_code = m.groups()
         congress = int(congress)
+        if "congress" in options and congress != int(options["congress"]): continue 
         path = output_for_bill(congress, bill_type, bill_number, "text-versions/" + version_code)
       else:
         # Store in fdsys/COLLECTION/YEAR/PKGNAME.
