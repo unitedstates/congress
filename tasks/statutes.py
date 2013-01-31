@@ -215,6 +215,7 @@ def proc_statute(path, options):
       'committees': committees,
       'amendments': [], # XXX
 
+      'sources': sources,
       'updated_at': datetime.datetime.fromtimestamp(time.time()),
     }
 
