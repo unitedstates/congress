@@ -158,7 +158,7 @@ def proc_statute(path, options):
         "acted_at": granule_date, # XXX
         "status": "PASSED:CONCURRENTRES",
         "references": [], # XXX
-        "sources": sources,
+#        "sources": sources,
       }
     else:
       law_congress = law_elements[0].attrib["congress"]
@@ -174,7 +174,7 @@ def proc_statute(path, options):
         "acted_at": granule_date, # XXX
         "status": "ENACTED:SIGNED", # XXX: Check for overridden vetoes!
         "references": [], # XXX
-        "sources": sources,
+#        "sources": sources,
       }
 
     actions.append( action )
