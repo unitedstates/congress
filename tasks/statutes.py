@@ -73,6 +73,8 @@ def proc_statute(path, options):
 
   logging.warn("Processing %s (Congress %s)" % (path, congress))
 
+  package_id = mods.find( "/mods:extension[2]/mods:accessId", mods_ns ).text
+
   for bill in mods.findall( "/mods:relatedItem", mods_ns ):
     titles = []
 
@@ -122,10 +124,22 @@ def proc_statute(path, options):
       bill_number = bill_elements[0].attrib["number"]
       bill_id = "%s%s-%s" % (bill_type, bill_number, bill_congress)
 
-    access_id = bill.find( "mods:extension/mods:accessId", mods_ns ).text
     granule_date = bill.find( "mods:extension/mods:granuleDate", mods_ns ).text
 
     actions = []
+    sources = []
+
+    source = {
+      "source": "statutes",
+      "package_id": package_id,
+      "access_id": bill.find( "mods:extension/mods:accessId", mods_ns ).text,
+      "source_url": bill.find( "mods:location/mods:url[@displayLabel='Content Detail']", mods_ns ).text,
+      "volume": bill.find( "mods:extension/mods:volume", mods_ns ).text,
+      "page": bill.find( "mods:part[@type='article']/mods:extent[@unit='pages']/mods:start", mods_ns ).text,
+      "position": bill.find( "mods:extension/mods:pagePosition", mods_ns ).text,
+    }
+
+    sources.append( source )
 
     law_elements = bill.findall( "mods:extension/mods:law", mods_ns )
 
@@ -144,7 +158,7 @@ def proc_statute(path, options):
         "acted_at": granule_date, # XXX
         "status": "PASSED:CONCURRENTRES",
         "references": [], # XXX
-        "sources": [ access_id ],
+        "sources": sources,
       }
     else:
       law_congress = law_elements[0].attrib["congress"]
@@ -160,7 +174,7 @@ def proc_statute(path, options):
         "acted_at": granule_date, # XXX
         "status": "ENACTED:SIGNED", # XXX: Check for overridden vetoes!
         "references": [], # XXX
-        "sources": [ access_id ],
+        "sources": sources,
       }
 
     actions.append( action )
