@@ -146,3 +146,12 @@ Contributors
 * [Josh Tauberer](http://github.com/tauberer) - [GovTrack.us](http://govtrack.us)
 * [Derek Willis](http://github.com/dwillis)
 * [Alex Engler](http://github.com/AlexEngler)
+
+Who's Using This Data
+---------------------
+
+Here are the ones we know about:
+
+* [GovTrack.us](http://govtrack.us) 
+* [Sunlight Congress API](http://sunlightlabs.github.com/congress/)
+* [Scout](https://scout.sunlightfoundation.com/)
