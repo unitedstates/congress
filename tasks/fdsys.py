@@ -172,6 +172,11 @@ def entries_from_collection(year, collection, lastmod, options):
 def mirror_files(fetch_collections, options):
   # Locally mirror certain file types for the specified collections.
   
+  # For determining whether we need to process a sitemap file again on a later
+  # run, we need to make a key out of the command line arguments that affect
+  # which files we are downloading.
+  cache_options_key = repr(tuple(sorted(kv for kv in options.items() if kv[0] in ("store", "year", "congress", "granules", "cached"))))
+  
   file_types = options["store"].split(",")
 
   for sitemap in sorted(glob.glob(utils.cache_dir() + "/fdsys/sitemap/*/*.xml")):
@@ -181,7 +186,18 @@ def mirror_files(fetch_collections, options):
     if "congress" in options and int(year) not in utils.get_congress_years(int(options["congress"])): continue 
     if fetch_collections and collection not in fetch_collections: continue
     
-    logging.warn(sitemap + "...")
+    # Do we need to process this file? Compare the current lastmod value for
+    # the sitemap to the value at the last completed store for the same set
+    # of command-line options.
+    sitemap_store_state_file = re.sub(r"\.xml$", "-store-state.json", sitemap)
+    sitemap_last_mod = open(re.sub(r"\.xml$", "-lastmod.txt", sitemap)).read()
+    if os.path.exists(sitemap_store_state_file):
+      sitemap_store_state = json.load(open(sitemap_store_state_file))
+      if sitemap_store_state.get(cache_options_key) == sitemap_last_mod:
+        # sitemap hasn't changed since the last time
+        continue
+    
+    logging.info("scanning " + sitemap + "...")
     
     # Load the sitemap for this year & collection.
     dom = etree.parse(sitemap).getroot()
@@ -249,7 +265,7 @@ def mirror_files(fetch_collections, options):
           if file_type not in targets: raise Exception("Invalid file type: %s" % file_type)
           f_url, f_path = targets[file_type]
           
-          if force: logging.warn(f_path)
+          if (not force) and os.path.exists(f_path): continue # we already have the current file
           data = utils.download(f_url, f_path, utils.merge(options, {
             'xml': True, 
             'force': force, 
@@ -260,10 +276,19 @@ def mirror_files(fetch_collections, options):
             raise Exception("Failed to download %s" % url)
           
       # Write the current last modified date to disk so we know the next time whether
-      # we need to fetch the file.
+      # we need to fetch the files for this sitemap item.
       if lastmod and not options.get("cached", False):
         utils.write(lastmod, lastmod_cache_file) 
-
+    
+    # If we got this far, we successfully downloaded all of the files in this year/collection.
+    # To speed up future updates, save the lastmod time of this sitemap in a file indicating
+    # what we downloaded. The store-state file contains a JSON mapping of command line options
+    # to the most recent lastmod value for this sitemap.
+    sitemap_store_state = { }
+    if os.path.exists(sitemap_store_state_file):
+      sitemap_store_state = json.load(open(sitemap_store_state_file))
+    sitemap_store_state[cache_options_key] = sitemap_last_mod
+    json.dump(sitemap_store_state, open(sitemap_store_state_file, "w"))
 
 def get_package_files(package_name, granule_name, path):
   if not granule_name:
