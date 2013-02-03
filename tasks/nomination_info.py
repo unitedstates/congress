@@ -63,12 +63,40 @@ def parse_nomination(nomination_id, body, options):
             data = re.split("\s+\-\s+", data)
             info['actions'].append((label, data[0], data[1]))
         else:
-            info[label] = data
+            info[label.lower()] = data
 
   '''
-  #TO DO
-  ## Process the raw info from the page to extract home state, dates, etc
-  '''  
+  Some of the data is structured fine as is (e.g. Organization, Referred to, Reported by)
+  Some needs processing, like date and nominee
+  '''
+  
+  # Doc format is: "January 04, 1995 (104th Congress)"
+  info["date"] = datetime.strptime(info["date received"].split(" (")[0], "%B %d, %Y").strftime("%Y-%m-%d")
+  # Note: Will break with the 1000th congress in year 3789
+  info["congress"] = int(re.search("(\d{2,3})[stndhr]{2}", info["date received"]).group(1))
+  
+  # remove final caluse if there
+  info["nominee"] = info["nominee"].split(", vice")[0]
+  
+  # get overview from the text of the nomination
+  try:
+    (name, state, position) = re.search("(.+?), of (.+?), to be (.+?)", info["nominee"]).groups()
+  except Exception, e:
+    logging.error("Couldn't parse %s" % info["nominee"])
+    (name, state, position) = ("", "", "")    
+    
+  info["name"] = name
+  info["state"] = re.sub("^the ", "", state) #the District -> District
+  info["parsed"] = ""
+  info["position"] = ""
+  info["st_abbr"] = ""
+
+  # if we want to test whether the info in the comments align with the info gleaned from text, can ask if name == facts[-3]
+  #doesn't handle suffixes at the moment
+  info["parsed"] = re.search("([A-z-'\s,\.]+),\s([A-z-\']+)([A-z-\'\.\s]*)", facts[-4]).groups()
+  info["position"] = facts[-5]
+  info["st_abbr"] = facts[-6][2:]
+  
   return info
 
 # directory helpers
@@ -92,8 +120,3 @@ def output_nomination(nomination, options):
     json.dumps(nomination, sort_keys=True, indent=2, default=utils.format_datetime), 
     output_for_nomination(nomination['nomination_id'], "json")
   )
-
-#for testing purposes
-#fetch_nomination("PN100-112", {}) 
-#fetch_nomination("PN1-113", {}) 
-#fetch_nomination("PN850-104", {}) 
