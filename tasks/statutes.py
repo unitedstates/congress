@@ -73,6 +73,8 @@ def proc_statute(path, options):
 
   logging.warn("Processing %s (Congress %s)" % (path, congress))
 
+  package_id = mods.find( "/mods:extension[2]/mods:accessId", mods_ns ).text
+
   for bill in mods.findall( "/mods:relatedItem", mods_ns ):
     titles = []
 
@@ -122,7 +124,22 @@ def proc_statute(path, options):
       bill_number = bill_elements[0].attrib["number"]
       bill_id = "%s%s-%s" % (bill_type, bill_number, bill_congress)
 
+    granule_date = bill.find( "mods:extension/mods:granuleDate", mods_ns ).text
+
     actions = []
+    sources = []
+
+    source = {
+      "source": "statutes",
+      "package_id": package_id,
+      "access_id": bill.find( "mods:extension/mods:accessId", mods_ns ).text,
+      "source_url": bill.find( "mods:location/mods:url[@displayLabel='Content Detail']", mods_ns ).text,
+      "volume": bill.find( "mods:extension/mods:volume", mods_ns ).text,
+      "page": bill.find( "mods:part[@type='article']/mods:extent[@unit='pages']/mods:start", mods_ns ).text,
+      "position": bill.find( "mods:extension/mods:pagePosition", mods_ns ).text,
+    }
+
+    sources.append( source )
 
     law_elements = bill.findall( "mods:extension/mods:law", mods_ns )
 
@@ -138,9 +155,10 @@ def proc_statute(path, options):
         "result": "pass", # XXX
         "how": "unknown", # XXX
 #        "text": "",
-        "acted_at": bill.find( "mods:extension/mods:granuleDate", mods_ns ).text, # XXX
+        "acted_at": granule_date, # XXX
         "status": "PASSED:CONCURRENTRES",
         "references": [], # XXX
+#        "sources": sources,
       }
     else:
       law_congress = law_elements[0].attrib["congress"]
@@ -153,9 +171,10 @@ def proc_statute(path, options):
         "type": "enacted",
         "law": law_type,
         "text": "Became %s Law No: %s-%s." % ( law_type.capitalize(), law_congress, law_number ),
-        "acted_at": bill.find( "mods:extension/mods:granuleDate", mods_ns ).text, # XXX
+        "acted_at": granule_date, # XXX
         "status": "ENACTED:SIGNED", # XXX: Check for overridden vetoes!
         "references": [], # XXX
+#        "sources": sources,
       }
 
     actions.append( action )
@@ -196,6 +215,7 @@ def proc_statute(path, options):
       'committees': committees,
       'amendments': [], # XXX
 
+      'sources': sources,
       'updated_at': datetime.datetime.fromtimestamp(time.time()),
     }
 
