@@ -84,8 +84,12 @@ def split_vote_id(bill_id):
 # nomination_type, congress, nomination_number
 # I think it's always PN, but might as well include
 def split_nomination_id(nomination_id):
-  return re.match("^([A-z]{2})(\d+)-(\d+)$", nomination_id).groups()
-
+  try:
+    return re.match("^([A-z]{2})(\d+)-(\d+)$", nomination_id).groups()
+  except Exception, e:
+    logging.error("Unabled to parse %s" % nomination_id)
+    return (None, None, None)
+    
 def process_set(to_fetch, fetch_func, options, *extra_args):
   errors = []
   saved = []

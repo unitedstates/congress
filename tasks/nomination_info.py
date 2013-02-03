@@ -23,6 +23,8 @@ def fetch_nomination(nomination_id, options={}):
   
   # fetch committee name map, if it doesn't already exist
   nomination_type, number, congress = utils.split_nomination_id(nomination_id)
+  if not number:
+    return {'saved': False, 'ok': False, 'reason': "Couldn't parse %s" % nomination_id }
   
   # fetch bill details body
   body = utils.download(
