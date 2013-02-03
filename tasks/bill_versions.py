@@ -86,7 +86,7 @@ def split_url(url):
 # an output text-versions.json for every bill
 def output_for_bill_version(bill_version_id):
   bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
-  return "%s/%s/bills/%s/%s%s/text-versions/%s.json" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code)
+  return "%s/%s/bills/%s/%s%s/text-versions/%s/data.json" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code)
 
 
 # cache a file for an individual bill version
