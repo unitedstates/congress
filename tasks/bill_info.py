@@ -295,8 +295,9 @@ def output_bill(bill, options):
           
   relatedbills = make_node(root, "relatedbills", None)
   for rb in bill['related_bills']:
-      rb_bill_type, rb_number, rb_congress = utils.split_bill_id(rb['bill_id'])
-      make_node(relatedbills, "bill", None, session=rb_congress, type=govtrack_type_codes[rb_bill_type], number=rb_number, relation="unknown" if rb['reason'] == "related" else rb['reason'])
+      if rb['type'] == "bill":
+          rb_bill_type, rb_number, rb_congress = utils.split_bill_id(rb['bill_id'])
+          make_node(relatedbills, "bill", None, session=rb_congress, type=govtrack_type_codes[rb_bill_type], number=rb_number, relation="unknown" if rb['reason'] == "related" else rb['reason'])
   
   subjects = make_node(root, "subjects", None)
   if bill['subjects_top_term']:
@@ -807,30 +808,34 @@ def related_bills_for(body, congress, bill_id):
 
     bill_code, reason = m.groups()
 
-    rbill_id = "%s-%s" % (bill_code.lower().replace(".", "").replace(" ", ""), congress)
+    related_id = "%s-%s" % (bill_code.lower().replace(".", "").replace(" ", ""), congress)
+
+    if "amdt" in related_id:
+      details = {"type": "amendment", "amendment_id": related_id}
+    else:
+      details = {"type": "bill", "bill_id": related_id}
     
     reasons = (
       ("Identical bill identified by (CRS|House|Senate)", "identical"),
       ("Companion bill", "identical"),
       ("Related bill (as )?identified by (CRS|the House Clerk's office|House committee|Senate)", "related"),
-      ("passed in (House|Senate) in lieu of this bill", "supersedes"),
+      ("passed in (House|Senate) in lieu of .*", "supersedes"),
       ("Rule related to .* in (House|Senate)", "rule"),
       ("This bill has text inserted from .*", "includes"),
       ("Text from this bill was inserted in .*", "included-in"),
       ("Bill related to rule .* in House", "ruled-by"),
     )
     for reason_re, reason_code in reasons:
-      if re.match(reason_re + "$", reason, re.I):
+      if re.search(reason_re + "$", reason, re.I):
         reason = reason_code
         break
     else:
-      logging.error("[%s] Unknown bill relation: %s" % (bill_id, reason.strip()))
+      logging.error("[%s] Unknown bill relation with %s: %s" % (bill_id, related_id, reason.strip()))
       reason = "unknown"
 
-    related_bills.append({
-      'bill_id': rbill_id,
-      'reason': reason
-    })
+    details['reason'] = reason
+
+    related_bills.append(details)
 
 
   return related_bills
