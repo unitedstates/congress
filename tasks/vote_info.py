@@ -171,7 +171,7 @@ def parse_senate_vote(dom, vote):
       }
     else:
       vote["bill"] = {
-        "congress": int(dom.xpath("number(document/document_congress)")),
+        "congress": int(dom.xpath("number(document/document_congress|congress)")), # some historical files don't have document/document_congress so take the first of document/document_congress or the top-level congress element as a fall-back
         "type": bill_types[unicode(dom.xpath("string(document/document_type)"))],
         "number": int(dom.xpath("number(document/document_number)")),
         "title": unicode(dom.xpath("string(document/document_title)")),
