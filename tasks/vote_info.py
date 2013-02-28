@@ -145,7 +145,7 @@ def parse_senate_vote(dom, vote):
     return datetime.datetime.strptime(d, "%B %d, %Y, %I:%M %p")
 
   vote["date"] = parse_date(dom.xpath("string(vote_date)"))
-  vote["record_modified"] = parse_date(dom.xpath("string(modify_date)"))
+  if len(dom.xpath("modify_date")) > 0: vote["record_modified"] = parse_date(dom.xpath("string(modify_date)")) # some votes like s1-110.2008 don't have a modify_date
   vote["question"] = unicode(dom.xpath("string(vote_question_text)"))
   vote["type"] = unicode(dom.xpath("string(vote_question)"))
   if vote["type"] == "": vote["type"] = vote["question"]
