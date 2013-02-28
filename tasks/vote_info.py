@@ -302,8 +302,9 @@ def parse_house_vote(dom, vote):
     vote["votes"]['Not Voting'] = []
   
   for member in dom.xpath("vote-data/recorded-vote"):
+    bioguideid = str(member.xpath("string(legislator/@name-id)"))
     add_vote(str(member.xpath("string(vote)")), {
-        "id": str(member.xpath("string(legislator/@name-id)")),
+        "id": bioguideid if bioguideid != "0000000" else None, # h405-108.2004
         "state": str(member.xpath("string(legislator/@state)")),
         "party": str(member.xpath("string(legislator/@party)")),
         "display_name": unicode(member.xpath("string(legislator)")),
