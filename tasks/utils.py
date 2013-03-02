@@ -126,7 +126,8 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
         message += "[%s] %s" % (id, error)
     admin(message) # email if possible
 
-  logging.warning("\nSkipped %s." % len(skips))
+  logging.warning("\nErrors for %s." % len(errors))
+  logging.warning("Skipped %s." % len(skips))
   logging.warning("Saved data for %s." % len(saved))
   
   return saved + skips # all of the OK's
