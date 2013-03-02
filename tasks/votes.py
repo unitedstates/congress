@@ -16,7 +16,15 @@ def run(options):
   else:
     congress = options.get('congress', utils.current_congress())
     session_year = options.get('session', str(datetime.datetime.now().year))
-    to_fetch = vote_ids_for_house(congress, session_year, options) + vote_ids_for_senate(congress, session_year, options)
+    chamber = options.get('chamber', None)
+
+    if chamber == "house":
+      to_fetch = vote_ids_for_house(congress, session_year, options)
+    elif chamber == "senate":
+      to_fetch = vote_ids_for_senate(congress, session_year, options)
+    else:
+      to_fetch = vote_ids_for_house(congress, session_year, options) + vote_ids_for_senate(congress, session_year, options)
+    
     if not to_fetch:
       if not options.get("fast", False):
         logging.error("Error figuring out which votes to download, aborting.")
