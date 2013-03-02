@@ -129,7 +129,7 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
   logging.warning("\nSkipped %s." % len(skips))
   logging.warning("Saved data for %s." % len(saved))
   
-  return saved+skips # all of the OK's
+  return saved + skips # all of the OK's
 
 
 # Download file at `url`, cache to `destination`. 
