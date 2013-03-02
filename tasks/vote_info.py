@@ -247,7 +247,7 @@ def parse_house_vote(dom, vote):
   vote["result_text"] = unicode(dom.xpath("string(vote-metadata/vote-result)"))
   vote["result"] = unicode(dom.xpath("string(vote-metadata/vote-result)"))
   
-  if unicode(dom.xpath("string(vote-metadata/legis-num)")) not in ("", "QUORUM", "JOURNAL", "ADJOURN"):
+  if unicode(dom.xpath("string(vote-metadata/legis-num)")) not in ("", "QUORUM", "JOURNAL", "MOTION", "ADJOURN"):
     bill_types = { "S": "s", "S CON RES": "sconres", "S J RES": "sjres", "S RES": "sres", "H R": "hr", "H CON RES": "hconres", "H J RES": "hjres", "H RES": "hres" }
     bill_num = unicode(dom.xpath("string(vote-metadata/legis-num)"))
     try:
@@ -255,10 +255,10 @@ def parse_house_vote(dom, vote):
       vote["bill"] = {
         "congress": vote["congress"],
         "type": bill_types[bill_type],
-        "number": int(bill_number),
+        "number": int(bill_number)
       }
     except ValueError: # rsplit failed, i.e. there is no space in the legis-num field
-      logging.warn("Unhandled bill number: %s" % bill_num)
+      raise Exception("Unhandled bill number in the legis-num field")
     
   if str(dom.xpath("string(vote-metadata/amendment-num)")):
     vote["amendment"] = {
@@ -302,12 +302,22 @@ def parse_house_vote(dom, vote):
     vote["votes"]['Not Voting'] = []
   
   for member in dom.xpath("vote-data/recorded-vote"):
+    display_name = unicode(member.xpath("string(legislator)"))
+    state = str(member.xpath("string(legislator/@state)"))
+    party = str(member.xpath("string(legislator/@party)"))
+    vote_cast = str(member.xpath("string(vote)"))
+
     bioguideid = str(member.xpath("string(legislator/@name-id)"))
-    add_vote(str(member.xpath("string(vote)")), {
-        "id": bioguideid if bioguideid != "0000000" else None, # h405-108.2004
-        "state": str(member.xpath("string(legislator/@state)")),
-        "party": str(member.xpath("string(legislator/@party)")),
-        "display_name": unicode(member.xpath("string(legislator)")),
+
+    # h405-108.2004
+    if bioguideid == "0000000": 
+      raise Exception("Invalid bioguide ID for %s (%s-%s)" % (display_name, state, party))
+
+    add_vote(vote_cast, {
+        "id": bioguideid,
+        "state": state,
+        "party": party,
+        "display_name": display_name,
     })
 
 
