@@ -176,7 +176,9 @@ class BillActions(unittest.TestCase):
 
     self.assertEqual(new_state, None) # unchanged
 
-    # not sure whether to include votes that are on process, not passage or cloture
+  
+  # not sure whether to include votes that are on process, not passage or cloture
+
   # def test_vote_process_voice_senate(self):
   #   bill_id = "hr3590-111"
   #   title = "An act entitled The Patient Protection and Affordable Care Act."
@@ -380,6 +382,20 @@ class BillActions(unittest.TestCase):
     self.assertEqual(new_action["result"], "pass")
     self.assertEqual(new_action["how"], "by Unanimous Consent")
     self.assertEqual(new_state, "PASSED:SIMPLERES")
+
+  def test_failed_simple_resolution_senate(self):
+    bill_id = "sres5-113"
+    title = "A resolution amending the Standing Rules of the Senate to provide for cloture to be invoked with less than a three-fifths majority after additional debate."
+    state = "INTRODUCED"
+    line = "Disagreed to in Senate by Voice Vote."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+    self.assertEqual(new_action['type'], "vote")
+    self.assertEqual(new_action['vote_type'], "vote")
+    self.assertEqual(new_action['where'], "s")
+    self.assertEqual(new_action["result"], "fail")
+    self.assertEqual(new_action["how"], "by Voice Vote")
+    self.assertEqual(new_state, "FAIL:ORIGINATING:SENATE")
 
   def test_failed_suspension_vote(self):
     bill_id = "hr1954-112"

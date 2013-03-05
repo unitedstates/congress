@@ -42,7 +42,9 @@ def fetch_bill(bill_id, options):
     logging.warn("[%s] Reserved bill, not real, skipping..." % bill_id)
     return {'saved': False, 'ok': True, 'reason': "reserved bill"}
 
+  
   # conditions where we want to parse the bill from multiple pages instead of one:
+
   # 1) the all info page is truncated (~5-10 bills a congress)
   #     e.g. s1867-112, hr2112-112, s3240-112
   if "</html>" not in body:
@@ -895,7 +897,14 @@ def latest_status(actions):
 def history_from_actions(actions):
   
   history = {}
-  
+
+  activation = activation_from(actions)
+  if activation:
+    history['active'] = True
+    history['active_at'] = activation['acted_at']
+  else:
+    history['active'] = False
+
   house_vote = None
   for action in actions:
     if (action['type'] == 'vote') and (action['where'] == 'h') and (action['vote_type'] != "override"):
@@ -968,6 +977,33 @@ def history_from_actions(actions):
 
   return history
 
+
+# find an action beyond the standard actions every bill gets.
+# - if the bill's first action is "referral", then the first non-referral action
+#     most common
+#     e.g. hr3590-111 (active), s1-113 (inactive)
+# - if the bill's first action is "action", then the next action, if one is present
+#     resolutions
+#     e.g. sres5-113 (active), sres4-113 (inactive)
+# - if the bill's first action is anything else (e.g. "vote"), then that first action
+#     bills that skip committee
+#     e.g. s227-113 (active)
+def activation_from(actions):
+  # there's always at least one
+  first = actions[0]
+
+  if first['type'] == "referral":
+    for action in actions[1:]:
+      if action['type'] != "referral":
+        return action
+    return None
+  elif first['type'] == "action":
+    if len(actions) > 1:
+      return actions[1]
+    else:
+      return None
+  else:
+    return first
 
 def parse_bill_action(line, prev_status, bill_id, title):
   """Parse a THOMAS bill action line. Returns attributes to be set in the XML file on the action line."""
@@ -1063,12 +1099,15 @@ def parse_bill_action(line, prev_status, bill_id, title):
       status = new_status
   
   # A Senate Vote
-  m = re.search(r"(Passed Senate|Failed of passage in Senate|Resolution agreed to in Senate|Received in the Senate, considered, and agreed to|Submitted in the Senate, considered, and agreed to|Introduced in the Senate, read twice, considered, read the third time, and passed|Received in the Senate, read twice, considered, read the third time, and passed|Senate agreed to conference report|Cloture \S*\s?on the motion to proceed .*?not invoked in Senate|Cloture on the bill not invoked in Senate|Cloture on the bill invoked in Senate|Cloture invoked in Senate|Cloture on the motion to proceed to the bill invoked in Senate|Cloture on the motion to proceed to the bill not invoked in Senate|Senate agreed to House amendment|Senate concurred in the House amendment)(,?.*,?) (without objection|by Unanimous Consent|by Voice Vote|by Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)", line, re.I)
+  m = re.search(r"(Passed Senate|Failed of passage in Senate|Disagreed to in Senate|Resolution agreed to in Senate|Received in the Senate, considered, and agreed to|Submitted in the Senate, considered, and agreed to|Introduced in the Senate, read twice, considered, read the third time, and passed|Received in the Senate, read twice, considered, read the third time, and passed|Senate agreed to conference report|Cloture \S*\s?on the motion to proceed .*?not invoked in Senate|Cloture on the bill not invoked in Senate|Cloture on the bill invoked in Senate|Cloture invoked in Senate|Cloture on the motion to proceed to the bill invoked in Senate|Cloture on the motion to proceed to the bill not invoked in Senate|Senate agreed to House amendment|Senate concurred in the House amendment)(,?.*,?) (without objection|by Unanimous Consent|by Voice Vote|by Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)", line, re.I)
   if m != None:
     motion, extra, how = m.group(1), m.group(2), m.group(3)
     roll = None
     
-    if re.search("passed|agreed|concurred|bill invoked|cloture invoked", motion, re.I):
+    # put disagreed check first, cause "agreed" is contained inside it
+    if re.search("disagreed", motion, re.I):
+      pass_fail = "fail"
+    elif re.search("passed|agreed|concurred|bill invoked|cloture invoked", motion, re.I):
       pass_fail = "pass"
     else:
       pass_fail = "fail"
