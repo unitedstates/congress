@@ -979,7 +979,7 @@ def history_from_actions(actions):
 
 
 # find the first action beyond the standard actions every bill gets.
-# - if the bill's first action is "referral", then the first non-referral action
+# - if the bill's first action is "referral" then the first action not those
 #     most common
 #     e.g. hr3590-111 (active), s1-113 (inactive)
 # - if the bill's first action is "action", then the next action, if one is present
@@ -992,16 +992,16 @@ def activation_from(actions):
   # there's always at least one
   first = actions[0]
 
-  if first['type'] == "referral":
+  if first['type'] in ["referral", "calendar", "action"]:
     for action in actions[1:]:
-      if action['type'] != "referral":
+      if (action['type'] != "referral") and (action['type'] != "calendar"):
         return action
     return None
-  elif first['type'] == "action":
-    if len(actions) > 1:
-      return actions[1]
-    else:
-      return None
+  # elif first['type'] == "action":
+  #   if len(actions) > 1:
+  #     return actions[1]
+  #   else:
+  #     return None
   else:
     return first
 

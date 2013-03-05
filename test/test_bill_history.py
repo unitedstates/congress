@@ -82,10 +82,27 @@ class BillHistory(unittest.TestCase):
     self.assertEqual(history['enacted'], False)
 
   # sres4-113 was introduced, went nowhere (at fixture-time)
-  def test_senate_resolution_failed_voice(self):
+  def test_senate_resolution_went_nowhere(self):
     utils.fetch_committee_names(113, {'test': True})
 
     history = fixtures.bill("sres4-113")['history']
+
+    self.assertEqual(history['active'], False)
+    self.assertTrue(not history.has_key('house_passage_result'))
+    self.assertTrue(not history.has_key('house_passage_result_at'))
+    self.assertTrue(not history.has_key('senate_cloture_result'))
+    self.assertTrue(not history.has_key('senate_cloture_result_at'))
+    self.assertTrue(not history.has_key('senate_passage_result'))
+    self.assertTrue(not history.has_key('senate_passage_result_at'))
+    self.assertEqual(history['vetoed'], False)
+    self.assertEqual(history['awaiting_signature'], False)
+    self.assertEqual(history['enacted'], False)
+
+  # s1-111 was introduced, reported, went nowhere
+  def test_senate_bill_reported_nowhere(self):
+    utils.fetch_committee_names(111, {'test': True})
+
+    history = fixtures.bill("s1-111")['history']
 
     self.assertEqual(history['active'], False)
     self.assertTrue(not history.has_key('house_passage_result'))
