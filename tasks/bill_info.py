@@ -978,7 +978,7 @@ def history_from_actions(actions):
   return history
 
 
-# find an action beyond the standard actions every bill gets.
+# find the first action beyond the standard actions every bill gets.
 # - if the bill's first action is "referral", then the first non-referral action
 #     most common
 #     e.g. hr3590-111 (active), s1-113 (inactive)
