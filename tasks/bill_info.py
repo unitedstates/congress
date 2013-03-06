@@ -1219,7 +1219,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
     if prev_status == "INTRODUCED":
       status = "REFERRED"
     
-  m = re.search(r"Referred to (the )?Subcommittee on (.*[^\.]).?", line, re.I)
+  m = re.search(r"Referred to (the )?Subcommittee(?: on)? (.*[^\.]).?", line, re.I)
   if m != None:
     action["type"] = "referral"
     action["subcommittee"] = m.group(2)

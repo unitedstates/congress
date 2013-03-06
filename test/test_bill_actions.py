@@ -427,3 +427,26 @@ class BillActions(unittest.TestCase):
     self.assertEqual(new_state, "PASSED:SIMPLERES")
 
     self.assertEqual(new_action['bill_ids'], ["hres241-109"])
+
+
+  def test_referral_committee(self):
+    bill_id = "hr547-113"
+    title = "To provide for the establishment of a border protection strategy for the international land borders of the United States, to address the ecological and environmental impacts of border security infrastructure, measures, and activities along the international land borders of the United States, and for other purposes."
+    state = "INTRODUCED"
+    line = "Referred to the Committee on Homeland Security, and in addition to the Committees on Armed Services, Agriculture, and Natural Resources, for a period to be subsequently determined by the Speaker, in each case for consideration of such provisions as fall within the jurisdiction of the committee concerned."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+
+    self.assertEqual(new_action['type'], "referral")
+    self.assertEqual(new_state, "REFERRED")
+
+  def test_referral_subcommittee(self):
+    bill_id = "hr547-113"
+    title = "To provide for the establishment of a border protection strategy for the international land borders of the United States, to address the ecological and environmental impacts of border security infrastructure, measures, and activities along the international land borders of the United States, and for other purposes."
+    state = "INTRODUCED"
+    line = "Referred to the Subcommittee Indian and Alaska Native Affairs."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+
+    self.assertEqual(new_action['type'], "referral")
+    self.assertEqual(new_state, "REFERRED")
