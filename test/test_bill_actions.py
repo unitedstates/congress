@@ -428,7 +428,6 @@ class BillActions(unittest.TestCase):
 
     self.assertEqual(new_action['bill_ids'], ["hres241-109"])
 
-
   def test_referral_committee(self):
     bill_id = "hr547-113"
     title = "To provide for the establishment of a border protection strategy for the international land borders of the United States, to address the ecological and environmental impacts of border security infrastructure, measures, and activities along the international land borders of the United States, and for other purposes."
@@ -450,3 +449,15 @@ class BillActions(unittest.TestCase):
 
     self.assertEqual(new_action['type'], "referral")
     self.assertEqual(new_state, "REFERRED")
+
+  def test_hearings_held(self):
+    bill_id = "s54-113"
+    title = "A bill to increase public safety by punishing and deterring firearms trafficking."
+    state = "REFERRED"
+    line = "Committee on the Judiciary Subcommittee on the Constitution, Civil Rights and Human Rights. Hearings held."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+
+    self.assertEqual(new_action['type'], "hearings")
+    self.assertEqual(new_action['committee'], "Committee on the Judiciary Subcommittee on the Constitution, Civil Rights and Human Rights")
+    self.assertEqual(new_state, None) # did not change state

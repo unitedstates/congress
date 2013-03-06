@@ -1018,7 +1018,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
     return None, None
   
   # Otherwise, parse the action line for key actions.
-      
+
   # A House Vote.
   line = re.sub(", the Passed", ", Passed", line); # 106 h4733 and others
   m = re.search(r"(On passage|On motion to suspend the rules and pass the bill|On motion to suspend the rules and agree to the resolution|On motion to suspend the rules and pass the resolution|On agreeing to the resolution|On agreeing to the conference report|Two-thirds of the Members present having voted in the affirmative the bill is passed,?|On motion that the House agree to the Senate amendments?|On motion that the House suspend the rules and concur in the Senate amendments?|On motion that the House suspend the rules and agree to the Senate amendments?|On motion that the House agree with an amendment to the Senate amendments?|House Agreed to Senate Amendments.*?|Passed House)(, the objections of the President to the contrary notwithstanding.?)?(, as amended| \(Amended\))? (Passed|Failed|Agreed to|Rejected)? ?(by voice vote|without objection|by (the Yeas and Nays|Yea-Nay Vote|recorded vote)((:)? \(2/3 required\))?: \d+ - \d+(, \d+ Present)? [ \)]*\((Roll no\.|Record Vote No:) \d+\))", line, re.I)
@@ -1166,7 +1166,13 @@ def parse_bill_action(line, prev_status, bill_id, title):
     action["committee"] = m.group(1)
     if prev_status in ("INTRODUCED", "REFERRED"):
       status = "REPORTED"
-    
+  
+  # hearings held by a committee
+  m = re.search(r"(Committee on .*?)\. Hearings held", line, re.I)
+  if m != None:
+    action["committee"] = m.group(1)
+    action["type"] = "hearings"
+
   m = re.search(r"Committee on (.*)\. Discharged (by Unanimous Consent)?", line, re.I)
   if m != None:
     action["committee"] = m.group(1)
