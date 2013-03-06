@@ -115,6 +115,22 @@ class BillHistory(unittest.TestCase):
     self.assertEqual(history['awaiting_signature'], False)
     self.assertEqual(history['enacted'], False)
 
+  def test_introductory_remarks_are_still_inactive(self):
+    utils.fetch_committee_names(113, {'test': True})
+
+    history = fixtures.bill("hr718-113")['history']
+
+    self.assertEqual(history['active'], False)
+    self.assertTrue(not history.has_key('house_passage_result'))
+    self.assertTrue(not history.has_key('house_passage_result_at'))
+    self.assertTrue(not history.has_key('senate_cloture_result'))
+    self.assertTrue(not history.has_key('senate_cloture_result_at'))
+    self.assertTrue(not history.has_key('senate_passage_result'))
+    self.assertTrue(not history.has_key('senate_passage_result_at'))
+    self.assertEqual(history['vetoed'], False)
+    self.assertEqual(history['awaiting_signature'], False)
+    self.assertEqual(history['enacted'], False)
+
   def to_date(self, time):
     if isinstance(time, str):
       return time

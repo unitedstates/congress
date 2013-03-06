@@ -994,15 +994,10 @@ def activation_from(actions):
 
   if first['type'] in ["referral", "calendar", "action"]:
     for action in actions[1:]:
-      if (action['type'] != "referral") and (action['type'] != "calendar"):
+      if (action['type'] != "referral") and (action['type'] != "calendar") and ("Sponsor introductory remarks" not in action['text']):
         return action
     return None
-  # elif first['type'] == "action":
-  #   if len(actions) > 1:
-  #     return actions[1]
-  #   else:
-  #     return None
-  else:
+  else: 
     return first
 
 def parse_bill_action(line, prev_status, bill_id, title):
