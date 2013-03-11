@@ -161,7 +161,7 @@ def parse_senate_vote(dom, vote):
   if unicode(dom.xpath("string(document/document_type)")):
     if dom.xpath("string(document/document_type)") == "PN":
       vote["nomination"] = {
-        "number": int(dom.xpath("number(document/document_number)")),
+        "number": unicode(dom.xpath("string(document/document_number)")),
         "title": unicode(dom.xpath("string(document/document_title)")),
       }
       vote["question"] += ": " + vote["nomination"]["title"]
