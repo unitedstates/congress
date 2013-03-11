@@ -19,7 +19,7 @@ def fetch_vote(vote_id, options):
   # fetch vote XML page
   body = utils.download(
     url, 
-    "%s/votes/%s/%s%s.xml" % (vote_congress, vote_session_year, vote_chamber, vote_number),
+    "%s/votes/%s/%s%s/%s%s.xml" % (vote_congress, vote_session_year, vote_chamber, vote_number, vote_chamber, vote_number),
     utils.merge(options, {'xml': True}),
     )
 
@@ -187,7 +187,13 @@ def parse_senate_vote(dom, vote):
       }
     
     amendment_to = unicode(dom.xpath("string(amendment/amendment_to_document_number)"))
-    if "Treaty" not in amendment_to:
+    if "Treaty" in amendment_to:
+      treaty, number = amendment_to.split("-")
+      vote["treaty"] = {
+        "congress": vote["congress"],
+        "number": number,
+      }
+    else:
       bill_type, bill_number = amendment_to.split(" ")
       vote["bill"] = {
         "congress": vote["congress"],
