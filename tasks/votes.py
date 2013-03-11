@@ -14,8 +14,16 @@ def run(options):
     vote_chamber, vote_number, congress, session_year = utils.split_vote_id(vote_id)
     to_fetch = [vote_id]
   else:
-    congress = options.get('congress', utils.current_congress())
-    session_year = options.get('session', str(datetime.datetime.now().year))
+    congress = options.get('congress', None)
+    if congress:
+      session_year = options.get('session', None)
+      if not session_year:
+        logging.error("If you provide a --congress, provide a --session year.")
+        return None
+    else:
+      congress = utils.current_congress()
+      session_year = options.get('session', str(datetime.datetime.now().year))
+    
     chamber = options.get('chamber', None)
 
     if chamber == "house":
