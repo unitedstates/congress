@@ -70,6 +70,10 @@ To get only a specific amendment:
 
     ./run amendments --amendment_id=samdt5-112
 
+To get the amendment text, include the --fulltext flag 
+
+    ./run amendments --limit=10 --congress=111 --fulltext
+
 Scraping votes
 --------------
 

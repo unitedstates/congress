@@ -42,7 +42,8 @@ def fetch_amendment_text(body, amdt_id, options):
         logging.info(print_friendly_url)
         fulltext = fromstring(utils.download(print_friendly_url, 
             amdt_cache_for(amdt_id, "fulltext.html"), options))
-        
+
+        #very lazy, but can't figure out encoding right this second
         parsed = "\n".join(fulltext.xpath("//p/text()")).replace('&nbsp;', " ").encode('utf-8')
         return parsed
     
