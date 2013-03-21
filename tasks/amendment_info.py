@@ -1,6 +1,7 @@
 import re, logging, datetime, time, json
 from lxml import etree
-
+from lxml.html import fromstring
+from amendment_text import fetch_amendment_text
 import utils
 
 from bill_info import sponsor_for, actions_for
@@ -59,7 +60,29 @@ def fetch_amendment(amdt_id, options):
   
   output_amendment(amdt, options)
 
-  return {'ok': True, 'saved': True}
+  if not options.get("fulltext", False):
+    return {'ok': True, 'saved': True}
+
+  #fetch amendment text
+  fulltext = fetch_amendment_text(body, amdt_id, options)
+
+  if not fulltext:    
+    return {
+      'ok': True,
+      'saved': True,
+      'fulltext': False
+    }
+
+  outpt = "%s/%s/amendments/%s/%s%s/%s" % (utils.data_dir(), congress, amdt_type, amdt_type, number, "text.txt")
+  logging.info(outpt)
+  logging.info("[%s] Writing full text to disk..." % amdt['amendment_id'])
+  utils.write(fulltext, outpt)
+  return {
+    'ok': True,
+    'saved': True,
+    'fulltext': True
+  }
+    
 
 def output_amendment(amdt, options):
   logging.info("[%s] Writing to disk..." % amdt['amendment_id'])

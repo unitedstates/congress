@@ -94,7 +94,6 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
   errors = []
   saved = []
   skips = []
-
   for id in to_fetch:
     try:
       results = fetch_func(id, options, *extra_args)
@@ -235,7 +234,6 @@ def xpath_regex(doc, element, pattern):
 
 # taken from http://effbot.org/zone/re-sub.htm#unescape-html
 def unescape(text):
-
   def remove_unicode_control(str):
     remove_re = re.compile(u'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]')
     return remove_re.sub('', str)
@@ -259,7 +257,15 @@ def unescape(text):
         pass
     return text # leave as is
 
-  text = re.sub("&#?\w+;", fixup, text)
+
+  #TEMP FIX
+  #getting error in this page on byte 0xd0
+  #http://thomas.loc.gov/cgi-bin/query/R?r113:FLD001:S01599
+  try:
+    text = re.sub("&#?\w+;", fixup, text)
+  except:
+    text = re.sub("&#?\w+;", fixup, text.decode('latin-1'))
+
   text = remove_unicode_control(text)
   return text
 
