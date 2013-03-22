@@ -64,7 +64,7 @@ def fetch_amendment(amdt_id, options):
     return {'ok': True, 'saved': True}
 
   #fetch amendment text
-  fulltext = fetch_amendment_text(body, amdt_id, options)
+  fulltext = fetch_amendment_text(body, amdt, options)
 
   if not fulltext:    
     return {
