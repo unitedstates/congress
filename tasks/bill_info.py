@@ -5,6 +5,7 @@ import json
 from lxml import etree
 import time, datetime
 from lxml.html import fromstring
+import urllib2
 
 # can be run on its own, just require a bill_id
 def run(options):
@@ -31,18 +32,18 @@ def fetch_bill(bill_id, options):
     bill_url_for(bill_id), 
     bill_cache_for(bill_id, "information.html"),
     options)
-
+    
   if not body:
     return {'saved': False, 'ok': False, 'reason': "failed to download"}
 
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
+
   if reserved_bill(body):
     logging.warn("[%s] Reserved bill, not real, skipping..." % bill_id)
     return {'saved': False, 'ok': True, 'reason': "reserved bill"}
 
-  
   # conditions where we want to parse the bill from multiple pages instead of one:
 
   # 1) the all info page is truncated (~5-10 bills a congress)
@@ -68,8 +69,11 @@ def fetch_bill(bill_id, options):
 
   output_bill(bill, options)
 
+  # output PDF
+  if options.get("pdf", False):
+    return {'ok': True, 'saved': True, 'pdf': write_pdf_of_bill(bill_id, options) }
+    
   return {'ok': True, 'saved': True}
-
 
 def parse_bill(bill_id, body, options):
   bill_type, number, congress = utils.split_bill_id(bill_id)
@@ -230,7 +234,7 @@ def output_bill(bill, options):
   root.set("type", govtrack_type_codes[bill['bill_type']])
   root.set("number", bill['number'])
   root.set("updated", utils.format_datetime(bill['updated_at']))
-  
+    
   def make_node(parent, tag, text, **attrs):
     if options.get("govtrack", False):
       # Rewrite thomas_id attributes as just id with GovTrack person IDs.
@@ -1403,6 +1407,36 @@ def reserved_bill(body):
   else:
     return False
 
+# fetch and write PDF
+def write_pdf_of_bill(bill_id, options):
+  # we need the URL of the pdf on GPO
+  # there may be a way to calculate it, but in the meantime we'll get it the old-fashioned way      
+  # first get the THOMAS landing page. This may be duplicating work, but didn't see anything
+  bill_type, number, congress = utils.split_bill_id(bill_id)
+  thomas_type = utils.thomas_types[bill_type][0]
+  congress = int(congress)
+  landing_url = "http://thomas.loc.gov/cgi-bin/bdquery/D?d%03d:%s:./list/bss/d%03d%s.lst:" % (congress, number, congress, thomas_type)
+  landing_page = utils.download(
+    landing_url, 
+    bill_cache_for(bill_id, "landing_page.html"),
+    options)
+  text_landing_page_url = "http://thomas.loc.gov/cgi-bin/query/z" + re.search('href="/cgi-bin/query/z?(.*?)">Text of Legislation', landing_page, re.I | re.S).groups(1)[0]
+  text_landing_page = utils.download(
+    text_landing_page_url, 
+    bill_cache_for(bill_id, "text_landing_page.html"),
+    options)
+  #print text_landing_page
+  #http://www.gpo.gov/fdsys/pkg/BILLS-113sconres1es/pdf/BILLS-113sconres1es.pdf
+  gpo_urls = re.findall('http://www.gpo.gov/fdsys/(.*?)\.pdf', text_landing_page, re.I | re.S)
+  if not len(gpo_urls):
+    logging.info("No PDF link discovered")
+    return False
+  # get last url on page, in cases where there are several versions of bill
+  # THOMAS advises us to use the last one (e.g. http://thomas.loc.gov/cgi-bin/query/z?c113:S.CON.RES.1: )        
+  gpo_url = "http://www.gpo.gov/fdsys/" + gpo_urls[-1] + ".pdf"
+  # write pdf
+  utils.write(urllib2.urlopen(gpo_url).read(), output_for_bill(bill_id, "pdf"))
+  return True  
 
 # directory helpers
 

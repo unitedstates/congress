@@ -59,6 +59,10 @@ To get only a specific bill, pass in the ID for that bill. For example, S. 968 i
 
     ./run bills --bill_id=s968-112
 
+To download the PDF of the bill text from GPO, include the ```--pdf``` flag:
+
+    ./run bills --bill_type=sconres congress=113 --pdf
+
 Scraping amendments
 -------------------
 
