@@ -6,6 +6,7 @@ from lxml import etree
 import time, datetime
 from lxml.html import fromstring
 import urllib2
+import extract
 
 # can be run on its own, just require a bill_id
 def run(options):
@@ -72,7 +73,7 @@ def fetch_bill(bill_id, options):
   # output PDF
   if options.get("pdf", False):
     return {'ok': True, 'saved': True, 'pdf': write_pdf_of_bill(bill_id, options) }
-    
+  
   return {'ok': True, 'saved': True}
 
 def parse_bill(bill_id, body, options):
@@ -1436,6 +1437,13 @@ def write_pdf_of_bill(bill_id, options):
   gpo_url = "http://www.gpo.gov/fdsys/" + gpo_urls[-1] + ".pdf"
   # write pdf
   utils.write(urllib2.urlopen(gpo_url).read(), output_for_bill(bill_id, "pdf"))
+
+
+  #extract text
+  pdf_text = extract.get_text_from_pdf(output_for_bill(bill_id, "pdf"))
+  utils.write(json.dumps(pdf_text, indent=2), output_for_bill(bill_id, "json").replace("data.json", "lines.json"))
+  print "done"
+  
   return True  
 
 # directory helpers
