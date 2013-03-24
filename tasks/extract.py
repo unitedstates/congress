@@ -1,4 +1,4 @@
-from pdfminer.pdfparser import PDFParser, PDFDocument, PDFNoOutlines
+from pdfminer.pdfparser import PDFParser, PDFDocument
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter, process_pdf
 from pdfminer.converter import TextConverter, HTMLConverter
 from pdfminer.layout import LAParams, LTText, LTTextBoxHorizontal
@@ -14,16 +14,13 @@ MARGIN = 3
 
 #see http://www.unixuser.org/~euske/python/pdfminer/programming.html#layout
 #take the PDF of the bill and return a generator for each page
-def get_text_from_pdf(fname):
-    print fname
-    fp = file(fname, 'rb')
+def get_text_from_pdf(filename):
+    fp = file(filename, 'rb')
     parser = PDFParser(fp)
     doc = PDFDocument()
     parser.set_document(doc)
     doc.set_parser(parser)
     doc.initialize('')
-    if not doc.is_extractable:
-        raise PDFTextExtractionNotAllowed
     device = PDFDevice(rsrcmgr)
     device = PDFPageAggregator(rsrcmgr, laparams=laparams)
     interpreter = PDFPageInterpreter(rsrcmgr, device)
@@ -62,5 +59,3 @@ def get_text_from_pdf(fname):
         #print lines
         text[page[0] + 1] = lines
     return text
-                        
-
