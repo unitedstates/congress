@@ -60,7 +60,7 @@ def run(options):
 def update_sitemap_cache(fetch_collections, options):
   seen_collections = set()
   
-	# Load the root sitemap.
+    # Load the root sitemap.
   master_sitemap = get_sitemap(None, None, None, options)
   if master_sitemap.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}sitemapindex": raise Exception("Mismatched sitemap type at the root sitemap.")
   
@@ -141,8 +141,8 @@ def get_sitemap(year, collection, lastmod, options):
   }))
   
   if not body:
-  	raise Exception("Failed to download %s" % url)
-  	
+      raise Exception("Failed to download %s" % url)
+      
   # Write the current last modified date to disk so we know the next time whether
   # we need to fetch the file.
   if lastmod and not options.get("cached", False):
@@ -275,6 +275,14 @@ def mirror_files(fetch_collections, options):
           if not data:
             raise Exception("Failed to download %s" % url)
           
+          if file_type == "text" and f_path.endswith(".html"):
+            # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
+            # TODO: Encoding? The HTTP content-type header says UTF-8, but do we trust it?
+            #       html.fromstring does auto-detection.
+            with open(f_path[0:-4] + "txt", "w") as f:
+              text_content = unicode(html.fromstring(data).text_content())
+              f.write(text_content.encode("utf8"))
+          
       # Write the current last modified date to disk so we know the next time whether
       # we need to fetch the files for this sitemap item.
       if lastmod and not options.get("cached", False):
@@ -306,7 +314,7 @@ def get_package_files(package_name, granule_name, path):
     'mods': (baseurl + opt_granule_dir + "mods.xml", path + "/mods.xml"),
     'pdf': (baseurl + "pdf/" + file_name + ".pdf", path + "/document.pdf"),
     'xml': (baseurl + "xml/" + file_name + ".xml", path + "/document.xml"),
-    'text': (baseurl + "html/" + file_name + ".html", path + "/document.html"), # text wrapped in HTML
+    'text': (baseurl + "html/" + file_name + ".htm", path + "/document.html"), # text wrapped in HTML
   }
   if not granule_name:
     # granules don't have PREMIS files?
