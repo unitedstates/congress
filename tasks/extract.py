@@ -115,7 +115,12 @@ def get_text_from_pdf(filename):
             temp = re.search("Subtitle [A-Z]", lines[line])
             if temp:
                 roadmap[temp.group(0).upper() + " OF " + current_title] = [page, line]
-        
+
+    #add last repository for "appropriate place"
+    last_page = sorted(text.keys())[-1]
+    text[int(last_page) + 1] = { '0' : "<em>Amendments with unspecified locations.</em>" }
+    roadmap["APPROPRIATE PLACE"] = [last_page + 1, 0]
+    
     return {
         "text": text,
         "roadmap": roadmap

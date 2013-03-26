@@ -50,10 +50,11 @@ def fetch_amendment_text(body, amdt, options):
   #attempt to retrieve sponsor info
   try:
     info = json.load(open("data/%s/amendments/samdt/samdt%s/data.json" % (amdt['congress'], amdt['number']), 'r'))
-    data["sponsor"] = info["sponsor"]
-    data["sponsor"]["name"] = members[info["sponsor"]["thomas_id"]]["name"]["official_full"]
-    data["sponsor"]["party"] = members[info["sponsor"]["thomas_id"]]["terms"][-1]["party"][0]
-    data["sponsor"]["state"] = members[info["sponsor"]["thomas_id"]]["terms"][-1]["state"]
+    #data["sponsor"] = info["sponsor"]
+    info["sponsor"]["name"] = members[info["sponsor"]["thomas_id"]]["name"]["official_full"]
+    info["sponsor"]["party"] = members[info["sponsor"]["thomas_id"]]["terms"][-1]["party"][0]
+    #data["sponsor"]["state"] = members[info["sponsor"]["thomas_id"]]["terms"][-1]["state"]
+    data["info"] = info
   except Exception, e:
     print e
 

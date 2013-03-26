@@ -43,11 +43,12 @@ def run(options):
         print "Couldn't find parsed text for amendment %d" % a
         continue
     amendment = parse_amendment_text(amendment, data)
-    if len(amendment["commands"]):
+    if "commands" in amendment and len(amendment["commands"]):
         logging.info("Found %d commands in amendment %d" % (len(amendment["commands"]), a))
         all_amendments[str(a)] = amendment
     else:
         logging.info("Didn't find any commands in amendment %d" % a)
+        logging.info(amendment["text"])
                      
   write(json.dumps(all_amendments, indent=2), "data/%s/amendments/samdt/combined/%i_%i.json" % (congress, start, end))
   
