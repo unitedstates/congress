@@ -82,6 +82,18 @@ To get the amendment text, include the --fulltext flag
 
     ./run amendments --limit=10 --congress=111 --fulltext
 
+Parsing amendments
+--------------
+To connect amendments to the place in the legislation that they propose to amend, use the ```parse``` command:
+
+	./run parse --bill_id=sconres8-113
+
+You must first scrape the bill with the ```--pdf``` and ```--extract``` commands for this to work.
+
+By default, the parse script attempts to interpret every amendment to the specified bill. You can override this with ```--start``` and ```--end``` flags
+
+This outputs a file in the "combined" directory of the amendments folder for the given session with the format ```[start]_[end].json```
+
 Scraping votes
 --------------
 

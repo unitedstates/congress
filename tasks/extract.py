@@ -101,13 +101,20 @@ def get_text_from_pdf(filename):
 
         #print extras
         lines = dict(lines.items() + extras.items())
-
-        # look for roadmap matches
-        for line in lines:
-            if re.search("TITLE [IVXL]+", lines[line]):
-                roadmap[re.search("TITLE [IVXL]+", lines[line]).group(0)] = [page[0] + 1, line]
-
         text[page[0] + 1] = lines
+
+    # build roadmap
+    current_title = ""
+    for page in text:
+        lines = text[page]        
+        for line in sorted(lines.keys()):
+            temp = re.search("TITLE [IVXL]+", lines[line])
+            if temp:
+                roadmap[temp.group(0).upper()] = [page, line]
+                current_title = temp.group(0)
+            temp = re.search("Subtitle [A-Z]", lines[line])
+            if temp:
+                roadmap[temp.group(0).upper() + " OF " + current_title] = [page, line]
         
     return {
         "text": text,
