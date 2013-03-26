@@ -1410,6 +1410,7 @@ def reserved_bill(body):
 
 # fetch and write PDF
 def write_pdf_of_bill(bill_id, options):
+  # TODO -- reconcile with fdsys script
   # we need the URL of the pdf on GPO
   # there may be a way to calculate it, but in the meantime we'll get it the old-fashioned way      
   # first get the THOMAS landing page. This may be duplicating work, but didn't see anything
@@ -1440,9 +1441,9 @@ def write_pdf_of_bill(bill_id, options):
 
 
   #extract text
-  pdf_text = extract.get_text_from_pdf(output_for_bill(bill_id, "pdf"))
-  utils.write(json.dumps(pdf_text, indent=2), output_for_bill(bill_id, "json").replace("data.json", "lines.json"))
-  print "done"
+  if options.get('extract', False):
+    pdf_text = extract.get_text_from_pdf(output_for_bill(bill_id, "pdf"))
+    utils.write(json.dumps(pdf_text, indent=2), output_for_bill(bill_id, "json").replace("data.json", "lines.json"))
   
   return True  
 

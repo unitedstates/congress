@@ -7,13 +7,11 @@ from lxml.html import fromstring, tostring
 import datetime
 import fdsys
 
+members = json.load(open("data/members/thomas_senate.json", 'r'))
+
 def amdt_cache_for(amdt_id, file):
   amdt_type, number, congress = utils.split_bill_id(amdt_id)
   return "%s/amendments/%s/%s%s/%s" % (congress, amdt_type, amdt_type, number, file)
-
-def output_for_bill(bill_id, format):
-  bill_type, number, congress = utils.split_bill_id(bill_id)
-  return "%s/%s/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, "data.%s" % format)
 
 def fetch_amendment_text(body, amdt, options):  
   year,month,day = amdt['submitted_at'].split('-')
@@ -48,4 +46,15 @@ def fetch_amendment_text(body, amdt, options):
     'intro': re.sub("\s+", " ", text[3]),
     'text': text[4]
   }
+
+  #attempt to retrieve sponsor info
+  try:
+    info = json.load(open("data/%s/amendments/samdt/samdt%s/data.json" % (amdt['congress'], amdt['number']), 'r'))
+    data["sponsor"] = info["sponsor"]
+    data["sponsor"]["name"] = members[info["sponsor"]["thomas_id"]]["name"]["official_full"]
+    data["sponsor"]["party"] = members[info["sponsor"]["thomas_id"]]["terms"][-1]["party"][0]
+    data["sponsor"]["state"] = members[info["sponsor"]["thomas_id"]]["terms"][-1]["state"]
+  except Exception, e:
+    print e
+
   write(json.dumps(data, indent=2), "data/%s/amendments/samdt/samdt%s/text.json" % (amdt['congress'], data['number']))

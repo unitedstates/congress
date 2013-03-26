@@ -6,6 +6,7 @@ from pdfminer.converter import PDFPageAggregator
 from pdfminer.pdfdevice import PDFDevice
 import re, math
 from collections import defaultdict
+import logging
 
 rsrcmgr = PDFResourceManager()
 laparams = LAParams()
@@ -48,7 +49,7 @@ def get_text_from_pdf(filename):
     #roadmap will contain markers to section headers
     roadmap = {}
     for page in enumerate(doc.get_pages()):
-        print "<------------", (page[0] + 1)
+        logging.info("Extracting page %d" % (page[0] + 1))
         interpreter.process_page(page[1])
         layout = device.get_result()
 
