@@ -6,8 +6,39 @@ from utils import download, write
 from lxml.html import fromstring, tostring
 import datetime
 import fdsys
+import glob
+from lxml import etree
 
-members = json.load(open("data/members/thomas_senate.json", 'r'))
+def run(options):
+  # ./run amendment_text --year=2013
+  
+  # Update the MODSs files for the Congressional Record for the given year.
+  fdsys.update_sitemap_cache(["CREC"], { "year": options['year'] })
+  fdsys.mirror_files(["CREC"], { "year": options['year'], "store": "mods" })
+
+  # Loop through MODS files in the sitemap for the CR for a particular year
+  # to find granules for amendment text.
+  granules = []
+  sitemap = "%s/fdsys/sitemap/%d/CREC.xml" % (utils.cache_dir(), int(options['year']))
+  for package_name, lastmod in fdsys.get_sitemap_entries(sitemap):
+    # Look for a Text of Amendments section.
+    fn = "%s/fdsys/CREC/%d/%s/mods.xml" % (utils.data_dir(), int(options['year']), package_name)
+    dom = etree.parse(fn).getroot()
+    mods_ns = {"m": "http://www.loc.gov/mods/v3"}
+    for n in dom.xpath("m:relatedItem[@type='constituent']", namespaces=mods_ns):
+      title = n.xpath("string(m:titleInfo/m:title)", namespaces=mods_ns)
+      if title in ('TEXT OF AMENDMENTS',):
+      	# We want this granule.
+        granule_uri = n.xpath("string(m:identifier[@type='uri'])", namespaces=mods_ns)
+        granule_name = re.match(r".*/(.*)", granule_uri).group(1)
+        
+	    # Mirror the text format of the relevant granules.
+        fdsys.mirror_file(options["year"], "CREC", package_name, lastmod, granule_name, ["text"], options)
+
+
+####
+
+#members = json.load(open("data/members/thomas_senate.json", 'r'))
 
 def amdt_cache_for(amdt_id, file):
   amdt_type, number, congress = utils.split_bill_id(amdt_id)
