@@ -299,19 +299,17 @@ def mirror_files(fetch_collections, options):
     json.dump(sitemap_store_state, open(sitemap_store_state_file, "w"))
 
 def get_package_files(package_name, granule_name, path):
-  if not granule_name:
-    document_type = "pkg"
-    file_name = package_name
-    opt_granule_dir = ""
-  else:
-    document_type = "granule"
-    file_name = granule_name
-    opt_granule_dir = granule_name + "/"
-    
-  baseurl = "http://www.gpo.gov/fdsys/%s/%s/" % (document_type, package_name)
+  baseurl = "http://www.gpo.gov/fdsys/pkg/%s/" % package_name
+  baseurl_mods = baseurl
   
+  if not granule_name:
+    file_name = package_name
+  else:
+    file_name = granule_name
+    baseurl_mods = "http://www.gpo.gov/fdsys/granule/%s/%s/" % (package_name, granule_name)
+    
   ret = {
-    'mods': (baseurl + opt_granule_dir + "mods.xml", path + "/mods.xml"),
+    'mods': (baseurl_mods + "mods.xml", path + "/mods.xml"),
     'pdf': (baseurl + "pdf/" + file_name + ".pdf", path + "/document.pdf"),
     'xml': (baseurl + "xml/" + file_name + ".xml", path + "/document.xml"),
     'text': (baseurl + "html/" + file_name + ".htm", path + "/document.html"), # text wrapped in HTML
