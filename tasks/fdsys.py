@@ -57,9 +57,14 @@ def run(options):
     update_bill_version_list(int(options.get('congress')))
 
 def update_sitemap_cache(fetch_collections, options):
+  """Updates a local cache of the complete FDSys sitemap tree.
+  Pass fetch_collections as None, or to restrict the update to
+  particular FDSys collections a set of collection names. Only
+  downloads changed sitemap files."""
+	
   seen_collections = set()
   
-    # Load the root sitemap.
+  # Load the root sitemap.
   master_sitemap = get_sitemap(None, None, None, options)
   if master_sitemap.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}sitemapindex": raise Exception("Mismatched sitemap type at the root sitemap.")
   
@@ -106,6 +111,17 @@ def update_sitemap_cache(fetch_collections, options):
     print "\n".join(sorted(seen_collections))
     
 def get_sitemap(year, collection, lastmod, options):
+  """Gets a single sitemap, downloading it if the sitemap has changed.
+  
+  Downloads the root sitemap (year==None, collection==None), or
+  the sitemap for a year (collection==None), or the sitemap for
+  a particular year and collection. Pass lastmod which is the current
+  modification time of the file according to its parent sitemap, which
+  is how it knows to return a cached copy.
+  
+  Returns the sitemap parsed into a DOM.
+  """
+  
   # Construct the URL and the path to where to cache the file on disk.
   if year == None:
     url = "http://www.gpo.gov/smap/fdsys/sitemap.xml"
@@ -169,7 +185,15 @@ def entries_from_collection(year, collection, lastmod, options):
 
 
 def mirror_files(fetch_collections, options):
-  # Locally mirror certain file types for the specified collections.
+  """Create a local mirror of FDSys document files. Only downloads
+  changed files, according to the sitemap. Run update_sitemap_cache first.
+  
+  Pass fetch_collections as None, or to restrict the update to
+  particular FDSys collections a set of collection names.
+  
+  Set options["store"] to a comma-separated list of file types (pdf,
+  mods, text, xml).
+  """
   
   # For determining whether we need to process a sitemap file again on a later
   # run, we need to make a key out of the command line arguments that affect
@@ -178,6 +202,7 @@ def mirror_files(fetch_collections, options):
   
   file_types = options["store"].split(",")
 
+  # Process each FDSys sitemap...
   for sitemap in sorted(glob.glob(utils.cache_dir() + "/fdsys/sitemap/*/*.xml")):
     # Should we process this file?
     year, collection = re.search(r"/(\d+)/([^/]+).xml$", sitemap).groups()
@@ -185,9 +210,15 @@ def mirror_files(fetch_collections, options):
     if "congress" in options and int(year) not in utils.get_congress_years(int(options["congress"])): continue 
     if fetch_collections and collection not in fetch_collections: continue
     
-    # Do we need to process this file? Compare the current lastmod value for
-    # the sitemap to the value at the last completed store for the same set
-    # of command-line options.
+    # Has this sitemap changed since the last successful mirror?
+    #
+    # The sitemap's last modification time is stored in ...-lastmod.txt,
+    # which comes from the sitemap's parent sitemap's lastmod listing for
+    # the file.
+    #
+    # Compare that to the lastmod value of when we last did a successful mirror.
+    # This function can be run to fetch different sets of files, so get the
+    # lastmod value corresponding to the current run arguments.
     sitemap_store_state_file = re.sub(r"\.xml$", "-store-state.json", sitemap)
     sitemap_last_mod = open(re.sub(r"\.xml$", "-lastmod.txt", sitemap)).read()
     if os.path.exists(sitemap_store_state_file):
@@ -268,6 +299,7 @@ def mirror_files(fetch_collections, options):
           f_url, f_path = targets[file_type]
           
           if (not force) and os.path.exists(f_path): continue # we already have the current file
+          logging.warn("downloading: " + f_path)
           data = utils.download(f_url, f_path, utils.merge(options, {
             'xml': True, 
             'force': force, 
@@ -275,7 +307,12 @@ def mirror_files(fetch_collections, options):
           }))
           
           if not data:
-            raise Exception("Failed to download %s" % url)
+            if file_type == "pdf":
+              # expected to be present for all packages
+              raise Exception("Failed to download %s" % url)
+            else:
+              # not all packages have all file types, but assume this is OK
+              logging.error("file not found: " + f_url)
           
           if file_type == "text" and f_path.endswith(".html"):
             # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
