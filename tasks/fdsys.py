@@ -22,9 +22,8 @@
 # ./run fdsys ... --store mods,pdf
 # When downloading, also locally mirror the MODS and PDF documents
 # associated with each package. Update as the sitemap indicates.
-# Also pass --granules to locally cache granule files (e.g. the
-# individual statute files w/in a volume), although the data may
-# be redundant with the package files.
+# Pass --granules to locally cache only granule files (e.g. the
+# individual statute files w/in a volume).
 
 from lxml import etree, html
 import glob, json, re, logging, os.path
@@ -236,14 +235,17 @@ def mirror_files(fetch_collections, options):
       
       # Add this package to the download list.
       file_list = []
-      file_list.append( (None, path) )
       
-      if options.get("granules", False):
+      if not options.get("granules", False):
+        # Doing top-level package files.
+        file_list.append( (None, path) )
+
+      else:
         # In some collections, like STATUTE, each document has subparts which are not
         # described in the sitemap. Load the main HTML page and scrape for the sub-files.
-        # Josh originally thought the STATUTE granule files (individual statutes) were
-        # useful, but then it turned out the information is redudant with information
-        # in the top-level package MODS file.
+        # In the STATUTE collection, the MODS information in granules is redudant with
+        # information in the top-level package MODS file. But the only way to get granule-
+        # level PDFs is to go through the granules.
         content_index = utils.download(url,
             "fdsys/package/%s/%s/%s.html" % (year, collection, package_name),
             utils.merge(options, {
