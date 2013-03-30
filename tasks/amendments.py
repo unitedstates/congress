@@ -22,8 +22,7 @@ def run(options):
     bill_status = fetch_bill(bill_id, options)
     if bill_status['ok']:
       bill = json.loads(utils.read(output_for_bill(bill_id, "json")))
-      #right now, bill_info uses 's' for 'amendment_type' in data.json. May want to change to 'sadmt' to avoid the fix in next line    
-      to_fetch = [x["amendment_id"].replace('s', 'samdt').replace('h', 'hamdt') for x in bill["amendments"]]
+      to_fetch = [x["amendment_id"] for x in bill["amendments"]]
     else:
       logging.error("Could find that bill.")
       return None
