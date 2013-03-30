@@ -17,6 +17,10 @@ Read about the [contents and schema](https://github.com/unitedstates/congress/wi
 Setting Up
 ----------
 
+On Ubuntu, you'll need these packages (the last three are required for the lxml python package):
+
+    sudo apt-get install git python-virtualenv python-dev libxml2-dev libxslt1-dev
+
 It's recommended you first create and activate a virtualenv with:
 
     virtualenv virt
