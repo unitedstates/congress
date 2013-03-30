@@ -17,6 +17,10 @@ Read about the [contents and schema](https://github.com/unitedstates/congress/wi
 Setting Up
 ----------
 
+On Ubuntu, you'll need these packages (the last three are required for the lxml python package):
+
+    sudo apt-get install git python-virtualenv python-dev libxml2-dev libxslt1-dev
+
 It's recommended you first create and activate a virtualenv with:
 
     virtualenv virt
@@ -78,6 +82,10 @@ To get only a specific amendment:
 
     ./run amendments --amendment_id=samdt5-112
 
+To get only amendments specific to a certain bill:
+
+    ./run amendments --bill_id=hr152-113
+
 To get the amendment text, include the --fulltext flag 
 
     ./run amendments --limit=10 --congress=111 --fulltext
@@ -116,13 +124,15 @@ The scraper for GPO FDSys provides infrastructure for other tasks, such as fetch
 
 To download all bill text, run:
 
-	./run fdsys --collections=BILLS --congress=112 --store=pdf,mods,xml
+	./run fdsys --collections=BILLS --congress=112 --store=pdf,mods,xml,text
 	
 Bill text is stored in a text-versions directory within each bill directory, e.g.:
 
 	data/112/bills/hr/hr68/text-versions/ih/document.pdf
 	data/112/bills/hr/hr68/text-versions/ih/mods.xml
 	data/112/bills/hr/hr68/text-versions/ih/document.xml
+	data/112/bills/hr/hr68/text-versions/ih/document.html (original HTML wrapper around plain text)
+	data/112/bills/hr/hr68/text-versions/ih/document.txt (UTF-8 encoded)
 	
 The subdirectory name indicates the bill text version code assigned by GPO (ih, enr, etc.). The mods.xml file has metadata from GPO.
 
@@ -133,7 +143,9 @@ A separate task called bill_versions will extract some common metadata into hand
 	./run bill_versions --congress=112
 	data/112/bills/hjres/hjres6/text-versions/ih.json
 
-Back on the fdsys scraper, the stored files for other collections (besides bills) are stored in a more generic way: in data/fdsys/COLLECTION/YEAR/PKGID. The PKGID is the package identifier for the file on FDSys. For instance:
+Use this JSON file to determine which is the most recent text version if you want to find the most recent text of a bill.
+
+Back on the fdsys scraper, the stored files for other collections (besides bills) are organized in a more generic way: in data/fdsys/COLLECTION/YEAR/PKGID. The PKGID is the package identifier for the file on FDSys. For instance:
 
 	./run fdsys --collections=STATUTE --year=1982 --store=mods
 	data/fdsys/STATUTE/1982/STATUTE-96/mods.xml

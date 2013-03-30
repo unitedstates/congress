@@ -22,9 +22,8 @@
 # ./run fdsys ... --store mods,pdf
 # When downloading, also locally mirror the MODS and PDF documents
 # associated with each package. Update as the sitemap indicates.
-# Also pass --granules to locally cache granule files (e.g. the
-# individual statute files w/in a volume), although the data may
-# be redundant with the package files.
+# Pass --granules to locally cache only granule files (e.g. the
+# individual statute files w/in a volume).
 
 from lxml import etree, html
 import glob, json, re, logging, os.path
@@ -58,9 +57,14 @@ def run(options):
     update_bill_version_list(int(options.get('congress')))
 
 def update_sitemap_cache(fetch_collections, options):
+  """Updates a local cache of the complete FDSys sitemap tree.
+  Pass fetch_collections as None, or to restrict the update to
+  particular FDSys collections a set of collection names. Only
+  downloads changed sitemap files."""
+	
   seen_collections = set()
   
-	# Load the root sitemap.
+  # Load the root sitemap.
   master_sitemap = get_sitemap(None, None, None, options)
   if master_sitemap.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}sitemapindex": raise Exception("Mismatched sitemap type at the root sitemap.")
   
@@ -107,6 +111,17 @@ def update_sitemap_cache(fetch_collections, options):
     print "\n".join(sorted(seen_collections))
     
 def get_sitemap(year, collection, lastmod, options):
+  """Gets a single sitemap, downloading it if the sitemap has changed.
+  
+  Downloads the root sitemap (year==None, collection==None), or
+  the sitemap for a year (collection==None), or the sitemap for
+  a particular year and collection. Pass lastmod which is the current
+  modification time of the file according to its parent sitemap, which
+  is how it knows to return a cached copy.
+  
+  Returns the sitemap parsed into a DOM.
+  """
+  
   # Construct the URL and the path to where to cache the file on disk.
   if year == None:
     url = "http://www.gpo.gov/smap/fdsys/sitemap.xml"
@@ -141,8 +156,8 @@ def get_sitemap(year, collection, lastmod, options):
   }))
   
   if not body:
-  	raise Exception("Failed to download %s" % url)
-  	
+      raise Exception("Failed to download %s" % url)
+      
   # Write the current last modified date to disk so we know the next time whether
   # we need to fetch the file.
   if lastmod and not options.get("cached", False):
@@ -170,7 +185,15 @@ def entries_from_collection(year, collection, lastmod, options):
 
 
 def mirror_files(fetch_collections, options):
-  # Locally mirror certain file types for the specified collections.
+  """Create a local mirror of FDSys document files. Only downloads
+  changed files, according to the sitemap. Run update_sitemap_cache first.
+  
+  Pass fetch_collections as None, or to restrict the update to
+  particular FDSys collections a set of collection names.
+  
+  Set options["store"] to a comma-separated list of file types (pdf,
+  mods, text, xml).
+  """
   
   # For determining whether we need to process a sitemap file again on a later
   # run, we need to make a key out of the command line arguments that affect
@@ -179,6 +202,7 @@ def mirror_files(fetch_collections, options):
   
   file_types = options["store"].split(",")
 
+  # Process each FDSys sitemap...
   for sitemap in sorted(glob.glob(utils.cache_dir() + "/fdsys/sitemap/*/*.xml")):
     # Should we process this file?
     year, collection = re.search(r"/(\d+)/([^/]+).xml$", sitemap).groups()
@@ -186,9 +210,15 @@ def mirror_files(fetch_collections, options):
     if "congress" in options and int(year) not in utils.get_congress_years(int(options["congress"])): continue 
     if fetch_collections and collection not in fetch_collections: continue
     
-    # Do we need to process this file? Compare the current lastmod value for
-    # the sitemap to the value at the last completed store for the same set
-    # of command-line options.
+    # Has this sitemap changed since the last successful mirror?
+    #
+    # The sitemap's last modification time is stored in ...-lastmod.txt,
+    # which comes from the sitemap's parent sitemap's lastmod listing for
+    # the file.
+    #
+    # Compare that to the lastmod value of when we last did a successful mirror.
+    # This function can be run to fetch different sets of files, so get the
+    # lastmod value corresponding to the current run arguments.
     sitemap_store_state_file = re.sub(r"\.xml$", "-store-state.json", sitemap)
     sitemap_last_mod = open(re.sub(r"\.xml$", "-lastmod.txt", sitemap)).read()
     if os.path.exists(sitemap_store_state_file):
@@ -236,14 +266,17 @@ def mirror_files(fetch_collections, options):
       
       # Add this package to the download list.
       file_list = []
-      file_list.append( (None, path) )
       
-      if options.get("granules", False):
+      if not options.get("granules", False):
+        # Doing top-level package files.
+        file_list.append( (None, path) )
+
+      else:
         # In some collections, like STATUTE, each document has subparts which are not
         # described in the sitemap. Load the main HTML page and scrape for the sub-files.
-        # Josh originally thought the STATUTE granule files (individual statutes) were
-        # useful, but then it turned out the information is redudant with information
-        # in the top-level package MODS file.
+        # In the STATUTE collection, the MODS information in granules is redudant with
+        # information in the top-level package MODS file. But the only way to get granule-
+        # level PDFs is to go through the granules.
         content_index = utils.download(url,
             "fdsys/package/%s/%s/%s.html" % (year, collection, package_name),
             utils.merge(options, {
@@ -266,6 +299,7 @@ def mirror_files(fetch_collections, options):
           f_url, f_path = targets[file_type]
           
           if (not force) and os.path.exists(f_path): continue # we already have the current file
+          logging.warn("downloading: " + f_path)
           data = utils.download(f_url, f_path, utils.merge(options, {
             'xml': True, 
             'force': force, 
@@ -273,7 +307,20 @@ def mirror_files(fetch_collections, options):
           }))
           
           if not data:
-            raise Exception("Failed to download %s" % url)
+            if file_type == "pdf":
+              # expected to be present for all packages
+              raise Exception("Failed to download %s" % url)
+            else:
+              # not all packages have all file types, but assume this is OK
+              logging.error("file not found: " + f_url)
+          
+          if file_type == "text" and f_path.endswith(".html"):
+            # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
+            # TODO: Encoding? The HTTP content-type header says UTF-8, but do we trust it?
+            #       html.fromstring does auto-detection.
+            with open(f_path[0:-4] + "txt", "w") as f:
+              text_content = unicode(html.fromstring(data).text_content())
+              f.write(text_content.encode("utf8"))
           
       # Write the current last modified date to disk so we know the next time whether
       # we need to fetch the files for this sitemap item.
@@ -291,22 +338,20 @@ def mirror_files(fetch_collections, options):
     json.dump(sitemap_store_state, open(sitemap_store_state_file, "w"))
 
 def get_package_files(package_name, granule_name, path):
-  if not granule_name:
-    document_type = "pkg"
-    file_name = package_name
-    opt_granule_dir = ""
-  else:
-    document_type = "granule"
-    file_name = granule_name
-    opt_granule_dir = granule_name + "/"
-    
-  baseurl = "http://www.gpo.gov/fdsys/%s/%s/" % (document_type, package_name)
+  baseurl = "http://www.gpo.gov/fdsys/pkg/%s/" % package_name
+  baseurl_mods = baseurl
   
+  if not granule_name:
+    file_name = package_name
+  else:
+    file_name = granule_name
+    baseurl_mods = "http://www.gpo.gov/fdsys/granule/%s/%s/" % (package_name, granule_name)
+    
   ret = {
-    'mods': (baseurl + opt_granule_dir + "mods.xml", path + "/mods.xml"),
+    'mods': (baseurl_mods + "mods.xml", path + "/mods.xml"),
     'pdf': (baseurl + "pdf/" + file_name + ".pdf", path + "/document.pdf"),
     'xml': (baseurl + "xml/" + file_name + ".xml", path + "/document.xml"),
-    'text': (baseurl + "html/" + file_name + ".html", path + "/document.html"), # text wrapped in HTML
+    'text': (baseurl + "html/" + file_name + ".htm", path + "/document.html"), # text wrapped in HTML
   }
   if not granule_name:
     # granules don't have PREMIS files?
