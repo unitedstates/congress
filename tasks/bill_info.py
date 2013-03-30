@@ -1367,10 +1367,10 @@ def amendments_for(body, bill_id):
     chamber = chamber.lower()
 
     # there are "senate unprinted amendments" for the 97th and 98th Congresses, with their own numbering scheme
-    # make those use 'su' as the type instead of 's'
-    amendment_type = chamber
+    # make those use 'supamdt' as the type instead of 's'
+    amendment_type = chamber + "amdt"
     if code == "SU":
-      amendment_type = "su"
+      amendment_type = "supamdt"
 
     amendments.append({
       'chamber': chamber,
