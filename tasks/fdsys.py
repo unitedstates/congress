@@ -229,47 +229,14 @@ def mirror_files(fetch_collections, options):
     
     logging.info("scanning " + sitemap + "...")
     
-    # Load the sitemap for this year & collection.
-    dom = etree.parse(sitemap).getroot()
-    if dom.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}urlset": raise Exception("Mismatched sitemap type.")
-    
-    # Loop through each document in the collection in this year...
-    for file_node in dom.xpath("x:url", namespaces=ns):
-      # Get URL and last modified timestamp.
-      url = str(file_node.xpath("string(x:loc)", namespaces=ns))
-      lastmod = str(file_node.xpath("string(x:lastmod)", namespaces=ns))
-      if not url.endswith("/content-detail.html"): raise Exception("Unrecognized file pattern.")
-      
-      # Get the package name.
-      m = re.match("http://www.gpo.gov/fdsys/pkg/(.*)/content-detail.html", url)
-      if not m: raise Exception("Unmatched document URL")
-      package_name = m.group(1)
-      
-      # Where to store the document files?
-      # The path will depend a bit on the collection.
-      if collection == "BILLS":
-        # Store with the other bill data.
-        m = re.match(r"http://www.gpo.gov/fdsys/pkg/BILLS-(\d+)([a-z]+)(\d+)(\D.*)/content-detail.html", url)
-        if not m: raise Exception("Unmatched bill document URL: " + url)
-        congress, bill_type, bill_number, version_code = m.groups()
-        congress = int(congress)
-        if "congress" in options and congress != int(options["congress"]): continue 
-        path = output_for_bill(congress, bill_type, bill_number, "text-versions/" + version_code)
-      else:
-        # Store in fdsys/COLLECTION/YEAR/PKGNAME.
-        path = "%s/fdsys/%s/%s/%s" % (utils.data_dir(), collection, year, package_name)
-      
-      # Do we need to update this record?
-      lastmod_cache_file = path + "/lastmod.txt"
-      cache_lastmod = utils.read(lastmod_cache_file)
-      force = ((lastmod != cache_lastmod) or options.get("force", False)) and not options.get("cached", False)
-      
+    # Load the sitemap for this year & collection, and loop through each document.
+    for package_name, lastmod in get_sitemap_entries(sitemap):
       # Add this package to the download list.
       file_list = []
       
       if not options.get("granules", False):
-        # Doing top-level package files.
-        file_list.append( (None, path) )
+        # Doing top-level package files (granule==None).
+        file_list.append(None)
 
       else:
         # In some collections, like STATUTE, each document has subparts which are not
@@ -277,56 +244,24 @@ def mirror_files(fetch_collections, options):
         # In the STATUTE collection, the MODS information in granules is redudant with
         # information in the top-level package MODS file. But the only way to get granule-
         # level PDFs is to go through the granules.
-        content_index = utils.download(url,
+        content_detail_url = "http://www.gpo.gov/fdsys/pkg/%s/content-detail.html" % package_name
+        content_index = utils.download(content_detail_url,
             "fdsys/package/%s/%s/%s.html" % (year, collection, package_name),
             utils.merge(options, {
             'xml': True, # it's not XML but this avoid unescaping HTML which fails if there are unicode characters 
-            'force': force, 
           }))
-        if not content_index: raise Exception("Failed to download %s" % url)
+        if not content_index: raise Exception("Failed to download %s" % content_detail_url)
         for link in html.fromstring(content_index).cssselect("table.page-details-data-table td.rightLinkCell a"):
           if link.text == "More":
             m = re.match("granule/(.*)/(.*)/content-detail.html", link.get("href"))
             if not m or m.group(1) != package_name: raise Exception("Unmatched granule URL %s" % link.get("href"))
             granule_name = m.group(2)
-            file_list.append( (granule_name, path + "/" + granule_name) )
+            file_list.append(granule_name)
         
       # Download the files of the desired types.
-      for granule_name, path in file_list:
-        targets = get_package_files(package_name, granule_name, path)
-        for file_type in file_types:
-          if file_type not in targets: raise Exception("Invalid file type: %s" % file_type)
-          f_url, f_path = targets[file_type]
-          
-          if (not force) and os.path.exists(f_path): continue # we already have the current file
-          logging.warn("downloading: " + f_path)
-          data = utils.download(f_url, f_path, utils.merge(options, {
-            'xml': True, 
-            'force': force, 
-            'to_cache': False
-          }))
-          
-          if not data:
-            if file_type == "pdf":
-              # expected to be present for all packages
-              raise Exception("Failed to download %s" % url)
-            else:
-              # not all packages have all file types, but assume this is OK
-              logging.error("file not found: " + f_url)
-          
-          if file_type == "text" and f_path.endswith(".html"):
-            # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
-            # TODO: Encoding? The HTTP content-type header says UTF-8, but do we trust it?
-            #       html.fromstring does auto-detection.
-            with open(f_path[0:-4] + "txt", "w") as f:
-              text_content = unicode(html.fromstring(data).text_content())
-              f.write(text_content.encode("utf8"))
-          
-      # Write the current last modified date to disk so we know the next time whether
-      # we need to fetch the files for this sitemap item.
-      if lastmod and not options.get("cached", False):
-        utils.write(lastmod, lastmod_cache_file) 
-    
+      for granule_name in file_list:
+        mirror_file(year, collection, package_name, lastmod, granule_name, file_types, options)
+        
     # If we got this far, we successfully downloaded all of the files in this year/collection.
     # To speed up future updates, save the lastmod time of this sitemap in a file indicating
     # what we downloaded. The store-state file contains a JSON mapping of command line options
@@ -336,6 +271,87 @@ def mirror_files(fetch_collections, options):
       sitemap_store_state = json.load(open(sitemap_store_state_file))
     sitemap_store_state[cache_options_key] = sitemap_last_mod
     json.dump(sitemap_store_state, open(sitemap_store_state_file, "w"))
+
+def get_sitemap_entries(sitemap_filename):
+  # Load the XML file.
+  dom = etree.parse(sitemap_filename).getroot()
+  if dom.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}urlset": raise Exception("Mismatched sitemap type.")
+  
+  # Loop through entries.
+  for file_node in dom.xpath("x:url", namespaces=ns):
+    # Get URL and last modified timestamp.
+    url = str(file_node.xpath("string(x:loc)", namespaces=ns))
+    lastmod = str(file_node.xpath("string(x:lastmod)", namespaces=ns))
+    if not url.endswith("/content-detail.html"): raise Exception("Unrecognized file pattern.")
+    
+    # Get the package name.
+    m = re.match("http://www.gpo.gov/fdsys/pkg/(.*)/content-detail.html", url)
+    if not m: raise Exception("Unmatched document URL")
+    package_name = m.group(1)
+    
+    yield package_name, lastmod
+
+def mirror_file(year, collection, package_name, lastmod, granule_name, file_types, options):
+  # Where should we store the file?
+  path = get_output_path(year, collection, package_name, granule_name, options)
+  if not path: return # should skip
+  
+  # Do we need to update this record?
+  lastmod_cache_file = path + "/lastmod.txt"
+  cache_lastmod = utils.read(lastmod_cache_file)
+  force = ((lastmod != cache_lastmod) or options.get("force", False)) and not options.get("cached", False)
+  
+  # Try downloading files for each file type.
+  targets = get_package_files(package_name, granule_name, path)
+  for file_type in file_types:
+    if file_type not in targets: raise Exception("Invalid file type: %s" % file_type)
+    f_url, f_path = targets[file_type]
+    
+    if (not force) and os.path.exists(f_path): continue # we already have the current file
+    logging.warn("Downloading: " + f_path)
+    data = utils.download(f_url, f_path, utils.merge(options, {
+      'xml': True, 
+      'force': force, 
+      'to_cache': False
+    }))
+    
+    if not data:
+      if file_type == "pdf":
+        # expected to be present for all packages
+        raise Exception("Failed to download %s" % package_name)
+      else:
+        # not all packages have all file types, but assume this is OK
+        logging.error("file not found: " + f_url)
+    
+    if file_type == "text" and f_path.endswith(".html"):
+      # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
+      # TODO: Encoding? The HTTP content-type header says UTF-8, but do we trust it?
+      #       html.fromstring does auto-detection.
+      with open(f_path[0:-4] + "txt", "w") as f:
+        text_content = unicode(html.fromstring(data).text_content())
+        f.write(text_content.encode("utf8"))
+
+  # Write the current last modified date to disk so we know the next time whether
+  # we need to fetch the files for this sitemap item.
+  if lastmod and not options.get("cached", False):
+    utils.write(lastmod, lastmod_cache_file) 
+
+def get_output_path(year, collection, package_name, granule_name, options):
+  # Where to store the document files?
+  # The path will depend a bit on the collection.
+  if collection == "BILLS":
+    # Store with the other bill data.
+    m = re.match(r"BILLS-(\d+)([a-z]+)(\d+)(\D.*)", package_name)
+    if not m: raise Exception("Unmatched bill document package name: " + package_name)
+    congress, bill_type, bill_number, version_code = m.groups()
+    congress = int(congress)
+    if "congress" in options and congress != int(options["congress"]): return None 
+    return output_for_bill(congress, bill_type, bill_number, "text-versions/" + version_code)
+  else:
+    # Store in fdsys/COLLECTION/YEAR/PKGNAME[/GRANULE_NAME].
+    path = "%s/fdsys/%s/%s/%s" % (utils.data_dir(), collection, year, package_name)
+    if granule_name: path += "/" + granule_name
+    return path
 
 def get_package_files(package_name, granule_name, path):
   baseurl = "http://www.gpo.gov/fdsys/pkg/%s/" % package_name
@@ -358,7 +374,6 @@ def get_package_files(package_name, granule_name, path):
     ret['premis'] = (baseurl + "premis.xml", path + "/premis.xml")
     
   return ret
-
 
 def update_bill_version_list(only_congress):
   bill_versions = { }
