@@ -74,6 +74,10 @@ To get only a specific amendment:
 
     ./run amendments --amendment_id=samdt5-112
 
+To get only amendments specific to a certain bill:
+
+    ./run amendments --bill_id=hr152-113
+
 Scraping votes
 --------------
 

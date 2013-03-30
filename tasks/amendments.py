@@ -1,18 +1,32 @@
 import utils
 import logging
+import json
 
 from bills import bill_ids_for, save_bill_search_state
+from bill_info import fetch_bill, output_for_bill
 
 from amendment_info import fetch_amendment
 
 def run(options):
   amdt_id = options.get('amendment_id', None)
+  bill_id = options.get('bill_id', None)
   
   search_state = { }
 
   if amdt_id:
     amdt_type, number, congress = utils.split_bill_id(amdt_id)
     to_fetch = [amdt_id]
+  elif bill_id:
+    #first, crawl the bill
+    bill_type, number, congress = utils.split_bill_id(bill_id)
+    bill_status = fetch_bill(bill_id, options)
+    if bill_status['ok']:
+      bill = json.loads(utils.read(output_for_bill(bill_id, "json")))
+      #right now, bill_info uses 's' for 'amendment_type' in data.json. May want to change to 'sadmt' to avoid the fix in next line    
+      to_fetch = [x["amendment_id"].replace('s', 'samdt').replace('h', 'hamdt') for x in bill["amendments"]]
+    else:
+      logging.error("Could find that bill.")
+      return None
   else:
     congress = options.get('congress', utils.current_congress())
     to_fetch = bill_ids_for(congress, utils.merge(options, {'amendments': True}), bill_states=search_state)
