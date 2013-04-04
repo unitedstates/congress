@@ -312,7 +312,8 @@ def mirror_file(year, collection, package_name, lastmod, granule_name, file_type
     data = utils.download(f_url, f_path, utils.merge(options, {
       'xml': True, 
       'force': force, 
-      'to_cache': False
+      'to_cache': False,
+      'needs_content': file_type == "text" and f_path.endswith(".html"),
     }))
     
     if not data:

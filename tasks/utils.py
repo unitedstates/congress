@@ -152,6 +152,9 @@ def download(url, destination=None, options={}):
   # if need a POST request with data
   postdata = options.get('postdata', False)
 
+  # caller cares about actually bytes or only success/fail
+  needs_content = options.get('needs_content', True) or not xml or postdata
+
   if test:
     cache = test_cache_dir()
   else:
@@ -165,6 +168,7 @@ def download(url, destination=None, options={}):
 
   if destination and (not force) and os.path.exists(cache_path):
     if not test: logging.info("Cached: (%s, %s)" % (cache, url))
+    if not needs_content: return True
     with open(cache_path, 'r') as f:
       body = f.read()
   else:
@@ -174,6 +178,10 @@ def download(url, destination=None, options={}):
       if postdata:
         response = scraper.urlopen(url, 'POST', postdata)
       else:
+        if not needs_content:
+          import subprocess
+          mkdir_p(os.path.dirname(cache_path))
+          return True if (subprocess.call(["wget", "-q", "-O", cache_path, url]) == 0) else None
         response = scraper.urlopen(url)
       body = response.bytes # str(...) tries to encode as ASCII the already-decoded unicode content
     except scrapelib.HTTPError as e:
