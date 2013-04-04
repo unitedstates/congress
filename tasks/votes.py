@@ -37,7 +37,7 @@ def run(options):
       if not options.get("fast", False):
         logging.error("Error figuring out which votes to download, aborting.")
       else:
-        logging.error("No new or recent votes.")
+        logging.warn("No new or recent votes.")
       return None
 
     limit = options.get('limit', None)
