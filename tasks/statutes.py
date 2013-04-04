@@ -14,11 +14,29 @@
 #
 # ./run fdsys --collections=STATUTE --store=mods
 #
+# To process statute text, get the text PDFs:
+#
+# ./run fdsys --collections=STATUTE --store=pdfs --granules
+#
 # Then run this script:
 #
 # ./run statutes
-# Processes all downloaded statutes files and saves
-# bill files (e.g. data/82/bills/hr/hr1/data.json).
+#
+# Processes all downloaded statutes files and saves bill files:
+#   data/82/bills/hr/hr1/data.json and
+#   data/82/bills/hr/hr1/text-versions/enr/data.json
+#
+# If the individual statute PDF files are available, then
+# additional options are possible:
+#
+# If --linkpdf is given, then *hard links* are created from
+# where the PDF should be for bill text to where the PDF has
+# been downloaded in the fdsys directory.
+#
+# If --extracttext is given, then the pdf is converted to text
+# using "pdftotext -layout" and they are stored in files like
+# data/82/bills/hr/hr1/text-versions/enr/document.txt. They are
+# UTF-8 encoded and have form-feed characters marking page breaks.
 #
 # ./run statutes --volume=65
 # ./run statutes --volumes=65-86
@@ -33,10 +51,12 @@
 import logging
 import time, datetime
 from lxml import etree
-import glob
+import glob, json, os.path, subprocess
 
 import utils
 import bill_info
+import bill_versions
+import fdsys
 
 def run(options):
   root_dir = utils.data_dir() + '/fdsys/STATUTE'
@@ -230,10 +250,22 @@ def proc_statute(path, options):
       'issued_on': status_date,
       'urls': { "pdf": bill.find( "mods:location/mods:url[@displayLabel='PDF rendition']", mods_ns ).text },
     }
-    import json, bill_versions
     utils.write(
       json.dumps(bill_version, sort_keys=True, indent=2, default=utils.format_datetime),
       bill_versions.output_for_bill_version(bill_version_id)
     )
+    
+    # Process the granule PDF.
+    # - Hard-link it into the right place to be seen as bill text.
+    # - Run "pdftotext -layout" to convert it to plain text and save it in the bill text location.
+    pdf_file = path + "/" + source["access_id"] + "/document.pdf"
+    if os.path.exists(pdf_file):
+      dst_path = fdsys.output_for_bill(int(bill_data["congress"]), bill_data["bill_type"], bill_data["number"], "text-versions/" + version_code)
+      if options.get("linkpdf", False):
+        os.link(pdf_file, dst_path + "/document.pdf") # a good idea
+      if options.get("extracttext", False):
+        logging.error("Running pdftotext on %s..." % pdf_file)
+        if subprocess.call(["pdftotext", "-layout", pdf_file, dst_path + "/document.txt"]) != 0:
+          raise Exception("pdftotext failed on %s" % pdf_file)
 
   return {'ok': True, 'saved': True}
