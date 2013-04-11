@@ -317,9 +317,14 @@ def parse_house_vote(dom, vote):
 
     bioguideid = str(member.xpath("string(legislator/@name-id)"))
 
-    # h405-108.2004
     if bioguideid == "0000000": 
-      raise Exception("Invalid bioguide ID for %s (%s-%s)" % (display_name, state, party))
+      # there is a specific upstream error for this range of votes, where G.K. Butterfield's bioguide ID is 000000.
+      # after discussion in https://github.com/unitedstates/congress/issues/46, 
+      # we are hardcoding a fix until it's fixed upstream.
+      if (vote['congress'] == 108) and (vote['session'] == '2004') and (vote['number'] >= 405 and vote['number'] <= 544):
+        bioguideid = "B001251"
+      else:
+        raise Exception("Invalid bioguide ID for %s (%s-%s)" % (display_name, state, party))
 
     add_vote(vote_cast, {
         "id": bioguideid,
