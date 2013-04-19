@@ -523,14 +523,17 @@ def titles_for(body):
       raise Exception("Unknown title type: " + type)
 
     for title in type_titles:
-      if title.strip() == "":
+      # Strip the title and replace whitespace and nonbreaking spaces with spaces,
+      # since occasionally (e.g. s649-113) random \r's etc. appear instead of spaces.
+      title = re.sub(ur"[\s\u00a0]+", " ", title.strip())
+      if title == "":
         continue
 
       if type == "popular":
-        title = re.sub(ur"[\s\u00a0]\(identified.+?$", "", title)
+        title = re.sub(r" \(identified.+?$", "", title)
 
       titles.append({
-        'title': title.strip(),
+        'title': title,
         'as': state,
         'type': type
       })
