@@ -163,7 +163,10 @@ def get_sitemap(year, collection, lastmod, options):
   if lastmod and not options.get("cached", False):
     utils.write(lastmod, lastmod_cache_file)
   
-  return etree.fromstring(body)
+  try:
+    return etree.fromstring(body)
+  except etree.XMLSyntaxError as e:
+    raise Exception("XML syntax error in %s: %s" % (url, str(e)))
   
 
 # uses get_sitemap, but returns a list of tuples of date and url
