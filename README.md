@@ -63,6 +63,11 @@ To get only a specific bill, pass in the ID for that bill. For example, S. 968 i
 
     ./run bills --bill_id=s968-112
 
+To download the complete bill text from GPO in HTML or PDF formats, pass either or both using the ```--formats``` flag:
+
+    ./run bills --bill_id=s968-112 --formats=html,pdf
+
+
 Scraping amendments
 -------------------
 
@@ -195,6 +200,7 @@ Contributors
 * [Josh Tauberer](http://github.com/tauberer) - [GovTrack.us](http://govtrack.us)
 * [Derek Willis](http://github.com/dwillis)
 * [Alex Engler](http://github.com/AlexEngler)
+* [Chris Wilson](http://github.com/wilson428)
 
 Who's Using This Data
 ---------------------

@@ -68,8 +68,31 @@ def fetch_bill(bill_id, options):
 
   output_bill(bill, options)
 
-  return {'ok': True, 'saved': True}
+  # output PDF and/or HTML file if requested
+  if not options.get("formats", False):
+    return {'ok': True, 'saved': True}
 
+  status = {'ok': True, 'saved': True }
+
+  options["formats"] = options["formats"].lower()
+  
+  if options["formats"].lower() == "all":
+    formats = ["pdf", "html"]
+  else:
+    formats = options["formats"].split(",")
+  
+  gpo_urls = get_GPO_url_for_bill(bill_id, options)
+
+  for fmt in formats:
+    if fmt in gpo_urls:
+      # setting xml to true even for PDF, which doesn't need an unescape
+      utils.write(utils.download(gpo_urls[fmt], bill_cache_for(bill_id, "bill." + fmt), { 'xml': True }), output_for_bill(bill_id, fmt))
+      logging.info("Saving %s format for %s" % (fmt, bill_id))
+      status[fmt] = True
+    else:
+      status[fmt] = False
+      
+  return status
 
 def parse_bill(bill_id, body, options):
   bill_type, number, congress = utils.split_bill_id(bill_id)
@@ -1406,6 +1429,36 @@ def reserved_bill(body):
   else:
     return False
 
+# fetch GPO URLs for PDF and HTML formats
+def get_GPO_url_for_bill(bill_id, options):
+  # we need the URL of the pdf on GPO
+  # there may be a way to calculate it, but in the meantime we'll get it the old-fashioned way      
+  # first get the THOMAS landing page. This may be duplicating work, but didn't see anything
+  # Maybe TODO -- reconcile with fdsys script (ideally without downloading large sitemaps for a single bill)
+  bill_type, number, congress = utils.split_bill_id(bill_id)
+  thomas_type = utils.thomas_types[bill_type][0]
+  congress = int(congress)
+  landing_url = "http://thomas.loc.gov/cgi-bin/bdquery/D?d%03d:%s:./list/bss/d%03d%s.lst:" % (congress, number, congress, thomas_type)
+  landing_page = utils.download(
+    landing_url, 
+    bill_cache_for(bill_id, "landing_page.html"),
+    options)
+  text_landing_page_url = "http://thomas.loc.gov/cgi-bin/query/z" + re.search('href="/cgi-bin/query/z?(.*?)">Text of Legislation', landing_page, re.I | re.S).groups(1)[0]
+  text_landing_page = utils.download(
+    text_landing_page_url, 
+    bill_cache_for(bill_id, "text_landing_page.html"),
+    options)
+  gpo_urls = re.findall('http://www.gpo.gov/fdsys/(.*?)\.pdf', text_landing_page, re.I | re.S)
+  if not len(gpo_urls):
+    logging.info("No GPO link discovered")
+    return False
+  # get last url on page, in cases where there are several versions of bill
+  # THOMAS advises us to use the last one (e.g. http://thomas.loc.gov/cgi-bin/query/z?c113:S.CON.RES.1: )
+
+  return {
+    "pdf": "http://www.gpo.gov/fdsys/" + gpo_urls[-1] + ".pdf",
+    "html": "http://www.gpo.gov/fdsys/" + gpo_urls[-1].replace("pdf", "html") + ".htm"
+  }
 
 # directory helpers
 
