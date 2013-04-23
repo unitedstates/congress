@@ -84,9 +84,9 @@ def fetch_bill(bill_id, options):
   gpo_urls = get_GPO_url_for_bill(bill_id, options)
 
   for fmt in formats:
-    if fmt in gpo_urls:
+    if gpo_urls and fmt in gpo_urls:
       # setting xml to true even for PDF, which doesn't need an unescape
-      utils.write(utils.download(gpo_urls[fmt], bill_cache_for(bill_id, "bill." + fmt), { 'xml': True }), output_for_bill(bill_id, fmt))
+      utils.write(utils.download(gpo_urls[fmt], bill_cache_for(bill_id, "bill." + fmt), options + { 'xml': True }), output_for_bill(bill_id, fmt))
       logging.info("Saving %s format for %s" % (fmt, bill_id))
       status[fmt] = True
     else:
@@ -1459,6 +1459,7 @@ def get_GPO_url_for_bill(bill_id, options):
     "pdf": "http://www.gpo.gov/fdsys/" + gpo_urls[-1] + ".pdf",
     "html": "http://www.gpo.gov/fdsys/" + gpo_urls[-1].replace("pdf", "html") + ".htm"
   }
+  
 
 # directory helpers
 
