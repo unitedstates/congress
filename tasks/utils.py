@@ -27,6 +27,7 @@ eastern_time_zone = timezone('US/Eastern')
 
 # scraper should be instantiated at class-load time, so that it can rate limit appropriately
 scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_attempts=3)
+scraper.user_agent = "unitedstates/congress (https://github.com/unitedstates/congress)"
 
 govtrack_person_id_map = None
 
