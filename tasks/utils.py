@@ -45,6 +45,9 @@ def format_datetime(obj):
 
 def current_congress():
   year = current_legislative_year()
+  return congress_from_legislative_year(year)
+
+def congress_from_legislative_year(year):
   return ((year + 1) / 2) - 894
 
 def current_legislative_year(date=None):
@@ -460,24 +463,35 @@ def thomas_corrections(thomas_id):
   if thomas_id == "02188": thomas_id = "01728"
 
   return thomas_id
+  
+def yaml_load(file_name):
+  import yaml
+  try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+  except ImportError:
+    from yaml import Loader, Dumper        
+  return yaml.load(open(file_name), Loader=Loader)
+
+def require_congress_legislators_repo():
+  # Clone the congress-legislators repo if we don't have it.
+  if not os.path.exists("cache/congress-legislators"):
+    logging.warn("Cloning the congress-legislators repo into the cache directory...")
+    os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators cache/congress-legislators")
+      
+  # Update the repo so we have the latest.
+  logging.warn("Updating the congress-legislators repo...")
+  os.system("cd cache/congress-legislators; git fetch -pq") # these two == git pull, but git pull ignores -q on the merge part so is less quiet
+  os.system("cd cache/congress-legislators; git merge --ff-only -q origin/master")
 
 def get_govtrack_person_id(source_id_type, source_id):
   # Load the legislators database to map various IDs to GovTrack IDs.
   # Cache in a pickled file because loading the whole YAML db is super slow.
   global govtrack_person_id_map
-  import os, os.path, pickle, yaml
+  import os, os.path, pickle
   
   # On the first call to this function...
   if not govtrack_person_id_map:
-    # Clone the congress-legislators repo if we don't have it.
-    if not os.path.exists("cache/congress-legislators"):
-      logging.warn("Cloning the congress-legislators repo into the cache directory...")
-      os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators cache/congress-legislators")
-      
-    # Update the repo so we have the latest.
-    logging.warn("Updating the congress-legislators repo...")
-    os.system("cd cache/congress-legislators; git fetch -pq") # these two == git pull, but git pull ignores -q on the merge part so is less quiet
-    os.system("cd cache/congress-legislators; git merge --ff-only -q origin/master")
+    require_congress_legislators_repo()
     
     govtrack_person_id_map = { }
     for fn in ('legislators-historical', 'legislators-current'):
@@ -491,15 +505,9 @@ def get_govtrack_person_id(source_id_type, source_id):
         # a master map from (id-type, id) to GovTrack ID,
         # where id-type is e.g. thomas, lis, bioguide. Then
         # save it to a pickled file.
-        
-        try:
-          from yaml import CLoader as Loader, CDumper as Dumper
-        except ImportError:
-          from yaml import Loader, Dumper        
-        
         logging.warn("Making %s ID map..." % fn)
         m = { }
-        for moc in yaml.load(open("cache/congress-legislators/" + fn + ".yaml"), Loader=Loader):
+        for moc in yaml_load("cache/congress-legislators/" + fn + ".yaml"):
           if "govtrack" in moc["id"]:
             for k, v in moc["id"].items():
               if k in ('bioguide', 'lis', 'thomas'):

@@ -6,3 +6,4 @@ lxml>=2.2
 pytz
 cssselect
 scrapelib
+mechanize

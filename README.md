@@ -45,6 +45,7 @@ where data-type is one of:
     * amendments
     * votes
     * fdsys
+    * committee_meetings
 
 To scrape bills and resolutions from THOMAS run:
 
@@ -136,6 +137,19 @@ The collections argument can take a comma-separated list of collections. To get 
 	./run fdsys --list-collections
 	
 All arguments are optional. Without --store, the script just updates a local copy of the sitemap files in cache/fdsys/sitemap/YEAR/COLLECTION.xml. Use --cached to force the use of cached files and not hit the network. Use --force to download all files anew.
+
+Committee Meetings
+------------------
+
+The committee_meetings scraper pulls upcoming House and Senate committee meetings from http://docs.house.gov/Committee and http://www.senate.gov/general/committee_schedules/hearings.xml, respectively. To run the scraper:
+
+    ./run committee_meetings --force --debug
+    
+This outputs two JSON files: data/committee_meetings_house.json and data/committee_meetings_senate.json.
+
+Each meeting is assigned a GUID. If you re-run the scraper (without deleting the output JSON files), the GUIDs will be preserved from run to run so that you can tell when meetings are added or revised. For Senate committee meetings, we preserve the GUID by a heuristic. The House provides stable IDs.
+
+The House-side scraper is very slow. Each meeting is requested from a separate file whose response time seems to be pretty slow.
    
 Options
 -------
