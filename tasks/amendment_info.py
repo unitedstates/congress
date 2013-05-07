@@ -5,17 +5,16 @@ import utils
 
 from bill_info import sponsor_for, actions_for
 
-# TODO:
-# "TEXT OF AMENDMENT AS SUBMITTED"
-# "COSPONSORS"
 
-def fetch_amendment(amdt_id, options):
-  logging.info("\n[%s] Fetching..." % amdt_id)
+# downloads amendment information from THOMAS.gov, 
+# parses out basic information, writes JSON to disk
+
+def fetch_amendment(amendment_id, options):
+  logging.info("\n[%s] Fetching..." % amendment_id)
   
-  # fetch bill details body
   body = utils.download(
-    amdt_url_for(amdt_id), 
-    amdt_cache_for(amdt_id, "information.html"),
+    amendment_url_for(amendment_id), 
+    amendment_cache_for(amendment_id, "information.html"),
     options)
 
   if not body:
@@ -24,22 +23,21 @@ def fetch_amendment(amdt_id, options):
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
     
-  amdt_type, number, congress = utils.split_bill_id(amdt_id)
+  amendment_type, number, congress = utils.split_bill_id(amendment_id)
   
-  actions = actions_for(body, amdt_id, is_amendment=True)
+  actions = actions_for(body, amendment_id, is_amendment=True)
   if actions is None: actions = []
   parse_amendment_actions(actions)
 
   amdt = {
-    'amendment_id': amdt_id,
-    'amendment_type': amdt_type,
-    'chamber': amdt_type[0],
+    'amendment_id': amendment_id,
+    'amendment_type': amendment_type,
+    'chamber': amendment_type[0],
     'number': number,
     'congress': congress,
     
     'amends': amends_for(body, grab_bill=False),
     'amends_bill': amends_for(body, grab_bill=True),
-    'house_number': house_number_for(body),
 
     'offered_at': offered_at_for(body, 'offered'),
     'submitted_at': offered_at_for(body, 'submitted'),
@@ -51,11 +49,16 @@ def fetch_amendment(amdt_id, options):
     'purpose': amendment_simple_text_for(body, "purpose"),
     
     'actions': actions,
-
+    
     'updated_at': datetime.datetime.fromtimestamp(time.time()),
   }
-  
-  set_amendment_status(amdt)
+
+  amdt['status'], amdt['status_at'] = amendment_status_for(amdt)
+
+  # only set a house_number if it's a House bill -
+  # this lets us choke if it's not found.
+  if amdt['chamber'] == 'h':
+    amdt['house_number'] = house_number_for(body)
   
   output_amendment(amdt, options)
 
@@ -83,7 +86,7 @@ def output_amendment(amdt, options):
   make_node(root, "amends", None,
     type=govtrack_type_codes[amdt["amends_bill"]["bill_type"]],
     number=str(amdt["amends_bill"]["number"]),
-    sequence=str(int(amdt["house_number"][1:])) if amdt["house_number"] else "") # chop off A from the house_number
+    sequence=str(int(amdt["house_number"][1:])) if amdt.get("house_number", None) else "") # chop off A from the house_number
   
   make_node(root, "status", amdt['status'], datetime=amdt['status_at'])
 
@@ -125,12 +128,14 @@ def output_amendment(amdt, options):
     output_for_amdt(amdt['amendment_id'], "xml")
   )
 
+
+# assumes this is a House amendment, and it should choke if it doesn't find a number
 def house_number_for(body):
   match = re.search(r"H.AMDT.\d+</b>\n \((A\d+)\)", body, re.I)
   if match:
     return match.group(1)
   else:
-    return None
+    raise Exception("Choked finding House amendment number.")
     
 def amends_for(body, grab_bill):
   # When an amendment amends an amendment, the bill is listed first, followed by a comma
@@ -151,7 +156,7 @@ def amends_for(body, grab_bill):
       "number": bill_number,
     }
   else:
-    raise Exception("Choked finding what the amendment amends.")
+    raise Exception("Choked finding out what the amendment amends.")
 
 def offered_at_for(body, offer_type):
   match = re.search(r"Sponsor:.*\n.*\(" + offer_type + " (\d+/\d+/\d+)", body, re.I)
@@ -166,10 +171,10 @@ def offered_at_for(body, offer_type):
 def amendment_simple_text_for(body, heading):
   match = re.search(r"AMENDMENT " + heading.upper() + ":(<br />| )(.+)", body, re.I)
   if match:
-    title = match.group(2).strip()
-    if title == "*** TITLE NOT FOUND ***":
+    text = match.group(2).strip()
+    if text == "*** TITLE NOT FOUND ***":
       return None
-    return title
+    return text
   else:
     return None
 
@@ -213,7 +218,7 @@ def parse_amendment_actions(actions):
     if m:
       action['type'] = 'withdrawn'
       
-def set_amendment_status(amdt):
+def amendment_status_for(amdt):
   status = 'offered'
   status_date = amdt['offered_at'] if amdt['offered_at'] else amdt['submitted_at']
 
@@ -225,21 +230,20 @@ def set_amendment_status(amdt):
       status = 'withdrawn'
       status_date = action['acted_at']
       
-  amdt['status'] = status
-  amdt['status_at'] = status_date
+  return status, status_date
 
-def amdt_url_for(amdt_id):
-  amdt_type, number, congress = utils.split_bill_id(amdt_id)
-  thomas_type = utils.thomas_types[amdt_type][0]
+def amendment_url_for(amendment_id):
+  amendment_type, number, congress = utils.split_bill_id(amendment_id)
+  thomas_type = utils.thomas_types[amendment_type][0]
   congress = int(congress)
   number = int(number)
   return "http://thomas.loc.gov/cgi-bin/bdquery/D?d%03d:%d:./list/bss/d%03d%s.lst::" % (congress, number, congress, thomas_type)
 
-def amdt_cache_for(amdt_id, file):
-  amdt_type, number, congress = utils.split_bill_id(amdt_id)
-  return "%s/amendments/%s/%s%s/%s" % (congress, amdt_type, amdt_type, number, file)
+def amendment_cache_for(amendment_id, file):
+  amendment_type, number, congress = utils.split_bill_id(amendment_id)
+  return "%s/amendments/%s/%s%s/%s" % (congress, amendment_type, amendment_type, number, file)
 
-def output_for_amdt(amdt_id, format):
-  amdt_type, number, congress = utils.split_bill_id(amdt_id)
-  return "%s/%s/amendments/%s/%s%s/%s" % (utils.data_dir(), congress, amdt_type, amdt_type, number, "data.%s" % format)
+def output_for_amdt(amendment_id, format):
+  amendment_type, number, congress = utils.split_bill_id(amendment_id)
+  return "%s/%s/amendments/%s/%s%s/%s" % (utils.data_dir(), congress, amendment_type, amendment_type, number, "data.%s" % format)
 

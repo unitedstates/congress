@@ -68,7 +68,10 @@ def fetch_bill(bill_id, options):
 
   output_bill(bill, options)
 
+  
+
   # output PDF and/or HTML file if requested
+  
   if not options.get("formats", False):
     return {'ok': True, 'saved': True}
 
@@ -91,6 +94,7 @@ def fetch_bill(bill_id, options):
       status[fmt] = True
     else:
       status[fmt] = False
+
       
   return status
 
@@ -343,10 +347,10 @@ def output_bill(bill, options):
   )
 
 
+# This routine is also used by amendment processing. One difference is the
+# lack of <b> tags on amendment pages but their presence on bill pages.
+# Also, amendments can be sponsored by committees.
 def sponsor_for(body):
-  # This routine is also used by amendment processing. One difference is the
-  # lack of <b> tags on amendment pages but their presence on bill pages.
-  # Also, amendmends can be sponsored by committees.
   match = re.search(r"(?:<b>)?Sponsor: (?:</b>)?(No Sponsor|<a href=[^>]+\+(\d{5}|[hs]...\d\d).*>(.+)</a>(?:\s+\[((\w\w)(-(\d+))?)\])?)", body, re.I)
   if match:
     if (match.group(3) == "No Sponsor") or (match.group(1) == "No Sponsor"):
