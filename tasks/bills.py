@@ -49,6 +49,7 @@ def bill_ids_for(congress, options, bill_states={}):
     bill_types = utils.thomas_types.keys()
     
   for bill_type in bill_types:
+    
     # This sub is re-used for pulling amendment IDs too.
     if (bill_type in ('samdt', 'hamdt')) != doing_amendments: continue
 
