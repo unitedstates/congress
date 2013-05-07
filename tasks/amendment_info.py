@@ -33,7 +33,7 @@ def fetch_amendment(amendment_id, options):
     'amendment_id': amendment_id,
     'amendment_type': amendment_type,
     'chamber': amendment_type[0],
-    'number': number,
+    'number': int(number),
     'congress': congress,
     
     'amends': amends_for(body, grab_bill=False),
@@ -78,7 +78,7 @@ def output_amendment(amdt, options):
   root = etree.Element("amendment")
   root.set("session", amdt['congress'])
   root.set("chamber", amdt['amendment_type'][0])
-  root.set("number", amdt['number'])
+  root.set("number", str(amdt['number']))
   root.set("updated", utils.format_datetime(amdt['updated_at']))
   
   make_node = utils.make_node
@@ -86,7 +86,7 @@ def output_amendment(amdt, options):
   make_node(root, "amends", None,
     type=govtrack_type_codes[amdt["amends_bill"]["bill_type"]],
     number=str(amdt["amends_bill"]["number"]),
-    sequence=str(int(amdt["house_number"][1:])) if amdt.get("house_number", None) else "") # chop off A from the house_number
+    sequence=str(amdt["house_number"]) if amdt.get("house_number", None) else "")
   
   make_node(root, "status", amdt['status'], datetime=amdt['status_at'])
 
@@ -131,9 +131,9 @@ def output_amendment(amdt, options):
 
 # assumes this is a House amendment, and it should choke if it doesn't find a number
 def house_number_for(body):
-  match = re.search(r"H.AMDT.\d+</b>\n \((A\d+)\)", body, re.I)
+  match = re.search(r"H.AMDT.\d+</b>\n \(A(\d+)\)", body, re.I)
   if match:
-    return match.group(1)
+    return int(match.group(1))
   else:
     raise Exception("Choked finding House amendment number.")
     
