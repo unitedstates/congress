@@ -722,8 +722,8 @@ def action_for(text):
     types = re.sub("CR:", "CR", types)
     # fix a missing semicolon altogether between references
     # e.g. sres107-112, "consideration: CR S1877-1878 text as"
-    types = re.sub("(\d+) ([a-z])", r"\1; \2", types)
-
+    types = re.sub("(\d+) +([a-z])", r"\1; \2", types)
+    
     for reference in re.split("; ?", types):
       if ": " not in reference:
         type, reference = None, reference
