@@ -123,13 +123,13 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
   if len(errors) > 0:
     message = "\nErrors for %s items:\n" % len(errors)
     for id, error, msg in errors:
+      message += "\n\n"
       if isinstance(error, Exception):
         message += "[%s] Exception:\n\n" % id
         message += msg
       else:
         message += "[%s] %s" % (id, error)
-      message += "\n\n"
-      
+
     admin(message) # email if possible
 
   logging.warning("\nErrors for %s." % len(errors))
