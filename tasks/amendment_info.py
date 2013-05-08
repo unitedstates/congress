@@ -22,6 +22,10 @@ def fetch_amendment(amendment_id, options):
 
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
+
+  # rare, but e.g. hamdt601-112 by Rand Paul
+  if "Purpose will be available when the amendment is proposed for consideration." in body:
+    return {'saved': False, 'ok': True, 'reason': "orphaned amendment"}
     
   amendment_type, number, congress = utils.split_bill_id(amendment_id)
   
