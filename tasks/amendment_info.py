@@ -148,7 +148,7 @@ def amends_for(body, grab):
     congress = int(match.group(1))
     bill_type = utils.thomas_types_2[match.group(2)]
     bill_number = int(match.group(3))
-    is_bill = bill_type not in ("samdt", "hamdt")
+    is_bill = bill_type not in ("samdt", "supamdt", "hamdt")
     document_id = "%s%i-%i" % (bill_type, bill_number, congress)
     return {
       "congress": congress,

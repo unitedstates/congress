@@ -17,6 +17,7 @@ def run(options):
   else:
     congress = options.get('congress', utils.current_congress())
     to_fetch = bill_ids_for(congress, options, bill_states=search_state)
+    
     if not to_fetch:
       if options.get("fast", False):
         logging.warn("No bills changed.")
@@ -42,7 +43,7 @@ def bill_ids_for(congress, options, bill_states={}):
 
   bill_ids = []
 
-  bill_type = options.get('bill_type' if not doing_amendments else 'amendment_type', None)
+  bill_type = options.get('amendment_type' if doing_amendments else 'bill_type', None)
   if bill_type:
     bill_types = [bill_type]
   else:
@@ -51,7 +52,7 @@ def bill_ids_for(congress, options, bill_states={}):
   for bill_type in bill_types:
     
     # This sub is re-used for pulling amendment IDs too.
-    if (bill_type in ('samdt', 'hamdt')) != doing_amendments: continue
+    if (bill_type in ('samdt', 'hamdt', 'supamdt')) != doing_amendments: continue
 
     # match only links to landing pages of this bill type
     # it shouldn't catch stray links outside of the confines of the 100 on the page,

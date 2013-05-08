@@ -378,6 +378,7 @@ thomas_types = {
   'sconres': ('SC', 'S.CON.RES.'),
   'hamdt': ('HZ', 'H.AMDT.'),
   'samdt': ('SP', 'S.AMDT.'),
+  'supamdt': ('SU', 'S.UP.AMDT.'),
 }
 thomas_types_2 = dict( (v[0], k) for (k, v) in thomas_types.items() )  # map e.g. { SE: sres, ...}
 
