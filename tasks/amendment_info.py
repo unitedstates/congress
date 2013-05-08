@@ -36,8 +36,8 @@ def fetch_amendment(amendment_id, options):
     'number': int(number),
     'congress': congress,
     
-    'amends': amends_for(body, grab_bill=False),
-    'amends_bill': amends_for(body, grab_bill=True),
+    'amends_bill': amends_for(body, grab='bill'), # always present
+    'amends_amendment': amends_for(body, grab='amendment'), # sometimes present
 
     'offered_at': offered_at_for(body, 'offered'),
     'submitted_at': offered_at_for(body, 'submitted'),
@@ -137,11 +137,11 @@ def house_number_for(body):
   else:
     raise Exception("Choked finding House amendment number.")
     
-def amends_for(body, grab_bill):
+def amends_for(body, grab):
   # When an amendment amends an amendment, the bill is listed first, followed by a comma
   # and newline. Skip the bill when it exists and just parse the amendment.
   match = re.search(r"Amends: "
-      + ("(?:.*\n, )?" if not grab_bill else "")
+      + ("(?:.*\n, )" if grab == "amendment" else "")
       + "<a href=\"/cgi-bin/bdquery/z\?d(\d+):([A-Z]+)(\d+):",
       body)
   if match:
@@ -149,14 +149,16 @@ def amends_for(body, grab_bill):
     bill_type = utils.thomas_types_2[match.group(2)]
     bill_number = int(match.group(3))
     is_bill = bill_type not in ("samdt", "hamdt")
+    document_id = "%s%i-%i" % (bill_type, bill_number, congress)
     return {
-      "document_type": "bill" if is_bill else "amendment",
       "congress": congress,
       "bill_type" if is_bill else "amendment_type": bill_type,
-      "number": bill_number,
+      "bill_id" if is_bill else "amendment_id": document_id,
+      "number": bill_number
     }
   else:
-    raise Exception("Choked finding out what the amendment amends.")
+    if grab == 'bill':
+      raise Exception("Choked finding out what bill the amendment amends.")
 
 def offered_at_for(body, offer_type):
   match = re.search(r"Sponsor:.*\n.*\(" + offer_type + " (\d+/\d+/\d+)", body, re.I)
