@@ -106,7 +106,7 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
       if options.get('raise', False):
         raise
       else:
-        errors.append((id, e))
+        errors.append((id, e, format_exception(e)))
         continue
 
     if results.get('ok', False):
@@ -117,17 +117,19 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
         skips.append(id)
         logging.warn("[%s] Skipping: %s" % (id, results['reason']))
     else:
-      errors.append((id, results))
+      errors.append((id, results, None))
       logging.error("[%s] Error: %s" % (id, results['reason']))
 
   if len(errors) > 0:
     message = "\nErrors for %s items:\n" % len(errors)
-    for id, error in errors:
+    for id, error, msg in errors:
       if isinstance(error, Exception):
         message += "[%s] Exception:\n\n" % id
-        message += format_exception(error)
+        message += msg
       else:
         message += "[%s] %s" % (id, error)
+      message += "\n\n"
+      
     admin(message) # email if possible
 
   logging.warning("\nErrors for %s." % len(errors))
