@@ -4,3 +4,4 @@
 *.pyc
 /config.yml
 .DS_Store
+/todo*
