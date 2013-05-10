@@ -23,6 +23,9 @@ def fetch_amendment(amendment_id, options):
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
+  if "Amends:" not in body:
+    return {'saved': False, 'ok': True, 'reason': "orphaned amendment"}
+
   amendment_type, number, congress = utils.split_bill_id(amendment_id)
   
   actions = actions_for(body, amendment_id, is_amendment=True)
