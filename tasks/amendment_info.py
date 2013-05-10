@@ -23,10 +23,6 @@ def fetch_amendment(amendment_id, options):
   if options.get("download_only", False):
     return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
-  # rare, but e.g. hamdt601-112 by Rand Paul
-  if "Purpose will be available when the amendment is proposed for consideration." in body:
-    return {'saved': False, 'ok': True, 'reason': "orphaned amendment"}
-    
   amendment_type, number, congress = utils.split_bill_id(amendment_id)
   
   actions = actions_for(body, amendment_id, is_amendment=True)
@@ -179,6 +175,8 @@ def amendment_simple_text_for(body, heading):
   if match:
     text = match.group(2).strip()
     if text == "*** TITLE NOT FOUND ***":
+      return None
+    if "Purpose will be available when the amendment is proposed for consideration." in text:
       return None
     return text
   else:
