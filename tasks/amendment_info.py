@@ -110,7 +110,7 @@ def output_amendment(amdt, options):
       
   if amdt["title"]: make_node(root, "title", amdt["title"])
   make_node(root, "description", amdt["description"] if amdt["description"] else amdt["purpose"])
-  make_node(root, "purpose", amdt["purpose"])
+  if amdt["description"]: make_node(root, "purpose", amdt["purpose"])
       
   actions = make_node(root, "actions", None)
   for action in amdt['actions']:
