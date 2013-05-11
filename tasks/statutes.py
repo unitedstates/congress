@@ -26,6 +26,8 @@
 #   data/82/bills/hr/hr1/data.json and
 #   data/82/bills/hr/hr1/text-versions/enr/data.json
 #
+# Specify --textversions to only write the text-versions file.
+#
 # If the individual statute PDF files are available, then
 # additional options are possible:
 #
@@ -38,6 +40,7 @@
 # data/82/bills/hr/hr1/text-versions/enr/document.txt. They are
 # UTF-8 encoded and have form-feed characters marking page breaks.
 #
+# Examples:
 # ./run statutes --volume=65
 # ./run statutes --volumes=65-86
 # ./run statutes --year=1951
@@ -46,7 +49,10 @@
 # Starting with the 93rd Congress (1973-1974, corresponding
 # to volume 78 of the Statutes of Large), we have bill
 # data from THOMAS. Be careful not to overwrite those files.
-
+#
+# With bill text missing from THOMAS/GPO from the 93rd to
+# 102nd Congresses, fill in the text-versions files like so:
+# ./run statutes --volumes=87-106 --textversions
 
 import logging
 import time, datetime
@@ -106,7 +112,7 @@ def proc_statute_volume(path, options):
     source_url = bill.find( "mods:location/mods:url[@displayLabel='Content Detail']", mods_ns ).text
 
     # Bill number
-    bill_elements = bill.findall( "mods:extension/mods:bill", mods_ns )
+    bill_elements = bill.findall( "mods:extension/mods:bill[@priority='primary']", mods_ns )
     if len(bill_elements) == 0:
       logging.error("No bill number identified for '%s' (%s)" % (title_text, source_url))
       continue
@@ -236,7 +242,8 @@ def proc_statute_volume(path, options):
       'updated_at': datetime.datetime.fromtimestamp(time.time()),
     }
 
-    bill_info.output_bill( bill_data, options )
+    if not options.get('textversions', False):
+        bill_info.output_bill( bill_data, options )
 
     # XXX: Can't use bill_versions.fetch_version() because it depends on fdsys.
     version_code = "enr"
