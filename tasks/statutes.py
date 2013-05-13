@@ -26,6 +26,8 @@
 #   data/82/bills/hr/hr1/data.json and
 #   data/82/bills/hr/hr1/text-versions/enr/data.json
 #
+# Specify --textversions to only write the text-versions file.
+#
 # If the individual statute PDF files are available, then
 # additional options are possible:
 #
@@ -38,6 +40,7 @@
 # data/82/bills/hr/hr1/text-versions/enr/document.txt. They are
 # UTF-8 encoded and have form-feed characters marking page breaks.
 #
+# Examples:
 # ./run statutes --volume=65
 # ./run statutes --volumes=65-86
 # ./run statutes --year=1951
@@ -46,7 +49,10 @@
 # Starting with the 93rd Congress (1973-1974, corresponding
 # to volume 78 of the Statutes of Large), we have bill
 # data from THOMAS. Be careful not to overwrite those files.
-
+#
+# With bill text missing from THOMAS/GPO from the 93rd to
+# 102nd Congresses, fill in the text-versions files like so:
+# ./run statutes --volumes=87-106 --textversions
 
 import logging
 import time, datetime
@@ -80,9 +86,9 @@ def run(options):
 
   logging.warn("Going to process %i volumes" % len(to_fetch))
 
-  utils.process_set(to_fetch, proc_statute, options)
+  utils.process_set(to_fetch, proc_statute_volume, options)
 
-def proc_statute(path, options):
+def proc_statute_volume(path, options):
   mods = etree.parse(path + "/mods.xml")
   mods_ns = { "mods": "http://www.loc.gov/mods/v3" }
 
@@ -96,47 +102,25 @@ def proc_statute(path, options):
   package_id = mods.find( "/mods:extension[2]/mods:accessId", mods_ns ).text
 
   for bill in mods.findall( "/mods:relatedItem", mods_ns ):
-    titles = []
-
-    titles.append( {
-      "title": bill.find( "mods:titleInfo/mods:title", mods_ns ).text.replace( '""', '"' ),
-      "as": "enacted",
-      "type": "official",
-    } )
-
-    descriptor = bill.find( "mods:extension/mods:descriptor", mods_ns )
-
-    if descriptor is not None:
-      subject = descriptor.text
-    else:
-      subject = None
-
     # MODS files also contain information about:
     # ['BACKMATTER', 'FRONTMATTER', 'CONSTAMEND', 'PROCLAMATION', 'REORGPLAN']
     if bill.find( "mods:extension/mods:granuleClass", mods_ns ).text not in [ "PUBLICLAW", "PRIVATELAW", "HCONRES", "SCONRES" ]:
       continue
 
-    committees = []
+    # Get the title and source URL (used in error messages).
+    title_text = bill.find( "mods:titleInfo/mods:title", mods_ns ).text.replace( '""', '"' )
+    source_url = bill.find( "mods:location/mods:url[@displayLabel='Content Detail']", mods_ns ).text
 
-    cong_committee = bill.find( "mods:extension/mods:congCommittee", mods_ns )
-
-    if cong_committee is not None:
-      chambers = { "H": "House", "S": "Senate", "J": "Joint" }
-
-      committee = chambers[cong_committee.attrib["chamber"]] + " " + cong_committee.find( "mods:name", mods_ns ).text
-
-      committee_info = {
-        "committee": committee,
-        "activity": [], # XXX
-        "committee_id": utils.committee_names[committee] if committee in utils.committee_names else None,
-      }
-
-      committees.append( committee_info )
-
-    bill_elements = bill.findall( "mods:extension/mods:bill", mods_ns )
-
-    if ( bill_elements is None ) or ( len( bill_elements ) != 1 ):
-      logging.error("Could not get bill data for %s" % repr(titles) )
+    # Bill number
+    bill_elements = bill.findall( "mods:extension/mods:bill[@priority='primary']", mods_ns )
+    if len(bill_elements) == 0:
+      logging.error("No bill number identified for '%s' (%s)" % (title_text, source_url))
+      continue
+    elif len(bill_elements) > 1:
+      logging.error("Multiple bill numbers identified for '%s'" % title_text)
+      for be in bill_elements:
+        logging.error("  -- " + etree.tostring(be).strip())
+      logging.error("  @ " + source_url)
       continue
     else:
       bill_congress = bill_elements[0].attrib["congress"]
@@ -144,22 +128,46 @@ def proc_statute(path, options):
       bill_number = bill_elements[0].attrib["number"]
       bill_id = "%s%s-%s" % (bill_type, bill_number, bill_congress)
 
+    # Title
+    titles = []
+    titles.append( {
+      "title": title_text,
+      "as": "enacted",
+      "type": "official",
+    } )
+
+    # Subject
+    descriptor = bill.find( "mods:extension/mods:descriptor", mods_ns )
+    if descriptor is not None:
+      subject = descriptor.text
+    else:
+      subject = None
+
+    # Committees
+    committees = []
+    cong_committee = bill.find( "mods:extension/mods:congCommittee", mods_ns )
+    if cong_committee is not None:
+      chambers = { "H": "House", "S": "Senate", "J": "Joint" }
+      committee = chambers[cong_committee.attrib["chamber"]] + " " + cong_committee.find( "mods:name", mods_ns ).text
+      committee_info = {
+        "committee": committee,
+        "activity": [], # XXX
+        "committee_id": utils.committee_names[committee] if committee in utils.committee_names else None,
+      }
+      committees.append( committee_info )
+
+    # The 'granuleDate' is the enactment date?
     granule_date = bill.find( "mods:extension/mods:granuleDate", mods_ns ).text
 
-    actions = []
-    sources = []
-
-    source = {
+    sources = [{
       "source": "statutes",
       "package_id": package_id,
       "access_id": bill.find( "mods:extension/mods:accessId", mods_ns ).text,
-      "source_url": bill.find( "mods:location/mods:url[@displayLabel='Content Detail']", mods_ns ).text,
+      "source_url": source_url,
       "volume": bill.find( "mods:extension/mods:volume", mods_ns ).text,
       "page": bill.find( "mods:part[@type='article']/mods:extent[@unit='pages']/mods:start", mods_ns ).text,
       "position": bill.find( "mods:extension/mods:pagePosition", mods_ns ).text,
-    }
-
-    sources.append( source )
+    }]
 
     law_elements = bill.findall( "mods:extension/mods:law", mods_ns )
 
@@ -168,7 +176,7 @@ def proc_statute(path, options):
     if ( law_elements is None ) or ( len( law_elements ) != 1 ):
       other_chamber = { "HOUSE": "s", "SENATE": "h" }
 
-      action = {
+      actions = [{
         "type": "vote",
         "vote_type": "vote2",
         "where": other_chamber[bill.find( "mods:extension/mods:originChamber", mods_ns ).text],
@@ -178,14 +186,18 @@ def proc_statute(path, options):
         "acted_at": granule_date, # XXX
         "status": "PASSED:CONCURRENTRES",
         "references": [], # XXX
-#        "sources": sources,
-      }
+      }]
     else:
       law_congress = law_elements[0].attrib["congress"]
       law_number = law_elements[0].attrib["number"]
       law_type = ( "private" if ( law_elements[0].attrib["isPrivate"] == "true" ) else "public" )
 
-      action = {
+      # Check for typos in the metadata.
+      if law_congress != bill_congress:
+        logging.error("Congress mismatch for %s%s: %s or %s? (%s)" % ( bill_type, bill_number, bill_congress, law_congress, source_url ) )
+        continue
+
+      actions = [{
         "congress": law_congress,
         "number": law_number,
         "type": "enacted",
@@ -194,15 +206,7 @@ def proc_statute(path, options):
         "acted_at": granule_date, # XXX
         "status": "ENACTED:SIGNED", # XXX: Check for overridden vetoes!
         "references": [], # XXX
-#        "sources": sources,
-      }
-
-    actions.append( action )
-
-    # Check for typos in the metadata.
-    if law_congress != bill_congress:
-      logging.error("Congress mismatch for %s%s: %s or %s?" % ( bill_type, bill_number, bill_congress, law_congress ) )
-      continue
+      }]
 
     status, status_date = bill_info.latest_status( actions )
 
@@ -227,7 +231,6 @@ def proc_statute(path, options):
       'short_title': bill_info.current_title_for( titles, "short" ), # XXX
       'popular_title': bill_info.current_title_for( titles, "popular" ), # XXX
 
-#      'summary': summary,
       'subjects_top_term': subject,
       'subjects': [],
 
@@ -239,7 +242,8 @@ def proc_statute(path, options):
       'updated_at': datetime.datetime.fromtimestamp(time.time()),
     }
 
-    bill_info.output_bill( bill_data, options )
+    if not options.get('textversions', False):
+        bill_info.output_bill( bill_data, options )
 
     # XXX: Can't use bill_versions.fetch_version() because it depends on fdsys.
     version_code = "enr"
@@ -258,7 +262,7 @@ def proc_statute(path, options):
     # Process the granule PDF.
     # - Hard-link it into the right place to be seen as bill text.
     # - Run "pdftotext -layout" to convert it to plain text and save it in the bill text location.
-    pdf_file = path + "/" + source["access_id"] + "/document.pdf"
+    pdf_file = path + "/" + sources[0]["access_id"] + "/document.pdf"
     if os.path.exists(pdf_file):
       dst_path = fdsys.output_for_bill(int(bill_data["congress"]), bill_data["bill_type"], bill_data["number"], "text-versions/" + version_code)
       if options.get("linkpdf", False):
