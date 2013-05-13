@@ -32,6 +32,18 @@ def fetch_amendment(amendment_id, options):
   if actions is None: actions = []
   parse_amendment_actions(actions)
 
+  # good set of tests for each situation:
+  # samdt712-113 - amendment to bill
+  # samdt112-113 - amendment to amendment on bill
+  # samdt4904-111 - amendment to treaty
+  # samdt4922-111 - amendment to amendment to treaty
+
+  amends_bill = amends_bill_for(body) # almost always present
+  amends_treaty = amends_treaty_for(body) # present if bill is missing
+  amends_amendment = amends_amendment_for(body) # sometimes present
+  if not amends_bill and not amends_treaty:
+    raise Exception("Choked finding out what bill or treaty the amendment amends.")
+
   amdt = {
     'amendment_id': amendment_id,
     'amendment_type': amendment_type,
@@ -39,8 +51,9 @@ def fetch_amendment(amendment_id, options):
     'number': int(number),
     'congress': congress,
     
-    'amends_bill': amends_for(body, grab='bill'), # always present
-    'amends_amendment': amends_for(body, grab='amendment'), # sometimes present
+    'amends_bill': amends_bill,
+    'amends_treaty': amends_treaty,
+    'amends_amendment': amends_amendment,
 
     'offered_at': offered_at_for(body, 'offered'),
     'submitted_at': offered_at_for(body, 'submitted'),
@@ -86,10 +99,15 @@ def output_amendment(amdt, options):
   
   make_node = utils.make_node
   
-  make_node(root, "amends", None,
-    type=govtrack_type_codes[amdt["amends_bill"]["bill_type"]],
-    number=str(amdt["amends_bill"]["number"]),
-    sequence=str(amdt["house_number"]) if amdt.get("house_number", None) else "")
+  if amdt.get("amends_bill", None):
+    make_node(root, "amends", None,
+      type=govtrack_type_codes[amdt["amends_bill"]["bill_type"]],
+      number=str(amdt["amends_bill"]["number"]),
+      sequence=str(amdt["house_number"]) if amdt.get("house_number", None) else "")
+  elif amdt.get("amends_treaty", None):
+    make_node(root, "amends", None,
+      type="treaty",
+      number=str(amdt["amends_treaty"]["number"]))
   
   make_node(root, "status", amdt['status'], datetime=amdt['status_at'])
 
@@ -140,28 +158,60 @@ def house_number_for(body):
   else:
     raise Exception("Choked finding House amendment number.")
     
-def amends_for(body, grab):
-  # When an amendment amends an amendment, the bill is listed first, followed by a comma
-  # and newline. Skip the bill when it exists and just parse the amendment.
+def amends_bill_for(body):
+  bill_types = set(utils.thomas_types_2.keys()) - set(['HZ', 'SP', 'SU'])
+  bill_types = str.join("|", list(bill_types))
   match = re.search(r"Amends: "
-      + ("(?:.*\n, )" if grab == "amendment" else "")
-      + "<a href=\"/cgi-bin/bdquery/z\?d(\d+):([A-Z]+)(\d+):",
-      body)
+    + ("<a href=\"/cgi-bin/bdquery/z\?d(\d+):(%s)(\d+):" % bill_types),
+    body)
   if match:
     congress = int(match.group(1))
     bill_type = utils.thomas_types_2[match.group(2)]
     bill_number = int(match.group(3))
-    is_bill = bill_type not in ("samdt", "supamdt", "hamdt")
-    document_id = "%s%i-%i" % (bill_type, bill_number, congress)
+    bill_id = "%s%i-%i" % (bill_type, bill_number, congress)
     return {
+      "bill_id": bill_id,
       "congress": congress,
-      "bill_type" if is_bill else "amendment_type": bill_type,
-      "bill_id" if is_bill else "amendment_id": document_id,
+      "bill_type": bill_type,
       "number": bill_number
     }
-  else:
-    if grab == 'bill':
-      raise Exception("Choked finding out what bill the amendment amends.")
+
+def amends_amendment_for(body):
+  amendment_types = str.join("|", ['HZ', 'SP', 'SU'])
+  match = re.search(r"Amends: "
+    + "(?:.*\n, )?"
+    + ("<a href=\"/cgi-bin/bdquery/z\?d(\d+):(%s)(\d+):" % amendment_types),
+    body)
+  if match:
+    congress = int(match.group(1))
+    amendment_type = utils.thomas_types_2[match.group(2)]
+    amendment_number = int(match.group(3))
+    amendment_id = "%s%i-%i" % (amendment_type, amendment_number, congress)
+    
+    if amendment_type not in ("samdt", "supamdt", "hamdt"):
+      raise Exception("Choked on a bad detection of an amendment this amends.")
+
+    return {
+      "amendment_id": amendment_id,
+      "congress": congress,
+      "amendment_type": amendment_type,
+      "number": amendment_number
+    }
+
+def amends_treaty_for(body):
+  match = re.search(r"Amends: "
+    + "(?:.*\n, )?"
+    + "Treaty <a href=\"/cgi-bin/ntquery/z\?trtys:(\d+)TD(\d+):",
+    body)
+  if match:
+    congress = int(match.group(1))
+    treaty_number = int(match.group(2))
+    treaty_id = "treaty%i-%i" % (treaty_number, congress)
+    return {
+      "treaty_id": treaty_id,
+      "congress": congress,
+      "number": treaty_number
+    }
 
 def offered_at_for(body, offer_type):
   match = re.search(r"Sponsor:.*\n.*\(" + offer_type + " (\d+/\d+/\d+)", body, re.I)
@@ -244,7 +294,7 @@ def amendment_url_for(amendment_id):
   thomas_type = utils.thomas_types[amendment_type][0]
   congress = int(congress)
   number = int(number)
-  return "http://thomas.loc.gov/cgi-bin/bdquery/D?d%03d:%d:./list/bss/d%03d%s.lst::" % (congress, number, congress, thomas_type)
+  return "http://thomas.loc.gov/cgi-bin/bdquery/z?d%03d:%s%s:" % (congress, thomas_type, number)
 
 def amendment_cache_for(amendment_id, file):
   amendment_type, number, congress = utils.split_bill_id(amendment_id)
