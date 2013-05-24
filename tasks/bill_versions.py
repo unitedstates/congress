@@ -92,7 +92,7 @@ def output_for_bill_version(bill_version_id):
 # cache a file for an individual bill version
 def version_cache_for(bill_version_id, filename):
   bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
-  return "%s/%s/bills/%s/%s%s/versions/%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code, filename)
+  return "%s/%s/bills/%s/%s%s/text-versions/%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code, filename)
 
 
 # e.g. BILLS-113hr302ih

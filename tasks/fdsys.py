@@ -445,10 +445,9 @@ def output_for_bill(congress, bill_type, number, fn):
 #   urls: a dict of forms of this doc (<location>)
 def document_info_for(filename, cache, options):
   mods_url = mods_for(filename)
-  mods_cache = ""
   body = utils.download(mods_url, 
     cache,
-    utils.merge(options, {'xml': True})
+    utils.merge(options, {'xml': True, 'to_cache': False})
   )
 
   doc = etree.fromstring(body)
