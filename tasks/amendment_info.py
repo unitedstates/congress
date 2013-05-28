@@ -6,14 +6,14 @@ import utils
 from bill_info import sponsor_for, actions_for
 
 
-# downloads amendment information from THOMAS.gov, 
+# downloads amendment information from THOMAS.gov,
 # parses out basic information, writes JSON to disk
 
 def fetch_amendment(amendment_id, options):
   logging.info("\n[%s] Fetching..." % amendment_id)
-  
+
   body = utils.download(
-    amendment_url_for(amendment_id), 
+    amendment_url_for(amendment_id),
     amendment_cache_for(amendment_id, "information.html"),
     options)
 
@@ -27,10 +27,12 @@ def fetch_amendment(amendment_id, options):
     return {'saved': False, 'ok': True, 'reason': "orphaned amendment"}
 
   amendment_type, number, congress = utils.split_bill_id(amendment_id)
-  
+
   actions = actions_for(body, amendment_id, is_amendment=True)
   if actions is None: actions = []
   parse_amendment_actions(actions)
+
+  chamber = amendment_type[0]
 
   # good set of tests for each situation:
   # samdt712-113 - amendment to bill
@@ -47,36 +49,47 @@ def fetch_amendment(amendment_id, options):
   amdt = {
     'amendment_id': amendment_id,
     'amendment_type': amendment_type,
-    'chamber': amendment_type[0],
+    'chamber': chamber,
     'number': int(number),
     'congress': congress,
-    
+
     'amends_bill': amends_bill,
     'amends_treaty': amends_treaty,
     'amends_amendment': amends_amendment,
 
-    'offered_at': offered_at_for(body, 'offered'),
-    'submitted_at': offered_at_for(body, 'submitted'),
-    'proposed_at': offered_at_for(body, 'proposed'),
     'sponsor': sponsor_for(body),
 
     'title': amendment_simple_text_for(body, "title"),
     'description': amendment_simple_text_for(body, "description"),
     'purpose': amendment_simple_text_for(body, "purpose"),
-    
+
     'actions': actions,
-    
+
     'updated_at': datetime.datetime.fromtimestamp(time.time()),
   }
 
+  if chamber == 'h':
+    amdt['introduced_at'] = offered_at_for(body, 'offered')
+  elif chamber == 's':
+    amdt['introduced_at'] = offered_at_for(body, 'submitted')
+    amdt['proposed_at'] = offered_at_for(body, 'proposed')
+
+  if not amdt.get('introduced_at', None):
+    raise Exception("Couldn't find a reliable introduction date for amendment.")
+
+  # needs to come *after* the setting of introduced_at
   amdt['status'], amdt['status_at'] = amendment_status_for(amdt)
 
   # only set a house_number if it's a House bill -
   # this lets us choke if it's not found.
   if amdt['chamber'] == 'h':
-    amdt['house_number'] = house_simple_number_for(amdt['amendment_id'], amdt['purpose'] if amdt['purpose'] else amdt['description']) # numbers found in vote XML
-    amdt['offered_order'] = house_offered_order_for(body) # A___-style numbers
-  
+    # numbers found in vote XML
+    summary = amdt['purpose'] if amdt['purpose'] else amdt['description']
+    amdt['house_number'] = house_simple_number_for(amdt['amendment_id'], summary)
+
+    # A___-style numbers
+    amdt['offered_order'] = house_offered_order_for(body)
+
   output_amendment(amdt, options)
 
   return {'ok': True, 'saved': True}
@@ -86,7 +99,7 @@ def output_amendment(amdt, options):
 
   # output JSON - so easy!
   utils.write(
-    json.dumps(amdt, sort_keys=True, indent=2, default=utils.format_datetime), 
+    json.dumps(amdt, sort_keys=True, indent=2, default=utils.format_datetime),
     output_for_amdt(amdt['amendment_id'], "json")
   )
 
@@ -97,9 +110,9 @@ def output_amendment(amdt, options):
   root.set("chamber", amdt['amendment_type'][0])
   root.set("number", str(amdt['number']))
   root.set("updated", utils.format_datetime(amdt['updated_at']))
-  
+
   make_node = utils.make_node
-  
+
   if amdt.get("amends_bill", None):
     make_node(root, "amends", None,
       type=govtrack_type_codes[amdt["amends_bill"]["bill_type"]],
@@ -109,7 +122,7 @@ def output_amendment(amdt, options):
     make_node(root, "amends", None,
       type="treaty",
       number=str(amdt["amends_treaty"]["number"]))
-  
+
   make_node(root, "status", amdt['status'], datetime=amdt['status_at'])
 
   if amdt['sponsor'] and amdt['sponsor']['type'] == 'person':
@@ -124,12 +137,12 @@ def output_amendment(amdt, options):
   else:
     make_node(root, "sponsor", None)
 
-  make_node(root, "offered", None, datetime=amdt['offered_at'] if amdt['offered_at'] else amdt['submitted_at'])
-      
+  make_node(root, "offered", None, datetime=amdt['introduced_at'])
+
   if amdt["title"]: make_node(root, "title", amdt["title"])
   make_node(root, "description", amdt["description"] if amdt["description"] else amdt["purpose"])
   if amdt["description"]: make_node(root, "purpose", amdt["purpose"])
-      
+
   actions = make_node(root, "actions", None)
   for action in amdt['actions']:
       a = make_node(actions,
@@ -144,7 +157,7 @@ def output_amendment(amdt, options):
       if action.get('in_committee'): make_node(a, "committee", None, name=action['in_committee'])
       for cr in action['references']:
           make_node(a, "reference", None, ref=cr['reference'], label=cr['type'])
-          
+
   utils.write(
     etree.tostring(root, pretty_print=True),
     output_for_amdt(amdt['amendment_id'], "xml")
@@ -158,11 +171,11 @@ def house_offered_order_for(body):
     return int(match.group(1))
   else:
     raise Exception("Choked finding House amendment A___ number.")
-    
+
 def house_simple_number_for(amdt_id, purpose):
   # No purpose, so no number.
   if purpose is None: return None
-  
+
   # Explicitly no number.
   if re.match("Pursuant to the provisions of .* the amendment in the nature of a substitute consisting (of )?the text of (the )?Rules Committee Print .* (is|shall be) considered as adopted.", purpose): return None
   if re.match("Pursuant to the provisions of .* the .*amendment printed in .* is considered as adopted.", purpose): return None
@@ -170,11 +183,11 @@ def house_simple_number_for(amdt_id, purpose):
 
   match = re.match(r"(?:An )?(?:substitute )?amendment (?:in the nature of a substitute )?numbered (\d+) printed in (part .* of )?(House Report|the Congressional Record) ", purpose, re.I)
   if not match:
-    logging.warn("No number in purpose (%s):\n%s\n" % (amdt_id, purpose))
+    # logging.warn("No number in purpose (%s):\n%s\n" % (amdt_id, purpose))
     return
-    
+
   return int(match.group(1))
-    
+
 def amends_bill_for(body):
   bill_types = set(utils.thomas_types_2.keys()) - set(['HZ', 'SP', 'SU'])
   bill_types = str.join("|", list(bill_types))
@@ -204,7 +217,7 @@ def amends_amendment_for(body):
     amendment_type = utils.thomas_types_2[match.group(2)]
     amendment_number = int(match.group(3))
     amendment_id = "%s%i-%i" % (amendment_type, amendment_number, congress)
-    
+
     if amendment_type not in ("samdt", "supamdt", "hamdt"):
       raise Exception("Choked on a bad detection of an amendment this amends.")
 
@@ -258,17 +271,17 @@ def parse_amendment_actions(actions):
     m = re.match(r"On agreeing to the .* amendment (\(.*\) )?(Agreed to|Failed) (without objection|by [^\.:]+|by recorded vote: (\d+) - (\d+)(, \d+ Present)? \(Roll no. (\d+)\))\.", action['text'])
     if m:
       action["type"] = "vote"
-      
+
       if m.group(2) == "Agreed to":
         action["result"] = "pass"
       else:
         action["result"] = "fail"
-      
+
       action["how"] = m.group(3)
       if "recorded vote" in m.group(3):
         action["how"] = "roll"
         action["roll"] = int(m.group(7))
-      
+
     # Senate Vote
     m = re.match(r"(Motion to table )?Amendment SA \d+ (as modified )?(agreed to|not agreed to) in Senate by ([^\.:\-]+|Yea-Nay( Vote)?. (\d+) - (\d+)(, \d+ Present)?. Record Vote Number: (\d+))\.", action['text'])
     if m:
@@ -281,20 +294,20 @@ def parse_amendment_actions(actions):
         if m.group(1): # is a failed motion to table, so this doesn't count as a vote on agreeing to the amendment
           continue
         action["result"] = "fail"
-        
+
       action["how"] = m.group(4)
       if "Yea-Nay" in m.group(4):
         action["how"] = "roll"
         action["roll"] = int(m.group(9))
-        
+
     # Withdrawn
     m = re.match(r"Proposed amendment SA \d+ withdrawn in Senate", action['text'])
     if m:
       action['type'] = 'withdrawn'
-      
+
 def amendment_status_for(amdt):
   status = 'offered'
-  status_date = amdt['offered_at'] if amdt['offered_at'] else amdt['submitted_at']
+  status_date = amdt['introduced_at']
 
   for action in amdt['actions']:
     if action['type'] == 'vote':
@@ -303,7 +316,7 @@ def amendment_status_for(amdt):
     if action['type'] == 'withdrawn':
       status = 'withdrawn'
       status_date = action['acted_at']
-      
+
   return status, status_date
 
 def amendment_url_for(amendment_id):
