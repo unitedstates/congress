@@ -59,7 +59,6 @@ def fetch_amendment(amendment_id, options):
 
     'sponsor': sponsor_for(body),
 
-    'title': amendment_simple_text_for(body, "title"),
     'description': amendment_simple_text_for(body, "description"),
     'purpose': amendment_simple_text_for(body, "purpose"),
 
@@ -139,7 +138,6 @@ def output_amendment(amdt, options):
 
   make_node(root, "offered", None, datetime=amdt['introduced_at'])
 
-  if amdt["title"]: make_node(root, "title", amdt["title"])
   make_node(root, "description", amdt["description"] if amdt["description"] else amdt["purpose"])
   if amdt["description"]: make_node(root, "purpose", amdt["purpose"])
 
@@ -254,11 +252,9 @@ def offered_at_for(body, offer_type):
     return None # not all of offered/submitted/proposed will be present
 
 def amendment_simple_text_for(body, heading):
-  match = re.search(r"AMENDMENT " + heading.upper() + ":(<br />| )(.+)", body, re.I)
+  match = re.search(r"AMENDMENT " + heading.upper() + ":(<br />| )\n*(.+)", body, re.I)
   if match:
     text = match.group(2).strip()
-    if text == "*** TITLE NOT FOUND ***":
-      return None
     if "Purpose will be available when the amendment is proposed for consideration." in text:
       return None
     return text
