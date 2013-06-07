@@ -1019,7 +1019,9 @@ def history_from_actions(actions):
 #     bills that skip committee
 #     e.g. s227-113 (active)
 def activation_from(actions):
-  # there's always at least one
+  if len(actions) == 0:
+    return None
+  
   first = actions[0]
 
   if first['type'] in ["referral", "calendar", "action"]:
