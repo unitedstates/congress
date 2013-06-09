@@ -264,7 +264,7 @@ def amendment_simple_text_for(body, heading):
 def parse_amendment_actions(actions):
   for action in actions:
     # House Vote
-    m = re.match(r"On agreeing to the .* amendment (\(.*\) )?(Agreed to|Failed) (without objection|by [^\.:]+|by recorded vote: (\d+) - (\d+)(, \d+ Present)? \(Roll no. (\d+)\))\.", action['text'])
+    m = re.match(r"On agreeing to the .* amendment (\(.*\) )?(?:as amended )?(Agreed to|Failed) (without objection|by [^\.:]+|by recorded vote: (\d+) - (\d+)(, \d+ Present)? \(Roll no. (\d+)\))\.", action['text'])
     if m:
       action["type"] = "vote"
 
