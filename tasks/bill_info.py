@@ -9,7 +9,7 @@ from lxml.html import fromstring
 # can be run on its own, just require a bill_id
 def run(options):
   bill_id = options.get('bill_id', None)
-  
+
   if bill_id:
     result = fetch_bill(bill_id, options)
     logging.warn("\n%s" % result)
@@ -21,14 +21,14 @@ def run(options):
 # can raise an exception under various conditions
 def fetch_bill(bill_id, options):
   logging.info("\n[%s] Fetching..." % bill_id)
-  
+
   # fetch committee name map, if it doesn't already exist
   bill_type, number, congress = utils.split_bill_id(bill_id)
   if not utils.committee_names: utils.fetch_committee_names(congress, options)
-  
+
   # fetch bill details body
   body = utils.download(
-    bill_url_for(bill_id), 
+    bill_url_for(bill_id),
     bill_cache_for(bill_id, "information.html"),
     options)
 
@@ -42,7 +42,7 @@ def fetch_bill(bill_id, options):
     logging.warn("[%s] Reserved bill, not real, skipping..." % bill_id)
     return {'saved': False, 'ok': True, 'reason': "reserved bill"}
 
-  
+
   # conditions where we want to parse the bill from multiple pages instead of one:
 
   # 1) the all info page is truncated (~5-10 bills a congress)
@@ -68,22 +68,22 @@ def fetch_bill(bill_id, options):
 
   output_bill(bill, options)
 
-  
+
 
   # output PDF and/or HTML file if requested
-  
+
   if not options.get("formats", False):
     return {'ok': True, 'saved': True}
 
   status = {'ok': True, 'saved': True }
 
   options["formats"] = options["formats"].lower()
-  
+
   if options["formats"].lower() == "all":
     formats = ["pdf", "html"]
   else:
     formats = options["formats"].split(",")
-  
+
   gpo_urls = get_GPO_url_for_bill(bill_id, options)
 
   for fmt in formats:
@@ -95,7 +95,7 @@ def fetch_bill(bill_id, options):
     else:
       status[fmt] = False
 
-      
+
   return status
 
 def parse_bill(bill_id, body, options):
@@ -113,7 +113,7 @@ def parse_bill(bill_id, body, options):
   committees = committees_for(body, bill_id)
   amendments = amendments_for(body, bill_id)
 
-  return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
+  return process_bill(bill_id, options, introduced_at, sponsor, cosponsors,
     summary, titles, actions, related_bills, subjects, committees, amendments)
 
 
@@ -128,7 +128,7 @@ def parse_bill_split(bill_id, body, options):
 
   # cosponsors page
   cosponsors_body = utils.download(
-    bill_url_for(bill_id, "P"), 
+    bill_url_for(bill_id, "P"),
     bill_cache_for(bill_id, "cosponsors.html"),
     options)
   cosponsors_body = utils.unescape(cosponsors_body)
@@ -136,7 +136,7 @@ def parse_bill_split(bill_id, body, options):
 
   # summary page
   summary_body = utils.download(
-    bill_url_for(bill_id, "D"), 
+    bill_url_for(bill_id, "D"),
     bill_cache_for(bill_id, "summary.html"),
     options)
   summary_body = utils.unescape(summary_body)
@@ -144,7 +144,7 @@ def parse_bill_split(bill_id, body, options):
 
   # titles page
   titles_body = utils.download(
-    bill_url_for(bill_id, "T"), 
+    bill_url_for(bill_id, "T"),
     bill_cache_for(bill_id, "titles.html"),
     options)
   titles_body = utils.unescape(titles_body)
@@ -152,42 +152,42 @@ def parse_bill_split(bill_id, body, options):
 
   # actions page
   actions_body = utils.download(
-    bill_url_for(bill_id, "X"), 
+    bill_url_for(bill_id, "X"),
     bill_cache_for(bill_id, "actions.html"),
     options)
   actions_body = utils.unescape(actions_body)
   actions = actions_for(actions_body, bill_id)
 
   related_bills_body = utils.download(
-    bill_url_for(bill_id, "K"), 
+    bill_url_for(bill_id, "K"),
     bill_cache_for(bill_id, "related_bills.html"),
     options)
   related_bills_body = utils.unescape(related_bills_body)
   related_bills = related_bills_for(related_bills_body, congress, bill_id)
-  
+
   amendments_body = utils.download(
-    bill_url_for(bill_id, "A"), 
+    bill_url_for(bill_id, "A"),
     bill_cache_for(bill_id, "amendments.html"),
     options)
   amendments_body = utils.unescape(amendments_body)
   amendments = amendments_for_standalone(amendments_body, bill_id)
 
   committees_body = utils.download(
-    bill_url_for(bill_id, "C"), 
+    bill_url_for(bill_id, "C"),
     bill_cache_for(bill_id, "committees.html"),
     options)
   committees_body = utils.unescape(committees_body)
   committees = committees_for(committees_body, bill_id)
 
-  return process_bill(bill_id, options, introduced_at, sponsor, cosponsors, 
+  return process_bill(bill_id, options, introduced_at, sponsor, cosponsors,
     summary, titles, actions, related_bills, subjects, committees, amendments)
 
 
 # take the initial parsed content, extract more information, assemble output data
 def process_bill(bill_id, options,
-  introduced_at, sponsor, cosponsors, 
+  introduced_at, sponsor, cosponsors,
   summary, titles, actions, related_bills, subjects, committees, amendments):
-  
+
   bill_type, number, congress = utils.split_bill_id(bill_id)
 
   # for convenience: extract out current title of each type
@@ -224,7 +224,7 @@ def process_bill(bill_id, options,
     'status': status,
     'status_at': status_date,
     'enacted_as': slip_law,
-    
+
     'titles': titles,
     'official_title': official_title,
     'short_title': short_title,
@@ -246,7 +246,7 @@ def output_bill(bill, options):
 
   # output JSON - so easy!
   utils.write(
-    json.dumps(bill, sort_keys=True, indent=2, default=utils.format_datetime), 
+    json.dumps(bill, sort_keys=True, indent=2, default=utils.format_datetime),
     output_for_bill(bill['bill_id'], "json")
   )
 
@@ -257,7 +257,7 @@ def output_bill(bill, options):
   root.set("type", govtrack_type_codes[bill['bill_type']])
   root.set("number", bill['number'])
   root.set("updated", utils.format_datetime(bill['updated_at']))
-  
+
   def make_node(parent, tag, text, **attrs):
     if options.get("govtrack", False):
       # Rewrite thomas_id attributes as just id with GovTrack person IDs.
@@ -270,13 +270,13 @@ def output_bill(bill, options):
             v = str(utils.get_govtrack_person_id('thomas', v))
           attrs2[k] = v
       attrs = attrs2
-        
+
     return utils.make_node(parent, tag, text, **attrs)
-  
+
   make_node(root, "state", bill['status'], datetime=bill['status_at'])
   old_status = make_node(root, "status", None)
   make_node(old_status, "introduced" if bill['status'] in ("INTRODUCED", "REFERRED") else "unknown", None, datetime=bill['status_at']) # dummy for the sake of comparison
-  
+
   make_node(root, "introduced", None, datetime=bill['introduced_at'])
   titles = make_node(root, "titles", None)
   for title in bill['titles']:
@@ -291,7 +291,7 @@ def output_bill(bill, options):
   cosponsors = make_node(root, "cosponsors", None)
   for cosp in bill['cosponsors']:
       make_node(cosponsors, "cosponsor", None, thomas_id=cosp["thomas_id"], joined=cosp["sponsored_at"], withdrawn=cosp["withdrawn_at"])
-      
+
   actions = make_node(root, "actions", None)
   for action in bill['actions']:
       a = make_node(actions,
@@ -317,28 +317,28 @@ def output_bill(bill, options):
       if action.get('in_committee'): make_node(a, "committee", None, name=action['in_committee'])
       for cr in action['references']:
           make_node(a, "reference", None, ref=cr['reference'], label=cr['type'])
-          
+
   committees = make_node(root, "committees", None)
   for cmt in bill['committees']:
       make_node(committees, "committee", None, code=(cmt["committee_id"] + cmt["subcommittee_id"]) if cmt.get("subcommittee_id", None) else cmt["committee_id"], name=cmt["committee"], subcommittee=cmt.get("subcommittee").replace("Subcommittee on ", "") if cmt.get("subcommittee") else "", activity=", ".join(c.title() for c in cmt["activity"]))
-          
+
   relatedbills = make_node(root, "relatedbills", None)
   for rb in bill['related_bills']:
       if rb['type'] == "bill":
           rb_bill_type, rb_number, rb_congress = utils.split_bill_id(rb['bill_id'])
           make_node(relatedbills, "bill", None, session=rb_congress, type=govtrack_type_codes[rb_bill_type], number=rb_number, relation="unknown" if rb['reason'] == "related" else rb['reason'])
-  
+
   subjects = make_node(root, "subjects", None)
   if bill['subjects_top_term']:
     make_node(subjects, "term", None, name=bill['subjects_top_term'])
   for s in bill['subjects']:
     if s != bill['subjects_top_term']:
       make_node(subjects, "term", None, name=s)
-  
+
   amendments = make_node(root, "amendments", None)
   for amd in bill['amendments']:
       make_node(amendments, "amendment", None, number=amd["chamber"] + str(amd["number"]))
-  
+
   if bill.get('summary'): make_node(root, "summary", re.sub(r"^0|(/)0", lambda m : m.group(1), datetime.datetime.strftime(datetime.datetime.strptime(bill['summary']['date'], "%Y-%m-%d"), "%m/%d/%Y")) + "--" + bill['summary'].get('as', '?') + ".\n" + bill['summary']['text']) #, date=bill['summary'].get('date'), status=bill['summary'].get('as'))
 
   utils.write(
@@ -360,7 +360,7 @@ def sponsor_for(body):
         state, district = match.group(4).split('-')
       else:
         state, district = match.group(4), None
-      
+
       thomas_id = match.group(2)
       if not re.match(r"\d{5}$", thomas_id):
         raise Exception("Choked parsing sponsor.")
@@ -368,7 +368,7 @@ def sponsor_for(body):
       # zero-pad and apply corrections
       thomas_id = "%05d" % int(thomas_id)
       thomas_id = utils.thomas_corrections(thomas_id)
-      
+
 
       name = match.group(3).strip()
       title, name = re.search("^(Rep|Sen|Del|Com)\.? (.*?)$", name).groups()
@@ -377,8 +377,8 @@ def sponsor_for(body):
         'type': 'person',
         'title': title,
         'name': name,
-        'thomas_id': thomas_id, 
-        'state': state, 
+        'thomas_id': thomas_id,
+        'state': state,
         'district': district
       }
     else: # it's a committee
@@ -391,7 +391,7 @@ def sponsor_for(body):
         'name': name,
         'committee_id': committee_id,
       }
-    
+
   else:
     raise Exception("Choked finding sponsor information.")
 
@@ -427,9 +427,9 @@ def summary_for(body):
 
   # compress and strip whitespace artifacts
   text = re.sub("\s{2,}", " ", text).strip()
-  
+
   ret["text"] = text
-  
+
   return ret
 
 def parse_committee_rows(rows, bill_id):
@@ -450,7 +450,7 @@ def parse_committee_rows(rows, bill_id):
     if match2:
       committee = match2.group().strip()
       # remove excess internal spacing
-      committee = re.sub("\\s{2,}", " ", committee) 
+      committee = re.sub("\\s{2,}", " ", committee)
     else:
       raise Exception("Couldn't find committee name. Line was: " + row)
 
@@ -458,10 +458,10 @@ def parse_committee_rows(rows, bill_id):
     match3 = re.search("(?<=<td width=\"65%\">).*?(?=</td>)", row)
     if match3:
       activity_string = match3.group().strip().lower()
-     
+
       #splits string of activities into activity list
       activity_list = activity_string.split(",")
-      
+
       #strips white space from each activity in list
       activity = []
       for x in activity_list:
@@ -496,8 +496,8 @@ def committees_for(body, bill_id):
   committee_names = utils.committee_names
 
   # grabs entire Committee & Subcommittee table
-  match = re.search("COMMITTEE\(S\):<.*?<ul>.*?</table>", body, re.I | re.S)  
-  if match: 
+  match = re.search("COMMITTEE\(S\):<.*?<ul>.*?</table>", body, re.I | re.S)
+  if match:
     committee_text = match.group().strip()
 
     # returns empty array for bills not assigned to a committee; e.g. bill_id=hr19-112
@@ -505,7 +505,7 @@ def committees_for(body, bill_id):
     if none_match:
       committee_info = []
     else:
-      # splits Committee & Subcommittee table up by table row     
+      # splits Committee & Subcommittee table up by table row
       rows = committee_text.split("</tr>")
       committee_info = parse_committee_rows(rows, bill_id)
 
@@ -597,10 +597,10 @@ def actions_for(body, bill_id, is_amendment=False):
   else:
     # This function is also used by amendment_info.py.
     match = re.search(">STATUS:<.*?<dl>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
-    
+
     # The Status section is optional for amendments.
     if not match: return None
-  
+
   if not match:
     if re.search("ALL ACTIONS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
       return [] # no actions, can happen for bills reserved for the Speaker
@@ -618,13 +618,13 @@ def actions_for(body, bill_id, is_amendment=False):
   for piece in pieces:
     if re.search("<strong>", piece) is None:
       continue
-    
+
     action_pieces = re.search("((?:</?dl>)*)<dt><strong>(.*?):</strong><dd>(.+?)$", piece)
     if not action_pieces:
       raise Exception("Choked on parsing an action: %s" % piece)
 
     indentation_changes, timestamp, text = action_pieces.groups()
-    
+
     # indentation indicates a committee action, track the indentation level
     for indentation_change in re.findall("</?dl>", indentation_changes):
       if indentation_change == "<dl>": indentation_level += 1
@@ -647,7 +647,7 @@ def actions_for(body, bill_id, is_amendment=False):
       'references': references
     }
     actions.append(action)
-    
+
     # Associate subcommittee actions with the parent committee by including
     # a reference to the last top-level action line's dict, since we haven't
     # yet parsed which committee it is in. Likewise for 2nd-level indentation
@@ -671,7 +671,7 @@ def actions_for(body, bill_id, is_amendment=False):
           logging.info("[%s] Sub-committee-level action without a preceding committee-level action." % bill_id)
       else:
           logging.info("[%s] Sub-committee-level action without a preceding top-level action." % bill_id)
-  
+
   # THOMAS has a funny way of outputting actions. It is sorted by date,
   # except that committee events are grouped together. Once we identify
   # the committees related to events, we should sort the events properly
@@ -696,7 +696,7 @@ def actions_for(body, bill_id, is_amendment=False):
       pass
     return cmp(a, b)
   actions.sort(action_comparer) # .sort() is stable, so original order is preserved where cmp == 0
-  
+
   return actions
 
 
@@ -723,7 +723,7 @@ def action_for(text):
     # fix a missing semicolon altogether between references
     # e.g. sres107-112, "consideration: CR S1877-1878 text as"
     types = re.sub("(\d+) +([a-z])", r"\1; \2", types)
-    
+
     for reference in re.split("; ?", types):
       if ": " not in reference:
         type, reference = None, reference
@@ -736,12 +736,12 @@ def action_for(text):
 
 def introduced_at_for(body):
   doc = fromstring(body)
-  
+
   introduced_at = None
   for meta in doc.cssselect('meta'):
     if meta.get('name') == 'dc.date':
       introduced_at = meta.get('content')
-  
+
   if not introduced_at:
     raise Exception("Couldn't find an introduction date in the meta tags.")
 
@@ -776,13 +776,13 @@ def cosponsors_for(body):
     m = re.search(r"<a href=[^>]+(\d{5}).*>(Rep|Sen) (.+?)</a> \[([A-Z\d\-]+)\]\s*- (\d\d?/\d\d?/\d\d\d\d)(?:\(withdrawn - (\d\d?/\d\d?/\d\d\d\d)\))?", line, re.I)
     if not m:
       raise Exception("Choked scanning cosponsor line: %s" % line)
-    
+
     thomas_id, title, name, district, join_date, withdrawn_date = m.groups()
 
     # zero-pad thomas ID and apply corrections
     thomas_id = "%05d" % int(thomas_id)
     thomas_id = utils.thomas_corrections(thomas_id)
-    
+
     if len(district.split('-')) == 2:
         state, district_number = district.split('-')
     else:
@@ -815,7 +815,7 @@ def subjects_for(body):
       subjects.append(meta.get('content'))
       if not top_term: top_term = meta.get('content')
   subjects.sort()
-      
+
   return top_term, subjects
 
 def related_bills_for(body, congress, bill_id):
@@ -846,7 +846,7 @@ def related_bills_for(body, congress, bill_id):
       details = {"type": "amendment", "amendment_id": related_id}
     else:
       details = {"type": "bill", "bill_id": related_id}
-    
+
     reasons = (
       ("Identical bill identified by (CRS|House|Senate)", "identical"),
       ("Companion bill", "identical"),
@@ -885,7 +885,7 @@ def slip_law_from(actions):
 # given the parsed list of actions from actions_for, run each action
 # through metadata extraction and figure out what current status the bill is in
 def process_actions(actions, bill_id, title, introduced_date):
-  
+
   status = "INTRODUCED" # every bill is at least introduced
   status_date = introduced_date
   new_actions = []
@@ -902,7 +902,7 @@ def process_actions(actions, bill_id, title, introduced_date):
     if new_action:
       action.update(new_action)
       new_actions.append(action)
-      
+
       if "subcommittee_action_ref" in action:
         action["in_committee"] = action["committee_action_ref"].get("committee", None)
         action["in_subcommittee"] = action["subcommittee_action_ref"].get("subcommittee", None)
@@ -925,7 +925,7 @@ def latest_status(actions):
 
 # look at the final set of processed actions and pull out the major historical events
 def history_from_actions(actions):
-  
+
   history = {}
 
   activation = activation_from(actions)
@@ -958,7 +958,7 @@ def history_from_actions(actions):
   if senate_vote:
     history['senate_cloture_result'] = senate_vote['result']
     history['senate_cloture_result_at'] = senate_vote['acted_at']
-  
+
   vetoed = None
   for action in actions:
     if action['type'] == 'vetoed':
@@ -994,7 +994,7 @@ def history_from_actions(actions):
     history['enacted_at'] = action['acted_at']
   else:
     history['enacted'] = False
-  
+
   topresident = None
   for action in actions:
     if action['type'] == 'topresident':
@@ -1019,7 +1019,10 @@ def history_from_actions(actions):
 #     bills that skip committee
 #     e.g. s227-113 (active)
 def activation_from(actions):
-  # there's always at least one
+  # there's NOT always at least one :(
+  # as of 2013-06-10, hr2272-113 has no actions at all
+  if len(actions) == 0: return None
+
   first = actions[0]
 
   if first['type'] in ["referral", "calendar", "action"]:
@@ -1027,26 +1030,26 @@ def activation_from(actions):
       if (action['type'] != "referral") and (action['type'] != "calendar") and ("Sponsor introductory remarks" not in action['text']):
         return action
     return None
-  else: 
+  else:
     return first
 
 def parse_bill_action(line, prev_status, bill_id, title):
   """Parse a THOMAS bill action line. Returns attributes to be set in the XML file on the action line."""
-  
+
   bill_type, number, congress = utils.split_bill_id(bill_id)
 
   status = None
   action = {
     "type": "action"
   }
-  
+
   # If a line starts with an amendment number, this action is on the amendment and cannot
   # be parsed yet.
   m = re.search(r"^(H|S)\.Amdt\.(\d+)", line, re.I)
   if m != None:
     # Process actions specific to amendments separately.
     return None, None
-  
+
   # Otherwise, parse the action line for key actions.
 
   # A House Vote.
@@ -1054,7 +1057,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
   m = re.search(r"(On passage|On motion to suspend the rules and pass the bill|On motion to suspend the rules and agree to the resolution|On motion to suspend the rules and pass the resolution|On agreeing to the resolution|On agreeing to the conference report|Two-thirds of the Members present having voted in the affirmative the bill is passed,?|On motion that the House agree to the Senate amendments?|On motion that the House suspend the rules and concur in the Senate amendments?|On motion that the House suspend the rules and agree to the Senate amendments?|On motion that the House agree with an amendment to the Senate amendments?|House Agreed to Senate Amendments.*?|Passed House)(, the objections of the President to the contrary notwithstanding.?)?(, as amended| \(Amended\))? (Passed|Failed|Agreed to|Rejected)? ?(by voice vote|without objection|by (the Yeas and Nays|Yea-Nay Vote|recorded vote)((:)? \(2/3 required\))?: \d+ - \d+(, \d+ Present)? [ \)]*\((Roll no\.|Record Vote No:) \d+\))", line, re.I)
   if m != None:
     motion, is_override, as_amended, pass_fail, how = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
-  
+
     # print line
     # print m.groups()
 
@@ -1066,10 +1069,10 @@ def parse_bill_action(line, prev_status, bill_id, title):
       pass_fail = 'pass'
     else:
       pass_fail = 'fail'
-    
+
     if "Two-thirds of the Members present" in motion:
       is_override = True
-    
+
     if is_override:
       vote_type = "override"
     elif re.search(r"(agree (with an amendment )?to|concur in) the Senate amendment", line, re.I):
@@ -1080,7 +1083,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
       vote_type = "vote"
     else:
       vote_type = "vote2"
-    
+
     roll = None
     m = re.search(r"\((Roll no\.|Record Vote No:) (\d+)\)", how, re.I)
     if m != None:
@@ -1104,7 +1107,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
     new_status = new_status_after_vote(vote_type, pass_fail=="pass", "h", bill_type, suspension, as_amended, title, prev_status)
     if new_status:
       status = new_status
-    
+
   # Passed House, not necessarily by an actual vote (think "deem")
   m = re.search(r"Passed House pursuant to", line, re.I)
   if m != None:
@@ -1119,16 +1122,16 @@ def parse_bill_action(line, prev_status, bill_id, title):
 
     # get the new status of the bill after this vote
     new_status = new_status_after_vote(vote_type, pass_fail=="pass", "h", bill_type, False, False, title, prev_status)
-    
+
     if new_status:
       status = new_status
-  
+
   # A Senate Vote
   m = re.search(r"(Passed Senate|Failed of passage in Senate|Disagreed to in Senate|Resolution agreed to in Senate|Received in the Senate, considered, and agreed to|Submitted in the Senate, considered, and agreed to|Introduced in the Senate, read twice, considered, read the third time, and passed|Received in the Senate, read twice, considered, read the third time, and passed|Senate agreed to conference report|Cloture \S*\s?on the motion to proceed .*?not invoked in Senate|Cloture on the bill not invoked in Senate|Cloture on the bill invoked in Senate|Cloture invoked in Senate|Cloture on the motion to proceed to the bill invoked in Senate|Cloture on the motion to proceed to the bill not invoked in Senate|Senate agreed to House amendment|Senate concurred in the House amendment)(,?.*,?) (without objection|by Unanimous Consent|by Voice Vote|by Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)", line, re.I)
   if m != None:
     motion, extra, how = m.group(1), m.group(2), m.group(3)
     roll = None
-    
+
     # put disagreed check first, cause "agreed" is contained inside it
     if re.search("disagreed", motion, re.I):
       pass_fail = "fail"
@@ -1136,7 +1139,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
       pass_fail = "pass"
     else:
       pass_fail = "fail"
-      
+
     voteaction_type = "vote"
     if re.search("over veto", extra, re.I):
       vote_type = "override"
@@ -1151,16 +1154,16 @@ def parse_bill_action(line, prev_status, bill_id, title):
       vote_type = "vote"
     else:
       vote_type = "vote2"
-      
+
     m = re.search(r"Record Vote (No|Number): (\d+)", how, re.I)
     if m != None:
       roll = m.group(2)
       how = "roll"
-      
+
     as_amended = False
     if re.search(r"with amendments|with an amendment", extra, re.I):
       as_amended = True
-      
+
     action["type"] = voteaction_type
     action["vote_type"] = vote_type
     action["how"] = how
@@ -1171,32 +1174,32 @@ def parse_bill_action(line, prev_status, bill_id, title):
 
     # get the new status of the bill after this vote
     new_status = new_status_after_vote(vote_type, pass_fail=="pass", "s", bill_type, False, as_amended, title, prev_status)
-    
+
     if new_status:
       status = new_status
-      
+
   # TODO: Make a new status for this as pre-reported.
   m = re.search(r"Placed on (the )?([\w ]+) Calendar( under ([\w ]+))?[,\.] Calendar No\. (\d+)\.|Committee Agreed to Seek Consideration Under Suspension of the Rules|Ordered to be Reported", line, re.I)
   if m != None:
     # TODO: This makes no sense.
     if prev_status in ("INTRODUCED", "REFERRED"):
       status = "REPORTED"
-    
+
     action["type"] = "calendar"
-    
+
     # TODO: Useless. But good for GovTrack compatibility.
     if m.group(2): # not 'Ordered to be Reported'
       action["calendar"] = m.group(2)
       action["under"] = m.group(4)
       action["number"] = m.group(5)
-  
+
   m = re.search(r"Committee on (.*)\. Reported by", line, re.I)
   if m != None:
     action["type"] = "reported"
     action["committee"] = m.group(1)
     if prev_status in ("INTRODUCED", "REFERRED"):
       status = "REPORTED"
-  
+
   # hearings held by a committee
   m = re.search(r"(Committee on .*?)\. Hearings held", line, re.I)
   if m != None:
@@ -1209,15 +1212,15 @@ def parse_bill_action(line, prev_status, bill_id, title):
     action["type"] = "discharged"
     if prev_status in ("INTRODUCED", "REFERRED"):
       status = "REPORTED"
-      
+
   m = re.search("Cleared for White House|Presented to President", line, re.I)
   if m != None:
     action["type"] = "topresident"
-    
+
   m = re.search("Signed by President", line, re.I)
   if m != None:
     action["type"] = "signed"
-    
+
   m = re.search("Pocket Vetoed by President", line, re.I)
   if m != None:
     action["type"] = "vetoed"
@@ -1225,12 +1228,12 @@ def parse_bill_action(line, prev_status, bill_id, title):
     status = "VETOED:POCKET"
 
   # need to put this in an else, or this regex will match the pocket veto and override it
-  else: 
+  else:
     m = re.search("Vetoed by President", line, re.I)
     if m != None:
       action["type"] = "vetoed"
       status = "PROV_KILL:VETO"
-    
+
   m = re.search("Became (Public|Private) Law No: ([\d\-]+)\.", line, re.I)
   if m != None:
     action["law"] = m.group(1).lower()
@@ -1238,25 +1241,25 @@ def parse_bill_action(line, prev_status, bill_id, title):
     action["congress"] = pieces[0]
     action["number"] = pieces[1]
     action["type"] = "enacted"
-    if prev_status != "PROV_KILL:VETO" and not prev_status.startswith("VETOED:"):       
+    if prev_status != "PROV_KILL:VETO" and not prev_status.startswith("VETOED:"):
       status = "ENACTED:SIGNED"
     else:
       status = "ENACTED:VETO_OVERRIDE"
-    
+
   m = re.search(r"Referred to (the )?((House|Senate|Committee) [^\.]+).?", line, re.I)
   if m != None:
     action["type"] = "referral"
     action["committee"] = m.group(2)
     if prev_status == "INTRODUCED":
       status = "REFERRED"
-    
+
   m = re.search(r"Referred to (the )?Subcommittee(?: on)? (.*[^\.]).?", line, re.I)
   if m != None:
     action["type"] = "referral"
     action["subcommittee"] = m.group(2)
     if prev_status == "INTRODUCED":
       status = "REFERRED"
-    
+
   m = re.search(r"Received in the Senate and referred to (the )?(.*[^\.]).?", line, re.I)
   if m != None:
     action["type"] = "referral"
@@ -1267,7 +1270,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
   bill_ids = filter(lambda b: b != bill_id, bill_ids)
   if bill_ids and (len(bill_ids) > 0):
     action['bill_ids'] = bill_ids
-        
+
   return action, status
 
 def new_status_after_vote(vote_type, passed, chamber, bill_type, suspension, amended, title, prev_status):
@@ -1351,7 +1354,7 @@ def new_status_after_vote(vote_type, passed, chamber, bill_type, suspension, ame
           return 'CONFERENCE:PASSED:HOUSE'
         else:
           return 'CONFERENCE:PASSED:SENATE'
-      
+
   return None
 
 # parse amendments out of undocumented standalone amendments page
@@ -1384,7 +1387,7 @@ def amendments_for_standalone(body, bill_id):
 
 def amendments_for(body, bill_id):
   bill_type, number, congress = utils.split_bill_id(bill_id)
-  
+
   # it is possible in older sessions for the amendments section to not appear at all.
   # if this method is being run, we know the page is not truncated, so if the header
   # is not at all present, assume the page is missing amendments because there are none.
@@ -1425,7 +1428,7 @@ def too_many_amendments(body):
   amendments = re.findall("(<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(SP|HZ)\d+:\">(S|H)\.AMDT\.\d+\s*</a> to )", body, re.I)
   return (len(amendments) >= 150)
 
-# bills reserved for the Speaker or Minority Leader are not actual legislation, 
+# bills reserved for the Speaker or Minority Leader are not actual legislation,
 # just markers that the number will not be used for ordinary members' bills
 def reserved_bill(body):
   if re.search("OFFICIAL TITLE AS INTRODUCED:((?:(?!\<hr).)+)Reserved for the (Speaker|Minority Leader)", body, re.S | re.I):
@@ -1436,7 +1439,7 @@ def reserved_bill(body):
 # fetch GPO URLs for PDF and HTML formats
 def get_GPO_url_for_bill(bill_id, options):
   # we need the URL of the pdf on GPO
-  # there may be a way to calculate it, but in the meantime we'll get it the old-fashioned way      
+  # there may be a way to calculate it, but in the meantime we'll get it the old-fashioned way
   # first get the THOMAS landing page. This may be duplicating work, but didn't see anything
   # Maybe TODO -- reconcile with fdsys script (ideally without downloading large sitemaps for a single bill)
   bill_type, number, congress = utils.split_bill_id(bill_id)
@@ -1444,12 +1447,12 @@ def get_GPO_url_for_bill(bill_id, options):
   congress = int(congress)
   landing_url = "http://thomas.loc.gov/cgi-bin/bdquery/D?d%03d:%s:./list/bss/d%03d%s.lst:" % (congress, number, congress, thomas_type)
   landing_page = utils.download(
-    landing_url, 
+    landing_url,
     bill_cache_for(bill_id, "landing_page.html"),
     options)
   text_landing_page_url = "http://thomas.loc.gov/cgi-bin/query/z" + re.search('href="/cgi-bin/query/z?(.*?)">Text of Legislation', landing_page, re.I | re.S).groups(1)[0]
   text_landing_page = utils.download(
-    text_landing_page_url, 
+    text_landing_page_url,
     bill_cache_for(bill_id, "text_landing_page.html"),
     options)
   gpo_urls = re.findall('http://www.gpo.gov/fdsys/(.*?)\.pdf', text_landing_page, re.I | re.S)
@@ -1463,7 +1466,7 @@ def get_GPO_url_for_bill(bill_id, options):
     "pdf": "http://www.gpo.gov/fdsys/" + gpo_urls[-1] + ".pdf",
     "html": "http://www.gpo.gov/fdsys/" + gpo_urls[-1].replace("pdf", "html") + ".htm"
   }
-  
+
 
 # directory helpers
 
