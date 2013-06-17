@@ -270,7 +270,9 @@ def parse_amendment_actions(actions):
     # House Vote
     m = re.match(r"On agreeing to the .* amendment (\(.*\) )?(?:as amended )?(Agreed to|Failed) (without objection|by [^\.:]+|by (?:recorded vote|the Yeas and Nays): (\d+) - (\d+)(, \d+ Present)? \(Roll no. (\d+)\))\.", action['text'])
     if m:
+      action["where"] = "h"
       action["type"] = "vote"
+      action["vote_type"] = "vote"
 
       if m.group(2) == "Agreed to":
         action["result"] = "pass"
@@ -286,6 +288,9 @@ def parse_amendment_actions(actions):
     m = re.match(r"(Motion to table )?Amendment SA \d+ (as modified )?(agreed to|not agreed to) in Senate by ([^\.:\-]+|Yea-Nay( Vote)?. (\d+) - (\d+)(, \d+ Present)?. Record Vote Number: (\d+))\.", action['text'])
     if m:
       action["type"] = "vote"
+      action["vote_type"] = "vote"
+      action["where"] = "s"
+
       if m.group(3) == "agreed to":
         action["result"] = "pass"
         if m.group(1): # is a motion to table, so result is sort of reversed.... eeek
