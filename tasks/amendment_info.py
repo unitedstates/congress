@@ -255,6 +255,10 @@ def amendment_simple_text_for(body, heading):
   match = re.search(r"AMENDMENT " + heading.upper() + ":(<br />| )\n*(.+)", body, re.I)
   if match:
     text = match.group(2).strip()
+
+    # naive stripping of tags, should work okay in this limited context
+    text = re.sub("<[^>]+>", "", text)
+
     if "Purpose will be available when the amendment is proposed for consideration." in text:
       return None
     return text
