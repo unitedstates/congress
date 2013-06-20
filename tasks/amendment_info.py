@@ -285,7 +285,7 @@ def parse_amendment_actions(actions):
         action["roll"] = int(m.group(7))
 
     # Senate Vote
-    m = re.match(r"(Motion to table )?Amendment SA \d+ (as modified )?(agreed to|not agreed to) in Senate by ([^\.:\-]+|Yea-Nay( Vote)?. (\d+) - (\d+)(, \d+ Present)?. Record Vote Number: (\d+))\.", action['text'])
+    m = re.match(r"(Motion to table )?Amendment SA \d+(?:, .*?) (as modified )?(agreed to|not agreed to) in Senate by ([^\.:\-]+|Yea-Nay( Vote)?. (\d+) - (\d+)(, \d+ Present)?. Record Vote Number: (\d+))\.", action['text'])
     if m:
       action["type"] = "vote"
       action["vote_type"] = "vote"
