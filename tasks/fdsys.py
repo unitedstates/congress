@@ -331,12 +331,10 @@ def mirror_file(year, collection, package_name, lastmod, granule_name, file_type
       # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
       # TODO: Encoding? The HTTP content-type header says UTF-8, but do we trust it?
       #       html.fromstring does auto-detection.
-      try:
+      if data:
         with open(f_path[0:-4] + "txt", "w") as f:
           text_content = unicode(html.fromstring(data).text_content())
           f.write(text_content.encode("utf8"))
-      except Exception as e:
-        logging.error("Unable to parse file as html: {}".format(f_path))
 
 
   # Write the current last modified date to disk so we know the next time whether
