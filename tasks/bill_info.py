@@ -1470,9 +1470,13 @@ def get_GPO_url_for_bill(bill_id, options):
 
 # directory helpers
 
-def output_for_bill(bill_id, format):
+def output_for_bill(bill_id, format, is_data_dot=True):
   bill_type, number, congress = utils.split_bill_id(bill_id)
-  return "%s/%s/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, "data.%s" % format)
+  if is_data_dot:
+    fn = "data.%s" % format
+  else:
+    fn = format
+  return "%s/%s/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, fn)
 
 # defaults to "All Information" page for a bill
 def bill_url_for(bill_id, page = "L"):

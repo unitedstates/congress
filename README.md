@@ -115,18 +115,20 @@ Bill text is stored in a text-versions directory within each bill directory, e.g
 	data/112/bills/hr/hr68/text-versions/ih/document.xml
 	data/112/bills/hr/hr68/text-versions/ih/document.html (original HTML wrapper around plain text)
 	data/112/bills/hr/hr68/text-versions/ih/document.txt (UTF-8 encoded)
+	data/112/bills/hr/hr68/text-versions/ih/data.json (common metadata extracted from mods.xml)
 	
-The subdirectory name indicates the bill text version code assigned by GPO (ih, enr, etc.). The mods.xml file has metadata from GPO.
+The subdirectory name indicates the bill text version code assigned by GPO (ih, enr, etc.). The mods.xml file has metadata from GPO, some of which is also extracted into data.json. Use the JSON file to determine which is the most recent text version if you want to find the most recent text of a bill.
 
 Running the command again will smartly update changed files by scanning through FDSys's sitemaps.
 
-A separate task called bill_versions will extract some common metadata into handy JSON (using the same status codes as above).
+A separate task called bill_versions will download just the mods.xml files (if they aren't already downloaded) and will create just the data.json files.
 
 	./run bill_versions --congress=112
-	data/112/bills/hjres/hjres6/text-versions/ih.json
+	data/112/bills/hjres/hjres6/text-versions/ih/mods.xml
+	data/112/bills/hjres/hjres6/text-versions/ih/data.json
 
-Use this JSON file to determine which is the most recent text version if you want to find the most recent text of a bill.
-
+Use bill_versions if you only need the MODS and JSON files, or to update the JSON files in bulk if our data format changes.
+	
 Back on the fdsys scraper, the stored files for other collections (besides bills) are organized in a more generic way: in data/fdsys/COLLECTION/YEAR/PKGID. The PKGID is the package identifier for the file on FDSys. For instance:
 
 	./run fdsys --collections=STATUTE --year=1982 --store=mods
@@ -136,7 +138,7 @@ The collections argument can take a comma-separated list of collections. To get 
 
 	./run fdsys --list-collections
 	
-All arguments are optional. Without --store, the script just updates a local copy of the sitemap files in cache/fdsys/sitemap/YEAR/COLLECTION.xml. Use --cached to force the use of cached files and not hit the network. Use --force to download all files anew.
+All arguments are optional. Without --store, the script just updates a local copy of the sitemap files in cache/fdsys/sitemap/YEAR/COLLECTION.xml. Use --cached to force the use of cached files and not hit the network except when a file does not exist. Use --force to download all files anew.
 
 Committee Meetings
 ------------------

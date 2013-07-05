@@ -4,6 +4,7 @@ import re
 import json
 import datetime
 import logging
+from lxml import etree
 
 import fdsys
 
@@ -83,48 +84,67 @@ def split_url(url):
   return congress, bill_id, bill_version_id
 
 
-# an output text-versions.json for every bill
+# an output text-versions/[versioncode]/data.json for every bill
 def output_for_bill_version(bill_version_id):
   bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
   return "%s/%s/bills/%s/%s%s/text-versions/%s/data.json" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code)
 
 
-# cache a file for an individual bill version
-def version_cache_for(bill_version_id, filename):
+# the path to where we store MODSs files on disk
+def document_filename_for(bill_version_id, filename):
   bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
   return "%s/%s/bills/%s/%s%s/text-versions/%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code, filename)
 
-
-# e.g. BILLS-113hr302ih
-def filename_for(bill_version_id):
+# e.g. http://www.gpo.gov/fdsys/pkg/BILLS-113hr302ih/mods.xml
+def mods_url_for(bill_version_id):
   bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
-  return "BILLS-%s%s%s%s" % (congress, bill_type, number, version_code)
-
-
+  return "http://www.gpo.gov/fdsys/pkg/BILLS-%s%s%s%s/mods.xml" % (congress, bill_type, number, version_code)
 
 # given an individual bill version ID, download at least the MODs file 
-# (and, if requested with --store, the PREMIS file and text documents too)
-# and produce a text-versions.json with version codes, version names, 
+# and produce text-versions/[versionid]/data.json with version codes, version names, 
 # the date of publication, and URLs to the MODs, PREMIS, and original docs
 def fetch_version(bill_version_id, options):
+  # Download MODS etc.
+	
   logging.info("\n[%s] Fetching..." % bill_version_id)
   
   bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
   # bill_id = "%s%s-%s" % (bill_type, number, congress)
 
-  mods_filename = filename_for(bill_version_id)
-  mods_cache = version_cache_for(bill_version_id, "mods.xml")
-  issued_on, urls = fdsys.document_info_for(mods_filename, mods_cache, options)
+  utils.download(
+    mods_url_for(bill_version_id), 
+    document_filename_for(bill_version_id, "mods.xml"),
+    utils.merge(options, {'xml': True, 'to_cache': False})
+  )
   
+  return write_bill_version_metadata(bill_version_id)
+  
+def write_bill_version_metadata(bill_version_id):
+  bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
+
   bill_version = {
-    'issued_on': issued_on,
-    'urls': urls,
+    'bill_version_id': bill_version_id,
     'version_code': version_code,
-    'bill_version_id': bill_version_id
+    'urls': { },
   }
 
-  # 'bill_version_id': bill_version_id,
-  #   'version_code': version_code
+  mods_ns = {"mods": "http://www.loc.gov/mods/v3"}
+  doc = etree.parse(document_filename_for(bill_version_id, "mods.xml"))
+  locations = doc.xpath("//mods:location/mods:url", namespaces=mods_ns)
+
+  for location in locations:
+    label = location.attrib['displayLabel']
+    if "HTML" in label:
+      format = "html"
+    elif "PDF" in label:
+      format = "pdf"
+    elif "XML" in label:
+      format = "xml"
+    else:
+      format = "unknown"
+    bill_version["urls"][format] = location.text
+
+  bill_version["issued_on"] = doc.xpath("string(//mods:dateIssued)", namespaces=mods_ns)
 
   utils.write(
     json.dumps(bill_version, sort_keys=True, indent=2, default=utils.format_datetime), 
@@ -132,3 +152,4 @@ def fetch_version(bill_version_id, options):
   )
 
   return {'ok': True, 'saved': True}
+  

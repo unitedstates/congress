@@ -11,23 +11,24 @@
 # ./run fdsys --collections=BILLS,STATUTE
 # Only fetch sitemaps for these collections.
 #
-# ./run fdsys --cached|force
+# ./run fdsys --cached|--force
 # Always/never use the cache.
 #
-# # ./run fdsys --collections=BILLS --congress=XXX
+# ./run fdsys --collections=BILLS --congress=XXX
 # Updates the sitemaps for the years of the indicated Congress
 # and then outputs text-versions.json next to each bill data.json
 # file from the bills scraper.
 #
-# ./run fdsys ... --store mods,pdf
-# When downloading, also locally mirror the MODS and PDF documents
-# associated with each package. Update as the sitemap indicates.
-# Pass --granules to locally cache only granule files (e.g. the
-# individual statute files w/in a volume).
+# ./run fdsys ... --store mods,pdf,text,xml [--granules]
+# When downloading, also locally mirror the MODS, PDF, text, or XML
+# documents associated with each package. Update as the sitemap
+# indicates. Pass --granules to locally cache only granule files
+# (e.g. the individual statute files w/in a volume).
 
 from lxml import etree, html
 import glob, json, re, logging, os.path
 import utils
+from bill_info import output_for_bill
 
 # for xpath
 ns = { "x": "http://www.sitemaps.org/schemas/sitemap/0.9" }
@@ -306,6 +307,7 @@ def mirror_file(year, collection, package_name, lastmod, granule_name, file_type
   
   # Try downloading files for each file type.
   targets = get_package_files(package_name, granule_name, path)
+  updated_file_types = set()
   for file_type in file_types:
     if file_type not in targets: raise Exception("Invalid file type: %s" % file_type)
     f_url, f_path = targets[file_type]
@@ -318,6 +320,7 @@ def mirror_file(year, collection, package_name, lastmod, granule_name, file_type
       'to_cache': False,
       'needs_content': file_type == "text" and f_path.endswith(".html"),
     }))
+    updated_file_types.add(file_type)
     
     if not data:
       if file_type == "pdf":
@@ -334,23 +337,39 @@ def mirror_file(year, collection, package_name, lastmod, granule_name, file_type
       with open(f_path[0:-4] + "txt", "w") as f:
         text_content = unicode(html.fromstring(data).text_content())
         f.write(text_content.encode("utf8"))
+        
+  if collection == "BILLS" and "mods" in updated_file_types:
+    # When we download bill files, also create the text-versions/data.json file
+    # which extracts commonly used components of the MODS XML.
+    from bill_versions import write_bill_version_metadata
+    write_bill_version_metadata(get_bill_id_for_package(package_name, with_version=True))
 
   # Write the current last modified date to disk so we know the next time whether
   # we need to fetch the files for this sitemap item.
   if lastmod and not options.get("cached", False):
     utils.write(lastmod, lastmod_cache_file) 
 
+def get_bill_id_for_package(package_name, with_version=True, restrict_to_congress=None):
+  m = re.match(r"BILLS-(\d+)([a-z]+)(\d+)(\D.*)", package_name)
+  if not m: raise Exception("Unmatched bill document package name: " + package_name)
+  congress, bill_type, bill_number, version_code = m.groups()
+  
+  if restrict_to_congress and int(congress) != int(restrict_to_congress):
+    return None 
+  
+  if not with_version:
+    return ("%s%s-%s" % (bill_type, bill_number, congress), version_code)
+  else:
+    return "%s%s-%s-%s" % (bill_type, bill_number, congress, version_code)
+
 def get_output_path(year, collection, package_name, granule_name, options):
   # Where to store the document files?
   # The path will depend a bit on the collection.
   if collection == "BILLS":
     # Store with the other bill data.
-    m = re.match(r"BILLS-(\d+)([a-z]+)(\d+)(\D.*)", package_name)
-    if not m: raise Exception("Unmatched bill document package name: " + package_name)
-    congress, bill_type, bill_number, version_code = m.groups()
-    congress = int(congress)
-    if "congress" in options and congress != int(options["congress"]): return None 
-    return output_for_bill(congress, bill_type, bill_number, "text-versions/" + version_code)
+    bill_id, version_code = get_bill_id_for_package(package_name, with_version=False, restrict_to_congress=options.get("congress"))
+    if not bill_id: return None # congress number does not match options["congress"]
+    return output_for_bill(bill_id, "text-versions/" + version_code, is_data_dot=False)
   else:
     # Store in fdsys/COLLECTION/YEAR/PKGNAME[/GRANULE_NAME].
     path = "%s/fdsys/%s/%s/%s" % (utils.data_dir(), collection, year, package_name)
@@ -436,42 +455,4 @@ def update_bill_version_list(only_congress):
         )
 
 
-def output_for_bill(congress, bill_type, number, fn):
-  # Similar to bills.output_for_bill
-  return "%s/%d/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, fn)
 
-# given a FDsys filename (e.g. BILLS-113hr302ih), fetch the MODS doc, and return:
-#   issued_on: the date the referenced document was issued (<dateIssued>)
-#   urls: a dict of forms of this doc (<location>)
-def document_info_for(filename, cache, options):
-  mods_url = mods_for(filename)
-  body = utils.download(mods_url, 
-    cache,
-    utils.merge(options, {'xml': True, 'to_cache': False})
-  )
-
-  doc = etree.fromstring(body)
-  mods_ns = {"mods": "http://www.loc.gov/mods/v3"}
-
-  locations = doc.xpath("//mods:location/mods:url", namespaces=mods_ns)
-
-  urls = {}
-  for location in locations:
-    label = location.attrib['displayLabel']
-    if "HTML" in label:
-      format = "html"
-    elif "PDF" in label:
-      format = "pdf"
-    elif "XML" in label:
-      format = "xml"
-    else:
-      format = "unknown"
-    urls[format] = location.text
-
-  issued_on = doc.xpath("string(//mods:dateIssued)", namespaces=mods_ns)
-
-  return issued_on, urls
-
-
-def mods_for(filename):
-  return "http://www.gpo.gov/fdsys/pkg/%s/mods.xml" % filename
