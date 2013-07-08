@@ -83,11 +83,11 @@ def fetch_amendment(amendment_id, options):
   # this lets us choke if it's not found.
   if amdt['chamber'] == 'h':
     # numbers found in vote XML
-    summary = amdt['purpose'] if amdt['purpose'] else amdt['description']
-    amdt['house_number'] = house_simple_number_for(amdt['amendment_id'], summary)
+    # summary = amdt['purpose'] if amdt['purpose'] else amdt['description']
+    # amdt['house_number'] = house_simple_number_for(amdt['amendment_id'], summary)
 
     # A___-style numbers
-    amdt['offered_order'] = house_offered_order_for(body)
+    amdt['house_number'] = house_number_for(body)
 
   output_amendment(amdt, options)
 
@@ -163,28 +163,28 @@ def output_amendment(amdt, options):
 
 
 # assumes this is a House amendment, and it should choke if it doesn't find a number
-def house_offered_order_for(body):
+def house_number_for(body):
   match = re.search(r"H.AMDT.\d+</b>\n \(A(\d+)\)", body, re.I)
   if match:
     return int(match.group(1))
   else:
-    raise Exception("Choked finding House amendment A___ number.")
+    raise Exception("Choked finding a House amendment A___ number.")
 
-def house_simple_number_for(amdt_id, purpose):
-  # No purpose, so no number.
-  if purpose is None: return None
+# def house_simple_number_for(amdt_id, purpose):
+#   # No purpose, so no number.
+#   if purpose is None: return None
 
-  # Explicitly no number.
-  if re.match("Pursuant to the provisions of .* the amendment in the nature of a substitute consisting (of )?the text of (the )?Rules Committee Print .* (is|shall be) considered as adopted.", purpose): return None
-  if re.match("Pursuant to the provisions of .* the .*amendment printed in .* is considered as adopted.", purpose): return None
-  if re.match(r"An amendment (in the nature of a substitute consisting of the text of Rules Committee Print \d+-\d+ )?printed in (part .* of )?House Report ", purpose, re.I): return None
+#   # Explicitly no number.
+#   if re.match("Pursuant to the provisions of .* the amendment in the nature of a substitute consisting (of )?the text of (the )?Rules Committee Print .* (is|shall be) considered as adopted.", purpose): return None
+#   if re.match("Pursuant to the provisions of .* the .*amendment printed in .* is considered as adopted.", purpose): return None
+#   if re.match(r"An amendment (in the nature of a substitute consisting of the text of Rules Committee Print \d+-\d+ )?printed in (part .* of )?House Report ", purpose, re.I): return None
 
-  match = re.match(r"(?:An )?(?:substitute )?amendment (?:in the nature of a substitute )?numbered (\d+) printed in (part .* of )?(House Report|the Congressional Record) ", purpose, re.I)
-  if not match:
-    # logging.warn("No number in purpose (%s):\n%s\n" % (amdt_id, purpose))
-    return
+#   match = re.match(r"(?:An )?(?:substitute )?amendment (?:in the nature of a substitute )?numbered (\d+) printed in (part .* of )?(House Report|the Congressional Record) ", purpose, re.I)
+#   if not match:
+#     # logging.warn("No number in purpose (%s):\n%s\n" % (amdt_id, purpose))
+#     return
 
-  return int(match.group(1))
+#   return int(match.group(1))
 
 def amends_bill_for(body):
   bill_types = set(utils.thomas_types_2.keys()) - set(['HZ', 'SP', 'SU'])
