@@ -8,7 +8,7 @@ import bill_info
 
 def run(options):
   bill_id = options.get('bill_id', None)
-  
+
   search_state = { }
 
   if bill_id:
@@ -17,7 +17,7 @@ def run(options):
   else:
     congress = options.get('congress', utils.current_congress())
     to_fetch = bill_ids_for(congress, options, bill_states=search_state)
-    
+
     if not to_fetch:
       if options.get("fast", False):
         logging.warn("No bills changed.")
@@ -30,14 +30,14 @@ def run(options):
       to_fetch = to_fetch[:int(limit)]
 
   logging.warn("Going to fetch %i bills from congress #%s" % (len(to_fetch), congress))
-  
+
   saved_bills = utils.process_set(to_fetch, bill_info.fetch_bill, options)
-  
+
   save_bill_search_state(saved_bills, search_state)
 
 # page through listings for bills of a particular congress
 def bill_ids_for(congress, options, bill_states={}):
-  
+
   # override if we're actually using this method to get amendments
   doing_amendments = options.get('amendments', False)
 
@@ -48,9 +48,9 @@ def bill_ids_for(congress, options, bill_states={}):
     bill_types = [bill_type]
   else:
     bill_types = utils.thomas_types.keys()
-    
+
   for bill_type in bill_types:
-    
+
     # This sub is re-used for pulling amendment IDs too.
     if (bill_type in ('samdt', 'hamdt', 'supamdt')) != doing_amendments: continue
 
@@ -59,7 +59,7 @@ def bill_ids_for(congress, options, bill_states={}):
     # but if it does, no big deal
     link_pattern = "^\s*%s\d+\s*$" % utils.thomas_types[bill_type][1]
 
-    # loop through pages and collect the links on each page until 
+    # loop through pages and collect the links on each page until
     # we hit a page with < 100 results, or no results
     offset = 0
     while True:
@@ -76,14 +76,14 @@ def bill_ids_for(congress, options, bill_states={}):
       # extract matching links
       doc = html.document_fromstring(page)
       links = doc.xpath(
-        "//a[re:match(text(), '%s')]" % link_pattern, 
+        "//a[re:match(text(), '%s')]" % link_pattern,
         namespaces={"re": "http://exslt.org/regular-expressions"})
 
       # extract the bill ID from each link
       for link in links:
         code = link.text.lower().replace(".", "").replace(" ", "")
         bill_id = "%s-%s" % (code, congress)
-        
+
         if options.get("fast", False):
           fast_cache_path = utils.cache_dir() + "/" + bill_info.bill_cache_for(bill_id, "search_result.html")
           old_state = utils.read(fast_cache_path)
@@ -98,9 +98,9 @@ def bill_ids_for(congress, options, bill_states={}):
           if old_state == new_state:
             logging.info("No change in search result listing: %s" % bill_id)
             continue
-          
+
           bill_states[bill_id] = new_state
-        
+
         bill_ids.append(bill_id)
 
       if len(links) < 100:
