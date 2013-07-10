@@ -280,7 +280,10 @@ def output_bill(bill, options):
   make_node(root, "introduced", None, datetime=bill['introduced_at'])
   titles = make_node(root, "titles", None)
   for title in bill['titles']:
-      make_node(titles, "title", title['title'], type=title['type'], ___as=title['as']) # ___ to avoid a Python keyword
+      make_node(titles, "title", title['title'],
+      	  type=title['type'],
+      	  ___as=title['as'], # ___ to avoid a Python keyword
+      	  partial=None if not title["is_for_portion"] else "1")
 
   if bill['sponsor']:
     # TODO: Sponsored by committee?
@@ -527,9 +530,12 @@ def titles_for(body):
     if section.strip() == "":
       continue
 
+    # move the <I> that indicates subsequent titles are for a portion of the bill
+    # to after the <br> that follows it so that it's associated with the right title.
+    section = re.sub("<I><br ?/>", "<br/><I>", section)
+
     # ensure single newlines between each title in the section
     section = re.sub("\n?<br ?/>", "\n", section)
-    section = re.sub("<[^>]+>", "", section) # strip tags
 
     pieces = section.split("\n")
 
@@ -549,10 +555,17 @@ def titles_for(body):
     else:
       raise Exception("Unknown title type: " + type)
 
+    is_for_portion = False
     for title in type_titles:
-      # Strip the title and replace whitespace and nonbreaking spaces with spaces,
+      if title.startswith("<I>"):
+        # This and subsequent titles in this piece are all for a portion of the bill.
+        # The <I> tag will be removed below.
+        is_for_portion = True
+      
+      # Strip, remove tabs, and replace whitespace and nonbreaking spaces with spaces,
       # since occasionally (e.g. s649-113) random \r's etc. appear instead of spaces.
-      title = re.sub(ur"[\s\u00a0]+", " ", title.strip())
+      title = re.sub("<[^>]+>", "", title) # strip tags
+      title = re.sub(ur"[\s\u00a0]+", " ", title.strip()) # strip space and normalize spaces
       if title == "":
         continue
 
@@ -561,10 +574,11 @@ def titles_for(body):
 
       titles.append({
         'title': title,
+        'is_for_portion': is_for_portion,
         'as': state,
-        'type': type
+        'type': type,
       })
-
+      
 
   return titles
 
