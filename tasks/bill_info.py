@@ -589,12 +589,15 @@ def titles_for(body):
   return titles
 
 # the most current title of a given type is the first one in the last 'as' subgroup
+# of the titles for the whole bill (that is, if there's no title for the whole bill
+# in the last 'as' subgroup, use the previous 'as' subgroup and so on) --- we think
+# this logic matches THOMAS/Congress.gov.
 def current_title_for(titles, type):
   current_title = None
   current_as = -1 # not None, cause for popular titles, None is a valid 'as'
 
   for title in titles:
-    if title['type'] != type:
+    if title['type'] != type or title['is_for_portion'] == True:
       continue
     if title['as'] == current_as:
       continue
