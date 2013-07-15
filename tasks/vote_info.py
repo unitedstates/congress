@@ -259,9 +259,9 @@ def parse_house_vote(dom, vote):
   vote["result_text"] = unicode(dom.xpath("string(vote-metadata/vote-result)"))
   vote["result"] = unicode(dom.xpath("string(vote-metadata/vote-result)"))
   
-  if unicode(dom.xpath("string(vote-metadata/legis-num)")) not in ("", "QUORUM", "JOURNAL", "MOTION", "ADJOURN"):
+  bill_num = unicode(dom.xpath("string(vote-metadata/legis-num)"))
+  if bill_num not in ("", "QUORUM", "JOURNAL", "MOTION", "ADJOURN") and not re.match(r"QUORUM \d+$", bill_num):
     bill_types = { "S": "s", "S CON RES": "sconres", "S J RES": "sjres", "S RES": "sres", "H R": "hr", "H CON RES": "hconres", "H J RES": "hjres", "H RES": "hres" }
-    bill_num = unicode(dom.xpath("string(vote-metadata/legis-num)"))
     try:
       bill_type, bill_number = bill_num.rsplit(" ", 1)
       vote["bill"] = {
