@@ -193,7 +193,7 @@ def parse_senate_vote(dom, vote):
         "congress": vote["congress"],
         "number": number,
       }
-    else:
+    elif " " in amendment_to:
       bill_type, bill_number = amendment_to.split(" ")
       vote["bill"] = {
         "congress": vote["congress"],
@@ -201,6 +201,10 @@ def parse_senate_vote(dom, vote):
         "number": int(bill_number),
         "title": unicode(dom.xpath("string(amendment/amendment_to_document_short_title)")),
       }
+    else:
+      # Senate votes:
+      # 102nd Congress, 2nd session (1992): 247, 248, 250; 105th Congress, 2nd session (1998): 106 through 116; 108th Congress, 1st session (2003): 41, 42
+      logging.warn("Amendment without corresponding bill info in %s " % vote["vote_id"])
     
   # Count up the votes.
   vote["votes"] = { }
