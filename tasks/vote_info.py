@@ -318,25 +318,45 @@ def parse_house_vote(dom, vote):
     state = str(member.xpath("string(legislator/@state)"))
     party = str(member.xpath("string(legislator/@party)"))
     vote_cast = str(member.xpath("string(vote)"))
-
     bioguideid = str(member.xpath("string(legislator/@name-id)"))
-
-    if bioguideid == "0000000": 
-      # there is a specific upstream error for this range of votes, where G.K. Butterfield's bioguide ID is 000000.
-      # after discussion in https://github.com/unitedstates/congress/issues/46, 
-      # we are hardcoding a fix until it's fixed upstream.
-      if (vote['congress'] == 108) and (vote['session'] == '2004') and (vote['number'] >= 405 and vote['number'] <= 544):
-        bioguideid = "B001251"
-      else:
-        raise Exception("Invalid bioguide ID for %s (%s-%s)" % (display_name, state, party))
-
     add_vote(vote_cast, {
         "id": bioguideid,
         "state": state,
         "party": party,
         "display_name": display_name,
     })
+    
+  # Through the 107th Congress and sporadically in more recent data, the bioguide field
+  # is not present. Look up the Members' bioguide IDs by name/state/party/date. This works
+  # reasonably well, but there are many gaps. When there's a gap, it raises an exception
+  # and the file is not saved.
+  #
+  # Take into account that the vote may list both a "Smith" and a "Smith, John". Resolve
+  # "Smith" by process of elimination, i.e. he must not be whoever "Smith, John" resolved
+  # to. To do that, process the voters from longest specified display name to shortest.
+  #
+  # One example of a sporadic case is 108th Congress, 2nd session (2004), votes 405 through
+  # 544, where G.K. Butterfield's bioguide ID is 000000. It should have been B001251.
+  # See https://github.com/unitedstates/congress/issues/46.
+  
+  seen_ids = set()
+  all_voters = sum(vote["votes"].values(), [])
+  all_voters.sort(key = lambda v : len(v["display_name"]), reverse=True) # process longer names first
+  for v in all_voters:
+    if v["id"] not in ("", "0000000"): continue
+    
+    # get the last name without the state abbreviation in parenthesis, if it is present
+    display_name = v["display_name"]
+    ss = " (%s)" % v["state"]
+    if display_name.endswith(ss): display_name = display_name[:-len(ss)]
 
+    # look up ID
+    v["id"] = utils.lookup_legislator(vote["congress"], "rep", display_name, v["state"], v["party"], vote["date"], exclude=seen_ids)
+      
+    if v["id"] == None:
+      raise Exception("No bioguide ID for %s (%s-%s)" % (display_name, v["state"], v["party"]))
+    else:
+      seen_ids.add(v["id"])
 
 def normalize_vote_type(vote_type):
   # Takes the "type" field of a House or Senate vote and returns a normalized
@@ -422,4 +442,5 @@ def get_vote_category(vote_question):
   # unhandled
   logging.warn("Unhandled vote question: %s" % vote_question)
   return "unknown"
+
 

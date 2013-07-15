@@ -486,6 +486,74 @@ def require_congress_legislators_repo():
   os.system("cd cache/congress-legislators; git fetch -pq") # these two == git pull, but git pull ignores -q on the merge part so is less quiet
   os.system("cd cache/congress-legislators; git merge --ff-only -q origin/master")
 
+lookup_legislator_cache = []
+def lookup_legislator(congress, role_type, name, state, party, when, exclude=set()):
+  # This is a basic lookup function given the legislator's name, state, party,
+  # and the date of the vote.
+  
+  # On the first load, cache all of the legislators' terms in memory.
+  # Group by Congress so we can limit our search later to be faster.
+  global lookup_legislator_cache
+  if not lookup_legislator_cache:
+    require_congress_legislators_repo()
+    lookup_legislator_cache = { } # from Congress number to list of (moc,term) tuples that might be in that Congress
+    for fn in ('legislators-historical', 'legislators-current'):
+      for moc in yaml_load("cache/congress-legislators/" + fn + ".yaml"):
+        for term in moc["terms"]:
+          for c in xrange(congress_from_legislative_year(int(term['start'][0:4]))-1,
+            congress_from_legislative_year(int(term['end'][0:4]))+1+1):
+            lookup_legislator_cache.setdefault(c, []).append( (moc, term) )
+    
+  def to_ascii(name):
+    name = name.replace("-", " ")
+    if not isinstance(name, unicode): return name
+    import unicodedata
+    return u"".join(c for c in unicodedata.normalize('NFKD', name) if not unicodedata.combining(c))
+    
+  # Scan all of the terms that cover 'when' for a match.
+  if isinstance(when, datetime.datetime): when = when.date()
+  when = when.isoformat()
+  name_parts = to_ascii(name).split(", ", 1)
+  matches = []
+  for moc, term in lookup_legislator_cache[congress]:
+    # Make sure the date is surrounded by the term start/end dates.
+    if term['start'] > when: continue # comparing ISO-formatted date strings
+    if term['end'] < when: continue # comparing ISO-formatted date strings
+    
+    # Compare the role type, state, and party, except for people who we know changed party.
+    if term['type'] != role_type: continue
+    if term['state'] != state: continue
+    if term['party'][0] != party and name not in ("Laughlin", "Crenshaw", "Goode", "Martinez"): continue
+    
+    # When doing process-of-elimination matching, don't match on people we've already seen.
+    if moc["id"]["bioguide"] in exclude: continue
+    
+    # Compare the last name. Allow "Chenoweth" to match "Chenoweth Hage", but also
+    # allow "Millender McDonald" to match itself.
+    if name_parts[0] != to_ascii(moc['name']['last']) and \
+      name_parts[0] not in to_ascii(moc['name']['last']).split(" "): continue
+    
+    # Compare the first name. Allow it to match either the first or middle name,
+    # and an initialized version of the first name (i.e. "E." matches "Eddie").
+    # Test the whole string (so that "Jo Ann" is compared to "Jo Ann") but also
+    # the first part of a string split (so "E. B." is compared as "E." to "Eddie").
+    first_names = (to_ascii(moc['name']['first']), to_ascii(moc['name'].get('nickname', "")), to_ascii(moc['name']['first'])[0] + ".")
+    if len(name_parts) >= 2 and \
+      name_parts[1] not in first_names and \
+      name_parts[1].split(" ")[0] not in first_names: continue
+    
+    # This is a possible match.
+    matches.append((moc, term))
+  
+  # Return if there is a unique match.
+  if len(matches) == 0:
+    logging.warn("Could not match name %s (%s-%s; %s) to any legislator." % (name, state, party, when))
+    return None
+  if len(matches) > 1:
+    logging.warn("Multiple matches of name %s (%s-%s; %s) to legislators (excludes %s)." % (name, state, party, when, str(exclude)))
+    return None
+  return matches[0][0]['id']['bioguide']
+
 def get_govtrack_person_id(source_id_type, source_id):
   # Load the legislators database to map various IDs to GovTrack IDs.
   # Cache in a pickled file because loading the whole YAML db is super slow.
