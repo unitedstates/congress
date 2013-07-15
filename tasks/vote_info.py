@@ -377,8 +377,12 @@ def get_vote_category(vote_question):
   # Based on Eric's vote_type_for function in sunlightlabs/congress.
   
   mapping = (
+    # empty text (historical data)
+    (r"^$", "unknown"),
+  
     # common
     (r"^On Overriding the Veto", "veto-override"),
+    (r"^On Presidential Veto", "veto-override"),
     (r"Objections of the President Not ?Withstanding", "veto-override"), # order matters so must go before bill passage
     (r"^On Passage", "passage"),
     (r"^On (Agreeing to )?the (Joint |Concurrent )?Resolution", "passage"),
@@ -407,6 +411,8 @@ def get_vote_category(vote_question):
     (r"Authoriz(e|ing) Conferees", "procedural"),
     (r"On the Point of Order|Sustaining the Ruling of the Chair", "procedural"),
     (r"^On .*Motion ", "procedural"), # $1 is a name like "Broun of Georgia"
+    (r"^On the Decision of the Chair", "procedural"),
+    (r"^Whether the Amendment is Germane", "procedural"),
   )
   
   for regex, category in mapping:
