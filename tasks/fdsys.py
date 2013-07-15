@@ -329,6 +329,7 @@ def mirror_file(year, collection, package_name, lastmod, granule_name, file_type
       else:
         # not all packages have all file types, but assume this is OK
         logging.error("file not found: " + f_url)
+        continue
     
     if file_type == "text" and f_path.endswith(".html"):
       # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
