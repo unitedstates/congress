@@ -223,6 +223,13 @@ def parse_senate_vote(dom, vote):
   def add_vote(vote_option, voter):
     if vote_option == "Present, Giving Live Pair": vote_option = "Present"
     vote["votes"].setdefault(vote_option, []).append(voter)
+    
+    # In the 101st Congress, 1st session (1989), votes 133 through 136 lack lis_member_id nodes.
+    if voter["id"] == "":
+      logging.warn("Missing lis_member_id in %s, falling back to name lookup for %s" % (vote["vote_id"], voter["last_name"]))
+      voter["id"] = utils.lookup_legislator(vote["congress"], "sen", voter["last_name"], voter["state"], voter["party"], vote["date"], "lis")
+      if voter["id"] == None:
+        raise Exception("Could not find ID for %s (%s-%s)" % (voter["last_name"], voter["state"], voter["party"]))
   
   # Ensure the options are noted, even if no one votes that way.
   if unicode(dom.xpath("string(vote_question)")) == "Guilty or Not Guilty":
@@ -356,14 +363,17 @@ def parse_house_vote(dom, vote):
   all_voters.sort(key = lambda v : len(v["display_name"]), reverse=True) # process longer names first
   for v in all_voters:
     if v["id"] not in ("", "0000000"): continue
-    
+
+    if vote["congress"] > 107:
+      logging.warn("Missing bioguide ID in %s, falling back to name lookup for %s" % (vote["vote_id"], v["display_name"]))
+
     # get the last name without the state abbreviation in parenthesis, if it is present
     display_name = v["display_name"]
     ss = " (%s)" % v["state"]
     if display_name.endswith(ss): display_name = display_name[:-len(ss)]
 
     # look up ID
-    v["id"] = utils.lookup_legislator(vote["congress"], "rep", display_name, v["state"], v["party"], vote["date"], exclude=seen_ids)
+    v["id"] = utils.lookup_legislator(vote["congress"], "rep", display_name, v["state"], v["party"], vote["date"], "bioguide", exclude=seen_ids)
       
     if v["id"] == None:
       raise Exception("No bioguide ID for %s (%s-%s)" % (display_name, v["state"], v["party"]))

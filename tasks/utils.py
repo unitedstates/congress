@@ -487,7 +487,7 @@ def require_congress_legislators_repo():
   os.system("cd cache/congress-legislators; git merge --ff-only -q origin/master")
 
 lookup_legislator_cache = []
-def lookup_legislator(congress, role_type, name, state, party, when, exclude=set()):
+def lookup_legislator(congress, role_type, name, state, party, when, id_requested, exclude=set()):
   # This is a basic lookup function given the legislator's name, state, party,
   # and the date of the vote.
   
@@ -526,7 +526,7 @@ def lookup_legislator(congress, role_type, name, state, party, when, exclude=set
     if term['party'][0] != party and name not in ("Laughlin", "Crenshaw", "Goode", "Martinez"): continue
     
     # When doing process-of-elimination matching, don't match on people we've already seen.
-    if moc["id"]["bioguide"] in exclude: continue
+    if moc["id"].get(id_requested) in exclude: continue
     
     # Compare the last name. Allow "Chenoweth" to match "Chenoweth Hage", but also
     # allow "Millender McDonald" to match itself.
@@ -552,7 +552,7 @@ def lookup_legislator(congress, role_type, name, state, party, when, exclude=set
   if len(matches) > 1:
     logging.warn("Multiple matches of name %s (%s-%s; %s) to legislators (excludes %s)." % (name, state, party, when, str(exclude)))
     return None
-  return matches[0][0]['id']['bioguide']
+  return matches[0][0]['id'][id_requested]
 
 def get_govtrack_person_id(source_id_type, source_id):
   # Load the legislators database to map various IDs to GovTrack IDs.
