@@ -78,17 +78,16 @@ def output_vote(vote, options):
   root.set("session", str(vote["congress"]))
   root.set("year", str(vote["date"].year))
   root.set("roll", str(vote["number"]))
-  root.set("datetime", utils.format_datetime(vote['date']))
+  root.set("source", "house.gov" if vote["chamber"] == "h" else "senate.gov")
   
+  root.set("datetime", utils.format_datetime(vote['date']))
   root.set("updated", utils.format_datetime(vote['updated_at']))
   
   def get_votes(option): return len(vote["votes"].get(option, []))
   root.set("aye", str(get_votes("Yea") + get_votes("Aye")))
   root.set("nay", str(get_votes("Nay") + get_votes("No")))
-  root.set("present", str(get_votes("Present")))
   root.set("nv", str(get_votes("Not Voting")))
-  
-  root.set("source", "house.gov" if vote["chamber"] == "h" else "senate.gov")
+  root.set("present", str(get_votes("Present")))
   
   utils.make_node(root, "category", vote["category"])
   utils.make_node(root, "type", vote["type"])
@@ -101,10 +100,15 @@ def output_vote(vote, options):
     utils.make_node(root, "bill", None, session=str(vote["bill"]["congress"]), type=govtrack_type_codes[vote["bill"]["type"]], number=str(vote["bill"]["number"]))
     
   if "amendment" in vote:
+    n = utils.make_node(root, "amendment", None)
     if vote["amendment"]["type"] == "s":
-      utils.make_node(root, "amendment", None, ref="regular", number="s" + str(vote["amendment"]["number"]))
+      n.set("ref", "regular")
+      n.set("session", str(vote["congress"]))
+      n.set("number", "s" + str(vote["amendment"]["number"]))
     elif vote["amendment"]["type"] == "h-bill":
-      utils.make_node(root, "amendment", None, ref="bill-serial", number=str(vote["amendment"]["number"]))
+      n.set("ref", "bill-serial")
+      n.set("session", str(vote["congress"]))
+      n.set("number", str(vote["amendment"]["number"]))
     
   # well-known keys for certain vote types: +/-/P/0
   option_keys = { "Aye": "+", "Yea": "+", "Nay": "-", "No": "-", "Present": "P", "Not Voting": "0" }
@@ -119,20 +123,27 @@ def output_vote(vote, options):
     
   for option in options_list:
     for v in vote["votes"][option]:
-      attrs = { "vote": option_keys[option], "value": option }
+      n = utils.make_node(root, "voter", None)
       if v == "VP":
-        attrs["id"] = "0"
-        attrs["VP"] = "1"
+        n.set("id", "0")
+        n.set("VP", "1")
       elif not options.get("govtrack", False):
-        attrs["id"] = str(v["id"])
-        attrs["state"] = v["state"]
+        n.set("id", str(v["id"]))
       else:
-        attrs["id"] = str(utils.get_govtrack_person_id("bioguide" if vote["chamber"] == "h" else "lis", v["id"]))
-        attrs["state"] = v["state"]
-      utils.make_node(root, "voter", None, **attrs)
+        n.set("id", str(utils.get_govtrack_person_id("bioguide" if vote["chamber"] == "h" else "lis", v["id"])))
+      n.set("vote", option_keys[option])
+      n.set("value", option)
+      if v != "VP":
+        n.set("state", v["state"])
+  
+  xmloutput = etree.tostring(root, pretty_print=True, encoding="utf8")
+  
+  # mimick two hard line breaks in GovTrack's legacy output to ease running diffs
+  xmloutput = re.sub('(source=".*?") ', r"\1\n  ", xmloutput)
+  xmloutput = re.sub('(updated=".*?") ', r"\1\n  ", xmloutput)
   
   utils.write(
-    etree.tostring(root, pretty_print=True),
+    xmloutput,
     output_for_vote(vote['vote_id'], "xml")
   )
 
