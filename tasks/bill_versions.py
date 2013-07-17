@@ -114,7 +114,7 @@ def fetch_version(bill_version_id, options):
   utils.download(
     mods_url_for(bill_version_id), 
     document_filename_for(bill_version_id, "mods.xml"),
-    utils.merge(options, {'xml': True, 'to_cache': False})
+    utils.merge(options, {'binary': True, 'to_cache': False})
   )
   
   return write_bill_version_metadata(bill_version_id)

@@ -20,7 +20,7 @@ def fetch_vote(vote_id, options):
   body = utils.download(
     url, 
     "%s/votes/%s/%s%s/%s%s.xml" % (vote_congress, vote_session_year, vote_chamber, vote_number, vote_chamber, vote_number),
-    utils.merge(options, {'xml': True}),
+    utils.merge(options, {'binary': True}),
     )
 
   if not body:

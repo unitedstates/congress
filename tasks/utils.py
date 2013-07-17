@@ -150,7 +150,7 @@ def download(url, destination=None, options={}):
   to_cache = options.get('to_cache', True)
 
   # unescapes HTML encoded characters by default, set this (True) to not do that
-  xml = options.get('xml', False)
+  is_binary = options.get('binary', False)
 
   # used by test suite to use special (versioned) test cache dir
   test = options.get('test', False)
@@ -159,7 +159,7 @@ def download(url, destination=None, options={}):
   postdata = options.get('postdata', False)
 
   # caller cares about actually bytes or only success/fail
-  needs_content = options.get('needs_content', True) or not xml or postdata
+  needs_content = options.get('needs_content', True) or not is_binary or postdata
 
   if test:
     cache = test_cache_dir()
@@ -202,7 +202,7 @@ def download(url, destination=None, options={}):
     if destination:
       write(body, cache_path)
 
-  if not xml:
+  if not is_binary:
     body = unescape(body)
     
   return body

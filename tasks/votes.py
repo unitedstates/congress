@@ -110,7 +110,7 @@ def vote_ids_for_senate(congress, session_year, options):
   page = utils.download(
     "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%d.xml" % (congress, session_num),
     "%s/votes/%s/pages/senate.xml" % (congress, session_year),
-    utils.merge(options, {'xml': True})
+    utils.merge(options, {'binary': True})
     )
 
   if not page:

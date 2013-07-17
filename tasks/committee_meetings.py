@@ -102,7 +102,7 @@ def fetch_house_committee_meetings(existing_meetings, committees, options):
   # To aid users of the data, assign GUIDs to meetings piggy-backing off of the provided EventID.
 
   opts = dict(options)
-  opts["xml"] = True
+  opts["binary"] = True
 
   meetings = []
   seen_meetings = set()

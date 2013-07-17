@@ -153,7 +153,7 @@ def get_sitemap(year, collection, lastmod, options):
     
   body = utils.download(url, path, utils.merge(options, {
     'force': force, 
-    'xml': True
+    'binary': True
   }))
   
   if not body:
@@ -252,7 +252,7 @@ def mirror_files(fetch_collections, options):
         content_index = utils.download(content_detail_url,
             "fdsys/package/%s/%s/%s.html" % (year, collection, package_name),
             utils.merge(options, {
-            'xml': True, # it's not XML but this avoid unescaping HTML which fails if there are unicode characters 
+            'binary': True, 
           }))
         if not content_index: raise Exception("Failed to download %s" % content_detail_url)
         for link in html.fromstring(content_index).cssselect("table.page-details-data-table td.rightLinkCell a"):
@@ -315,7 +315,7 @@ def mirror_file(year, collection, package_name, lastmod, granule_name, file_type
     if (not force) and os.path.exists(f_path): continue # we already have the current file
     logging.warn("Downloading: " + f_path)
     data = utils.download(f_url, f_path, utils.merge(options, {
-      'xml': True, 
+      'binary': True, 
       'force': force, 
       'to_cache': False,
       'needs_content': file_type == "text" and f_path.endswith(".html"),
