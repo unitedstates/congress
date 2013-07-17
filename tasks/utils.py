@@ -474,6 +474,9 @@ def thomas_corrections(thomas_id):
   # C.A. Dutch Ruppersberger
   if thomas_id == "02188": thomas_id = "01728"
 
+  # Pat Toomey
+  if thomas_id == "01594": thomas_id = "02085"
+  
   return thomas_id
   
 def yaml_load(file_name):
