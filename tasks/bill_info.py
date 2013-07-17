@@ -745,7 +745,7 @@ def action_for(text):
       if ": " not in reference:
         type, reference = None, reference
       else:
-        type, reference = reference.split(": ")
+        type, reference = reference.split(": ", 1)
 
       references.append({'type': type, 'reference': reference})
 
