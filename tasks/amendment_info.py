@@ -86,8 +86,9 @@ def fetch_amendment(amendment_id, options):
     # summary = amdt['purpose'] if amdt['purpose'] else amdt['description']
     # amdt['house_number'] = house_simple_number_for(amdt['amendment_id'], summary)
 
-    # A___-style numbers
-    amdt['house_number'] = house_number_for(body)
+    if int(amdt['congress']) > 100:
+      # A___-style numbers, present only starting with the 101st Congress
+      amdt['house_number'] = house_number_for(body)
 
   output_amendment(amdt, options)
 
