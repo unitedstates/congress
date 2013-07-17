@@ -230,8 +230,9 @@ def amends_amendment_for(body):
 def amends_treaty_for(body):
   match = re.search(r"Amends: "
     + "(?:.*\n, )?"
-    + "Treaty <a href=\"/cgi-bin/ntquery/z\?trtys:(\d+)TD(\d+):",
+    + "Treaty <a href=\"/cgi-bin/ntquery/z\?trtys:(\d+)TD(\d+?)A?:",
     body)
+    # don't know what the "A" is at the end of the url, but it's present in samdt3-100
   if match:
     congress = int(match.group(1))
     treaty_number = int(match.group(2))
