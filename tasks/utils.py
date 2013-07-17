@@ -273,6 +273,15 @@ def unescape(text):
         pass
     return text # leave as is
 
+  # prevent decoding-to-ascii errors by making the fixup not a unicode string
+  if not isinstance(text, unicode):
+    fixup2 = fixup
+    def fixup(m):
+      t = fixup2(m)
+      if isinstance(t, unicode):
+        t = t.encode("utf8")
+      return t
+
   text = re.sub("&#?\w+;", fixup, text)
   text = remove_unicode_control(text)
   return text
