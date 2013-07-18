@@ -177,6 +177,8 @@ def download(url, destination=None, options={}):
     if not needs_content: return True
     with open(cache_path, 'r') as f:
       body = f.read()
+    if not is_binary:
+      body = body.decode("utf8")
   else:
     try:
       logging.info("Downloading: %s" % url)
@@ -189,7 +191,13 @@ def download(url, destination=None, options={}):
           mkdir_p(os.path.dirname(cache_path))
           return True if (subprocess.call(["wget", "-q", "-O", cache_path, url]) == 0) else None
         response = scraper.urlopen(url)
-      body = response.bytes # str(...) tries to encode as ASCII the already-decoded unicode content
+      
+      if not is_binary:
+        body = response # a subclass of a 'unicode' instance
+        if not isinstance(body, unicode): raise ValueError("Content not decoded.")
+      else:
+        body = response.bytes # a 'str' instance
+        if isinstance(body, unicode): raise ValueError("Binary content improperly decoded.")
     except scrapelib.HTTPError as e:
       logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
       return None
@@ -200,7 +208,7 @@ def download(url, destination=None, options={}):
 
     # cache content to disk
     if destination:
-      write(body, cache_path)
+      write(body if is_binary else body.encode("utf8"), cache_path)
 
   if not is_binary:
     body = unescape(body)
@@ -272,15 +280,6 @@ def unescape(text):
       except KeyError:
         pass
     return text # leave as is
-
-  # prevent decoding-to-ascii errors by making the fixup not a unicode string
-  if not isinstance(text, unicode):
-    fixup2 = fixup
-    def fixup(m):
-      t = fixup2(m)
-      if isinstance(t, unicode):
-        t = t.encode("utf8")
-      return t
 
   text = re.sub("&#?\w+;", fixup, text)
   text = remove_unicode_control(text)
