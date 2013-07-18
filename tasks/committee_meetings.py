@@ -36,6 +36,9 @@ def run(options):
 def fetch_senate_committee_meetings(existing_meetings, committees, options):
   # Parse the Senate committee meeting XML feed for meetings.
   # To aid users of the data, attempt to assign GUIDs to meetings.
+
+  options = dict(options) # clone
+  options["binary"] = True
   
   meetings = []
   
