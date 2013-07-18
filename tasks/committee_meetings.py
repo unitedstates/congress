@@ -4,6 +4,8 @@ import re, datetime
 import json, lxml.etree
 import uuid
 import logging
+from email.utils import parsedate
+from time import mktime
 
 def run(options):
   # Load the committee metadata from the congress-legislators repository and make a
@@ -133,6 +135,11 @@ def fetch_house_committee_meetings(existing_meetings, committees, options):
     for mtg in dom.xpath("channel/item"):
       eventurl = unicode(mtg.xpath("string(link)"))
       event_id = re.search(r"EventID=(\d+)$", eventurl).group(1)
+      pubDate = datetime.datetime.fromtimestamp(mktime(parsedate(mtg.xpath("string(pubDate)"))))
+      
+      # skip old records of meetings, some of which just give error pages
+      if pubDate < (datetime.datetime.now()-datetime.timedelta(days=60)):
+        continue
       
       # Events can appear in multiple committee feeds if it is a joint meeting.
       if event_id in seen_meetings:
@@ -172,8 +179,6 @@ def fetch_house_committee_meetings(existing_meetings, committees, options):
   return meetings
   
 def parse_house_committee_meeting(event_id, dom, meetings, existing_meetings, committees):
-  #print lxml.etree.tostring(dom)
-  
   try:
     congress = int(dom.getroot().get("congress-num"))
     
@@ -209,7 +214,9 @@ def parse_house_committee_meeting(event_id, dom, meetings, existing_meetings, co
   for sc in dom.xpath("meeting-details/subcommittees/committee-name"):
     if sc.get("id")[0:2] + "00" not in committees: raise ValueError("Invalid committee ID: " + sc.get("id"))
     c = committees[sc.get("id")[0:2] + "00"]
-    if sc.get("id")[2:] not in c["subcommittees"]: raise ValueError("Invalid subcommittee: " + sc.get("id"))
+    if sc.get("id")[2:] not in c["subcommittees"]:
+      logging.error("Invalid subcommittee code: " + sc.get("id"))
+      continue
     orgs.append( (c["thomas_id"], sc.get("id")[2:]) )
   
   for committee_code, subcommittee_code in orgs:
