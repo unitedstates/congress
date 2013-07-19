@@ -225,7 +225,7 @@ def parse_senate_vote(dom, vote):
     vote["votes"].setdefault(vote_option, []).append(voter)
     
     # In the 101st Congress, 1st session (1989), votes 133 through 136 lack lis_member_id nodes.
-    if voter["id"] == "":
+    if voter != "VP" and voter["id"] == "":
       logging.warn("Missing lis_member_id in %s, falling back to name lookup for %s" % (vote["vote_id"], voter["last_name"]))
       voter["id"] = utils.lookup_legislator(vote["congress"], "sen", voter["last_name"], voter["state"], voter["party"], vote["date"], "lis")
       if voter["id"] == None:
