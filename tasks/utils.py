@@ -1,4 +1,4 @@
-import os, os.path, errno, sys, traceback
+import os, os.path, errno, sys, traceback, zipfile
 import re, htmlentitydefs
 import yaml, json
 from pytz import timezone
@@ -141,7 +141,7 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
 
 # Download file at `url`, cache to `destination`. 
 # Takes many options to customize behavior.
-
+_download_zip_files = { }
 def download(url, destination=None, options={}):
   # uses cache by default, override (True) to ignore
   force = options.get('force', False)
@@ -161,24 +161,66 @@ def download(url, destination=None, options={}):
   # caller cares about actually bytes or only success/fail
   needs_content = options.get('needs_content', True) or not is_binary or postdata
 
-  if test:
-    cache = test_cache_dir()
-  else:
-    cache = cache_dir()
-
+  # form the path to the file if we intend on saving it to disk
   if destination:
     if to_cache:
+      if test:
+        cache = test_cache_dir()
+      else:
+        cache = cache_dir()
       cache_path = os.path.join(cache, destination)
+      
     else:
       cache_path = destination
 
+  # If we are working in the cache directory, look for a zip file
+  # anywhere along the path like "cache/93/bills.zip", and see if
+  # the file is already cached inside it (e.g. as 'bills/pages/...").
+  # If it is, and force is true, then raise an Exception because we
+  # can't update the ZIP file with new content (I imagine it would
+  # be very slow). If force is false, return the content from the
+  # archive. 
+  if destination and to_cache:
+    dparts = destination.split(os.sep)
+    for i in xrange(len(dparts)-1):
+      # form the ZIP file name and test if it exists...
+      zfn = os.path.join(cache, *dparts[:i+1]) + ".zip"
+      if not os.path.exists(zfn): continue
+      
+      # load and keep the ZIP file instance in memory because it's slow to instantiate this object
+      zf = _download_zip_files.get(zfn)
+      if not zf:
+        zf = zipfile.ZipFile(zfn, "r")
+        _download_zip_files[zfn] = zf
+        logging.warn("Loaded: %s" % zfn)
+      
+      # see if the inner file exists, and if so read the bytes
+      try:
+        zfn_inner = os.path.join(*dparts[i:])
+        body = zf.read(zfn_inner)
+      except KeyError:
+        # does not exist
+        continue
+        
+      if not test: logging.info("Cached: (%s, %s)" % (zfn + "#" + zfn_inner, url))
+      if force: raise Exception("Cannot re-download a file already cached to a ZIP file.")
+        
+      if not is_binary:
+        body = body.decode("utf8")
+        body = unescape(body)
+        
+      return body
+    
+  # Load the file from disk if it's already been downloaded and force is False.
   if destination and (not force) and os.path.exists(cache_path):
-    if not test: logging.info("Cached: (%s, %s)" % (cache, url))
+    if not test: logging.info("Cached: (%s, %s)" % (cache_path, url))
     if not needs_content: return True
     with open(cache_path, 'r') as f:
       body = f.read()
     if not is_binary:
       body = body.decode("utf8")
+      
+  # Download from the network and cache to disk.
   else:
     try:
       logging.info("Downloading: %s" % url)
