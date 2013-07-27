@@ -279,10 +279,10 @@ def output_bill(bill, options):
   make_node(root, "introduced", None, datetime=bill['introduced_at'])
   titles = make_node(root, "titles", None)
   for title in bill['titles']:
-      make_node(titles, "title", title['title'],
-      	  type=title['type'],
-      	  ___as=title['as'], # ___ to avoid a Python keyword
-      	  partial=None if not title["is_for_portion"] else "1")
+      n = make_node(titles, "title", title['title'])
+      n.set("type", title['type'])
+      if title['as']: n.set("as", title['as'])
+      if title['is_for_portion']: n.set("partial", "1")
 
   if bill['sponsor']:
     # TODO: Sponsored by committee?
@@ -292,29 +292,37 @@ def output_bill(bill, options):
 
   cosponsors = make_node(root, "cosponsors", None)
   for cosp in bill['cosponsors']:
-      make_node(cosponsors, "cosponsor", None, thomas_id=cosp["thomas_id"], joined=cosp["sponsored_at"], withdrawn=cosp["withdrawn_at"])
+      n = make_node(cosponsors, "cosponsor", None, thomas_id=cosp["thomas_id"])
+      if cosp["sponsored_at"]: n.set("joined", cosp["sponsored_at"])
+      if cosp["withdrawn_at"]: n.set("withdrawn", cosp["withdrawn_at"])
 
   actions = make_node(root, "actions", None)
   for action in bill['actions']:
       a = make_node(actions,
-        action['type'] if action['type'] in ("vote","calendar","topresident","signed","enacted") else "action",
+        action['type'] if action['type'] in ("vote","calendar","topresident","signed","enacted","vetoed") else "action",
         None,
-        datetime=action['acted_at'],
-        state=action.get("status", None))
+        datetime=action['acted_at'])
+      if action.get("status"): a.set("state", action["status"])
       if action['type'] == 'vote':
+        a.clear() # re-insert date between some of these attributes
         a.set("how", action["how"])
-        a.set("result", action["result"])
-        if action.get("roll") != None: a.set("roll", action["roll"])
         a.set("type", action["vote_type"])
+        if action.get("roll") != None: a.set("roll", action["roll"])
+        a.set("datetime", utils.format_datetime(action['acted_at']))
         a.set("where", action["where"])
+        a.set("result", action["result"])
         if action.get("suspension"): a.set("suspension", "1")
+        if action.get("status"): a.set("state", action["status"])
       if action['type'] == 'calendar' and "calendar" in action:
         a.set("calendar", action["calendar"])
         if action["under"]: a.set("under", action["under"])
         if action["number"]: a.set("number", action["number"])
       if action['type'] == 'enacted':
-        a.set("type", action["law"])
+        a.clear() # re-insert date between some of these attributes
         a.set("number", "%s-%s" % (bill['congress'], action["number"]))
+        a.set("type", action["law"])
+        a.set("datetime", utils.format_datetime(action['acted_at']))
+        if action.get("status"): a.set("state", action["status"])
       if action.get('text'): make_node(a, "text", action['text'])
       if action.get('in_committee'): make_node(a, "committee", None, name=action['in_committee'])
       for cr in action['references']:

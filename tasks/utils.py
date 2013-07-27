@@ -38,7 +38,7 @@ class UnmatchedIdentifer(Exception):
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
     return eastern_time_zone.localize(obj.replace(microsecond=0)).isoformat()
-  elif isinstance(obj, str):
+  elif isinstance(obj, (str, unicode)):
     return obj
   else:
     return None
