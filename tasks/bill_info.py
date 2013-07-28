@@ -207,6 +207,12 @@ def process_bill(bill_id, options,
   history = history_from_actions(actions)
 
   slip_law = slip_law_from(actions)
+  
+  # Get the updated_at time.
+  if not options.get("preserve_update_time", False):
+    updated_at = datetime.datetime.fromtimestamp(time.time())
+  else:
+    updated_at = json.load(open(output_for_bill(bill_id, "json")))["updated_at"]
 
   return {
     'bill_id': bill_id,
@@ -237,7 +243,7 @@ def process_bill(bill_id, options,
     'committees': committees,
     'amendments': amendments,
 
-    'updated_at': datetime.datetime.fromtimestamp(time.time()),
+    'updated_at': updated_at,
   }
 
 def output_bill(bill, options):
