@@ -1373,22 +1373,24 @@ def new_status_after_vote(vote_type, passed, chamber, bill_type, suspension, ame
       return 'FAIL:ORIGINATING:HOUSE' # outright failure
     else:
       return 'FAIL:ORIGINATING:SENATE' # outright failure
-  if vote_type == "vote2": # vote in second chamber
+  if vote_type in ("vote2", "pingpong"): # vote in second chamber or subsequent pingpong votes
     if passed:
-      if bill_type in ("hjres", "sjres") and title.startswith("Proposing an amendment to the Constitution of the United States"):
-        return 'PASSED:CONSTAMEND' # joint resolution that looks like an amendment to the constitution
-      if bill_type in ("hconres", "sconres"):
-        return 'PASSED:CONCURRENTRES' # end of life for concurrent resolutions
       if amended:
-        # bills and joint resolutions not constitutional amendments, amended from Senate version.
-        # can go back to Senate, or conference committee
+        # mesure is passed but not in identical form
         if chamber == "h":
-          return 'PASS_BACK:HOUSE' # passed by originating chamber, now in second chamber
+          return 'PASS_BACK:HOUSE' # passed both chambers, but House sends it back to Senate
         else:
-          return 'PASS_BACK:SENATE' # passed by originating chamber, now in second chamber
+          return 'PASS_BACK:SENATE' # passed both chambers, but Senate sends it back to House
       else:
         # bills and joint resolutions not constitutional amendments, not amended from Senate version
+        if bill_type in ("hjres", "sjres") and title.startswith("Proposing an amendment to the Constitution of the United States"):
+          return 'PASSED:CONSTAMEND' # joint resolution that looks like an amendment to the constitution
+        if bill_type in ("hconres", "sconres"):
+          return 'PASSED:CONCURRENTRES' # end of life for concurrent resolutions
         return 'PASSED:BILL' # passed by second chamber, now on to president
+    if vote_type == "pingpong":
+      # chamber failed to accept the other chamber's changes, but it can vote again
+      return 'PROV_KILL:PINGPONGFAIL'
     if suspension:
       return 'PROV_KILL:SUSPENSIONFAILED' # provisionally killed by failure to pass under suspension of the rules
     if chamber == "h":
@@ -1420,19 +1422,15 @@ def new_status_after_vote(vote_type, passed, chamber, bill_type, suspension, ame
           return 'VETOED:OVERRIDE_PASS_OVER:SENATE'
       else:
         return None # just wait for the enacted line
-  if vote_type == "pingpong":
-    # This is a motion to accept Senate amendments to the House's original bill
-    # or vice versa. If the motion fails, I suppose it is a provisional kill. If it passes,
-    # then pingpong is over and the bill has passed both chambers.
-    if passed:
-      return 'PASSED:BILL'
-    else:
-      return 'PROV_KILL:PINGPONGFAIL'
   if vote_type == "conference":
     # This is tricky to integrate into status because we have to wait for both
     # chambers to pass the conference report.
     if passed:
       if prev_status.startswith("CONFERENCE:PASSED:"):
+        if bill_type in ("hjres", "sjres") and title.startswith("Proposing an amendment to the Constitution of the United States"):
+          return 'PASSED:CONSTAMEND' # joint resolution that looks like an amendment to the constitution
+        if bill_type in ("hconres", "sconres"):
+          return 'PASSED:CONCURRENTRES' # end of life for concurrent resolutions
         return 'PASSED:BILL'
       else:
         if chamber == "h":
