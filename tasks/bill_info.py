@@ -1075,6 +1075,8 @@ def parse_bill_action(line, prev_status, bill_id, title):
     return None, None
 
   # Otherwise, parse the action line for key actions.
+  
+  # VOTES
 
   # A House Vote.
   line = re.sub(", the Passed", ", Passed", line); # 106 h4733 and others
@@ -1201,6 +1203,48 @@ def parse_bill_action(line, prev_status, bill_id, title):
 
     if new_status:
       status = new_status
+      
+  # OLD-STYLE VOTES (93rd Congress-ish)
+
+  m = re.search(r"Measure passed (House|Senate)(, amended(?: \(.*?\)|, with an amendment to the title)?)?(?:,? in lieu[^,]*)?(?:, roll call #(\d+) \(\d+-\d+\))?", line, re.I)
+  if m != None:
+    chamber = m.group(1)[0].lower() # 'h' or 's'
+    as_amended = m.group(2)
+    roll_num = m.group(3)
+    # GovTrack legacy scraper missed these: if chamber == 's' and (as_amended or roll_num or "lieu" in line): return action, status
+    pass_fail = "pass"
+    vote_type = "vote" if bill_type[0] == chamber else "vote2"
+    action["type"] = "vote"
+    action["vote_type"] = vote_type
+    action["how"] = "(method not recorded)" if not roll_num else "roll"
+    if roll_num: action["roll"] = roll_num
+    action["result"] = pass_fail
+    action["where"] = chamber
+    new_status = new_status_after_vote(vote_type, pass_fail=="pass", chamber, bill_type, False, as_amended, title, prev_status)
+    if new_status:
+      status = new_status
+
+  m = re.search(r"(House|Senate) agreed to (?:House|Senate) amendments?( with an amendment)?( under Suspension of the Rules)?(?:, roll call #(\d+) \(\d+-\d+\))?\.", line, re.I)
+  if m != None:
+    chamber = m.group(1)[0].lower() # 'h' or 's'
+    as_amended = m.group(2)
+    suspension = m.group(3)
+    roll_num = m.group(4)
+    # GovTrack legacy scraper missed these: if (chamber == 'h' and not roll_num) or (chamber == 's' and rull_num): return action, status # REMOVE ME
+    pass_fail = "pass"
+    vote_type = "pingpong"
+    action["type"] = "vote"
+    action["vote_type"] = vote_type
+    action["how"] = "(method not recorded)" if not roll_num else "roll"
+    if roll_num: action["roll"] = roll_num
+    action["result"] = pass_fail
+    action["where"] = chamber
+    action["suspension"] = (suspension != None)
+    new_status = new_status_after_vote(vote_type, pass_fail=="pass", chamber, bill_type, False, as_amended, title, prev_status)
+    if new_status:
+      status = new_status
+
+  # PSUDO-REPORTING (because GovTrack did this, but should be changed)
 
   # TODO: Make a new status for this as pre-reported.
   m = re.search(r"Placed on (the )?([\w ]+) Calendar( under ([\w ]+))?[,\.] Calendar No\. (\d+)\.|Committee Agreed to Seek Consideration Under Suspension of the Rules|Ordered to be Reported", line, re.I)
@@ -1216,9 +1260,18 @@ def parse_bill_action(line, prev_status, bill_id, title):
       action["calendar"] = m.group(2)
       action["under"] = m.group(4)
       action["number"] = m.group(5)
+      
+  # COMMITTEE ACTIONS
 
+  # reported
   m = re.search(r"Committee on (.*)\. Reported by", line, re.I)
   if m != None:
+    action["type"] = "reported"
+    action["committee"] = m.group(1)
+    if prev_status in ("INTRODUCED", "REFERRED"):
+      status = "REPORTED"
+  m = re.search(r"Reported to Senate from the (.*?)( \(without written report\))?\.", line, re.I)
+  if m != None: # 93rd Congress
     action["type"] = "reported"
     action["committee"] = m.group(1)
     if prev_status in ("INTRODUCED", "REFERRED"):
@@ -1258,7 +1311,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
       action["type"] = "vetoed"
       status = "PROV_KILL:VETO"
 
-  m = re.search("Became (Public|Private) Law No: ([\d\-]+)\.", line, re.I)
+  m = re.search("^(?:Became )?(Public|Private) Law(?: No:)? ([\d\-]+)\.", line, re.I)
   if m != None:
     action["law"] = m.group(1).lower()
     pieces = m.group(2).split("-")
