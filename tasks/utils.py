@@ -492,6 +492,8 @@ def fetch_committee_names(congress, options):
     committee_names["HSPO|Hoc Task Force on Presidential Pay Recommendation"] = committee_names["HSPO|Ad Hoc Task Force on Presidential Pay Recommendation"]
   if congress == 103:
     committee_names["Senate Indian Affairs (Permanent Select)"] = committee_names["Senate Indian Affairs"]
+  if congress == 104:
+    committee_names["House Oversight"] = committee_names["House House Oversight"]
   if congress == 108:
     # This appears to be a mistake, a subcommittee appearing as a full committee. Map it to
     # the full committee for now.
