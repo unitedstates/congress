@@ -299,11 +299,11 @@ def output_bill(bill, options):
   actions = make_node(root, "actions", None)
   for action in bill['actions']:
       a = make_node(actions,
-        action['type'] if action['type'] in ("vote","calendar","topresident","signed","enacted","vetoed") else "action",
+        action['type'] if action['type'] in ("vote","vote-aux","calendar","topresident","signed","enacted","vetoed") else "action",
         None,
         datetime=action['acted_at'])
       if action.get("status"): a.set("state", action["status"])
-      if action['type'] == 'vote':
+      if action['type'] in ('vote', 'vote-aux'):
         a.clear() # re-insert date between some of these attributes
         a.set("how", action["how"])
         a.set("type", action["vote_type"])
@@ -323,6 +323,8 @@ def output_bill(bill, options):
         a.set("type", action["law"])
         a.set("datetime", utils.format_datetime(action['acted_at']))
         if action.get("status"): a.set("state", action["status"])
+      if action['type'] == 'vetoed':
+        if action.get("pocket"): a.set("pocket", "1")
       if action.get('text'): make_node(a, "text", action['text'])
       if action.get('in_committee'): make_node(a, "committee", None, name=action['in_committee'])
       for cr in action['references']:
