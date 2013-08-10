@@ -93,7 +93,7 @@ def split_nomination_id(nomination_id):
   except Exception, e:
     logging.error("Unabled to parse %s" % nomination_id)
     return (None, None, None)
-    
+
 def process_set(to_fetch, fetch_func, options, *extra_args):
   errors = []
   saved = []
@@ -135,11 +135,11 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
   logging.warning("\nErrors for %s." % len(errors))
   logging.warning("Skipped %s." % len(skips))
   logging.warning("Saved data for %s." % len(saved))
-  
+
   return saved + skips # all of the OK's
 
 
-# Download file at `url`, cache to `destination`. 
+# Download file at `url`, cache to `destination`.
 # Takes many options to customize behavior.
 _download_zip_files = { }
 def download(url, destination=None, options={}):
@@ -169,7 +169,7 @@ def download(url, destination=None, options={}):
       else:
         cache = cache_dir()
       cache_path = os.path.join(cache, destination)
-      
+
     else:
       cache_path = destination
 
@@ -179,21 +179,21 @@ def download(url, destination=None, options={}):
   # If it is, and force is true, then raise an Exception because we
   # can't update the ZIP file with new content (I imagine it would
   # be very slow). If force is false, return the content from the
-  # archive. 
+  # archive.
   if destination and to_cache:
     dparts = destination.split(os.sep)
     for i in xrange(len(dparts)-1):
       # form the ZIP file name and test if it exists...
       zfn = os.path.join(cache, *dparts[:i+1]) + ".zip"
       if not os.path.exists(zfn): continue
-      
+
       # load and keep the ZIP file instance in memory because it's slow to instantiate this object
       zf = _download_zip_files.get(zfn)
       if not zf:
         zf = zipfile.ZipFile(zfn, "r")
         _download_zip_files[zfn] = zf
         logging.warn("Loaded: %s" % zfn)
-      
+
       # see if the inner file exists, and if so read the bytes
       try:
         zfn_inner = os.path.join(*dparts[i:])
@@ -201,16 +201,16 @@ def download(url, destination=None, options={}):
       except KeyError:
         # does not exist
         continue
-        
+
       if not test: logging.info("Cached: (%s, %s)" % (zfn + "#" + zfn_inner, url))
       if force: raise Exception("Cannot re-download a file already cached to a ZIP file.")
-        
+
       if not is_binary:
         body = body.decode("utf8")
         body = unescape(body)
-        
+
       return body
-    
+
   # Load the file from disk if it's already been downloaded and force is False.
   if destination and (not force) and os.path.exists(cache_path):
     if not test: logging.info("Cached: (%s, %s)" % (cache_path, url))
@@ -219,12 +219,12 @@ def download(url, destination=None, options={}):
       body = f.read()
     if not is_binary:
       body = body.decode("utf8")
-      
+
   # Download from the network and cache to disk.
   else:
     try:
       logging.info("Downloading: %s" % url)
-      
+
       if postdata:
         response = scraper.urlopen(url, 'POST', postdata)
       else:
@@ -233,7 +233,7 @@ def download(url, destination=None, options={}):
           mkdir_p(os.path.dirname(cache_path))
           return True if (subprocess.call(["wget", "-q", "-O", cache_path, url]) == 0) else None
         response = scraper.urlopen(url)
-      
+
       if not is_binary:
         body = response # a subclass of a 'unicode' instance
         if not isinstance(body, unicode): raise ValueError("Content not decoded.")
@@ -254,7 +254,7 @@ def download(url, destination=None, options={}):
 
   if not is_binary:
     body = unescape(body)
-    
+
   return body
 
 def write(content, destination):
@@ -289,12 +289,12 @@ def mkdir_p(path):
   except OSError as exc: # Python >2.5
     if exc.errno == errno.EEXIST:
       pass
-    else: 
+    else:
       raise
 
 def xpath_regex(doc, element, pattern):
   return doc.xpath(
-    "//%s[re:match(text(), '%s')]" % (element, pattern), 
+    "//%s[re:match(text(), '%s')]" % (element, pattern),
     namespaces={"re": "http://exslt.org/regular-expressions"})
 
 # taken from http://effbot.org/zone/re-sub.htm#unescape-html
@@ -329,16 +329,16 @@ def unescape(text):
 
 def extract_bills(text, session):
   bill_ids = []
-  
+
   p = re.compile('((S\.|H\.)(\s?J\.|\s?R\.|\s?Con\.| ?)(\s?Res\.)*\s?\d+)', flags=re.IGNORECASE)
   bill_matches = p.findall(text)
-  
+
   if bill_matches:
     for b in bill_matches:
       bill_text = "%s-%s" % (b[0].lower().replace(" ", '').replace('.', '').replace("con", "c"), session)
       if bill_text not in bill_ids:
         bill_ids.append(bill_text)
-  
+
   return bill_ids
 
 # uses config values if present
@@ -384,7 +384,7 @@ def admin(body):
       details = config.get('email', None)
       if details:
         send_email(body)
-    
+
   except Exception as exception:
     print "Exception logging message to admin, halting as to avoid loop"
     print format_exception(exception)
@@ -402,7 +402,7 @@ def send_email(message):
   msg.set_unixfrom('author')
   msg['To'] = email.utils.formataddr(('Recipient', settings['to']))
   msg['From'] = email.utils.formataddr((settings['from_name'], settings['from']))
-  msg['Subject'] = "%s - %i" % (settings['subject'], int(time.time()))
+  msg['Subject'] = settings['subject']
 
   server = smtplib.SMTP(settings['hostname'])
   try:
@@ -443,18 +443,18 @@ committee_names = {}
 # name.
 def fetch_committee_names(congress, options):
   congress = int(congress)
-  
+
   # Parse the THOMAS advanced search pages for the names that THOMAS uses for
   # committees on bill pages, and map those to the IDs for the committees that are
   # listed on the advanced search pages (but aren't shown on bill pages).
   if not options.get('test', False): logging.info("[%d] Fetching committee names..." % congress)
-  
+
   # allow body to be passed in from fixtures
   if options.has_key('body'):
     body = options['body']
   else:
     body = download(
-      "http://thomas.loc.gov/home/LegislativeData.php?&n=BSS&c=%d" % congress, 
+      "http://thomas.loc.gov/home/LegislativeData.php?&n=BSS&c=%d" % congress,
       "%s/meta/thomas_committee_names.html" % congress,
       options)
 
@@ -467,17 +467,17 @@ def fetch_committee_names(congress, options):
         # committees appear as e.g. "House Finance." Except the JCSE.
         if id != "JCSE00":
           name = chamber + " " + name
-        
+
         # Correct for some oddness on THOMAS (but not on Congress.gov): The House Committee
         # on House Administration appears just as "House Administration".
         if name == "House House Administration": name = "House Administration"
 
         committee_names[name] = id[0:-2]
-        
+
       else:
         # map committee ID + "|" + subcommittee name to the zero-padded subcommittee numeric ID
         committee_names[id[0:-2] + "|" + name] = id[-2:]
-        
+
   # Correct for a limited number of other ways committees appear, owing probably to the
   # committee name being changed mid-way through a Congress.
   if congress == 95:
@@ -517,15 +517,15 @@ def thomas_corrections(thomas_id):
 
   # Pat Toomey
   if thomas_id == "01594": thomas_id = "02085"
-  
+
   return thomas_id
-  
+
 def yaml_load(file_name):
   import yaml
   try:
     from yaml import CLoader as Loader, CDumper as Dumper
   except ImportError:
-    from yaml import Loader, Dumper        
+    from yaml import Loader, Dumper
   return yaml.load(open(file_name), Loader=Loader)
 
 def require_congress_legislators_repo():
@@ -533,7 +533,7 @@ def require_congress_legislators_repo():
   if not os.path.exists("cache/congress-legislators"):
     logging.warn("Cloning the congress-legislators repo into the cache directory...")
     os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators cache/congress-legislators")
-      
+
   # Update the repo so we have the latest.
   logging.warn("Updating the congress-legislators repo...")
   os.system("cd cache/congress-legislators; git fetch -pq") # these two == git pull, but git pull ignores -q on the merge part so is less quiet
@@ -543,7 +543,7 @@ lookup_legislator_cache = []
 def lookup_legislator(congress, role_type, name, state, party, when, id_requested, exclude=set()):
   # This is a basic lookup function given the legislator's name, state, party,
   # and the date of the vote.
-  
+
   # On the first load, cache all of the legislators' terms in memory.
   # Group by Congress so we can limit our search later to be faster.
   global lookup_legislator_cache
@@ -556,13 +556,13 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
           for c in xrange(congress_from_legislative_year(int(term['start'][0:4]))-1,
             congress_from_legislative_year(int(term['end'][0:4]))+1+1):
             lookup_legislator_cache.setdefault(c, []).append( (moc, term) )
-    
+
   def to_ascii(name):
     name = name.replace("-", " ")
     if not isinstance(name, unicode): return name
     import unicodedata
     return u"".join(c for c in unicodedata.normalize('NFKD', name) if not unicodedata.combining(c))
-    
+
   # Scan all of the terms that cover 'when' for a match.
   if isinstance(when, datetime.datetime): when = when.date()
   when = when.isoformat()
@@ -572,20 +572,20 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
     # Make sure the date is surrounded by the term start/end dates.
     if term['start'] > when: continue # comparing ISO-formatted date strings
     if term['end'] < when: continue # comparing ISO-formatted date strings
-    
+
     # Compare the role type, state, and party, except for people who we know changed party.
     if term['type'] != role_type: continue
     if term['state'] != state: continue
     if term['party'][0] != party and name not in ("Laughlin", "Crenshaw", "Goode", "Martinez"): continue
-    
+
     # When doing process-of-elimination matching, don't match on people we've already seen.
     if moc["id"].get(id_requested) in exclude: continue
-    
+
     # Compare the last name. Allow "Chenoweth" to match "Chenoweth Hage", but also
     # allow "Millender McDonald" to match itself.
     if name_parts[0] != to_ascii(moc['name']['last']) and \
       name_parts[0] not in to_ascii(moc['name']['last']).split(" "): continue
-    
+
     # Compare the first name. Allow it to match either the first or middle name,
     # and an initialized version of the first name (i.e. "E." matches "Eddie").
     # Test the whole string (so that "Jo Ann" is compared to "Jo Ann") but also
@@ -594,10 +594,10 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
     if len(name_parts) >= 2 and \
       name_parts[1] not in first_names and \
       name_parts[1].split(" ")[0] not in first_names: continue
-    
+
     # This is a possible match.
     matches.append((moc, term))
-  
+
   # Return if there is a unique match.
   if len(matches) == 0:
     logging.warn("Could not match name %s (%s-%s; %s) to any legislator." % (name, state, party, when))
@@ -612,11 +612,11 @@ def get_govtrack_person_id(source_id_type, source_id):
   # Cache in a pickled file because loading the whole YAML db is super slow.
   global govtrack_person_id_map
   import os, os.path, pickle
-  
+
   # On the first call to this function...
   if not govtrack_person_id_map:
     require_congress_legislators_repo()
-    
+
     govtrack_person_id_map = { }
     for fn in ('legislators-historical', 'legislators-current'):
       # Check if the pickled file is older than the YAML files.
@@ -637,10 +637,10 @@ def get_govtrack_person_id(source_id_type, source_id):
               if k in ('bioguide', 'lis', 'thomas'):
                 m[(k,v)] = moc["id"]["govtrack"]
         pickle.dump(m, open(cachefn, "w"))
-        
+
       # Combine the mappings from the historical and current files.
       govtrack_person_id_map.update(m)
-  
+
   # Now do the lookup.
   if (source_id_type, source_id) not in govtrack_person_id_map:
       see_also = ""
