@@ -37,7 +37,7 @@ def bill_version_ids_for(only_congress, options):
   return bill_version_ids
 
 def fetch_bill_index_json():
-  return json.loads(utils.download("http://deepbills.cato.org/api/1/bill"))
+  return json.loads(utils.download("http://deepbills.cato.org/api/1/bills"))
 
 def deepbills_url_for(bill_version_id):
   bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
