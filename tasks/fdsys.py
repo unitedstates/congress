@@ -368,8 +368,9 @@ def get_output_path(year, collection, package_name, granule_name, options):
   # The path will depend a bit on the collection.
   if collection == "BILLS":
     # Store with the other bill data.
-    bill_id, version_code = get_bill_id_for_package(package_name, with_version=False, restrict_to_congress=options.get("congress"))
-    if not bill_id: return None # congress number does not match options["congress"]
+    bill_and_ver = get_bill_id_for_package(package_name, with_version=False, restrict_to_congress=options.get("congress"))
+    if not bill_and_ver: return None # congress number does not match options["congress"]
+    bill_id, version_code = bill_and_ver
     return output_for_bill(bill_id, "text-versions/" + version_code, is_data_dot=False)
   else:
     # Store in fdsys/COLLECTION/YEAR/PKGNAME[/GRANULE_NAME].
