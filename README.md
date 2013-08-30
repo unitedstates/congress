@@ -38,7 +38,7 @@ Collecting the data
 The general form to start the scraping process is:
 
     ./run <data-type> [--force] [--fast] [other options]
-    
+
 where data-type is one of:
 
     * bills
@@ -90,11 +90,11 @@ Scraping votes
 Similar commands are available for roll call votes. Start with:
 
     ./run votes
-    
+
 You can supply a few kinds of flags, such as limit and congress as above. Votes are grouped by the Senate and House into two sessions per Congress, which (in modern times) roughly follow the calendar years. Senate votes are numbered uniquely by session. House vote numbering continues consecutively throughout the Congress. To get votes from 2012, run:
 
     ./run votes --congress=112 --session=2012
-    
+
 To get only a specific vote, pass in the ID for the vote. For the Senate vote 50 in the 2nd session of the 112th Congress:
 
     ./run votes --vote_id=s50-112.2012
@@ -102,12 +102,12 @@ To get only a specific vote, pass in the ID for the vote. For the Senate vote 50
 Scraping GPO FDSys and Bill Text
 --------------------------------
 
-The scraper for GPO FDSys provides infrastructure for other tasks, such as fetching bill text. FDSys is organized by collection (bills, committee reports, etc.) and year. 
+The scraper for GPO FDSys provides infrastructure for other tasks, such as fetching bill text. FDSys is organized by collection (bills, committee reports, etc.) and year.
 
 To download all bill text, run:
 
 	./run fdsys --collections=BILLS --congress=112 --store=pdf,mods,xml,text
-	
+
 Bill text is stored in a text-versions directory within each bill directory, e.g.:
 
 	data/112/bills/hr/hr68/text-versions/ih/document.pdf
@@ -116,7 +116,7 @@ Bill text is stored in a text-versions directory within each bill directory, e.g
 	data/112/bills/hr/hr68/text-versions/ih/document.html (original HTML wrapper around plain text)
 	data/112/bills/hr/hr68/text-versions/ih/document.txt (UTF-8 encoded)
 	data/112/bills/hr/hr68/text-versions/ih/data.json (common metadata extracted from mods.xml)
-	
+
 The subdirectory name indicates the bill text version code assigned by GPO (ih, enr, etc.). The mods.xml file has metadata from GPO, some of which is also extracted into data.json. Use the JSON file to determine which is the most recent text version if you want to find the most recent text of a bill.
 
 Running the command again will smartly update changed files by scanning through FDSys's sitemaps.
@@ -128,7 +128,7 @@ A separate task called bill_versions will download just the mods.xml files (if t
 	data/112/bills/hjres/hjres6/text-versions/ih/data.json
 
 Use bill_versions if you only need the MODS and JSON files, or to update the JSON files in bulk if our data format changes.
-	
+
 Back on the fdsys scraper, the stored files for other collections (besides bills) are organized in a more generic way: in data/fdsys/COLLECTION/YEAR/PKGID. The PKGID is the package identifier for the file on FDSys. For instance:
 
 	./run fdsys --collections=STATUTE --year=1982 --store=mods
@@ -137,7 +137,7 @@ Back on the fdsys scraper, the stored files for other collections (besides bills
 The collections argument can take a comma-separated list of collections. To get a list of collection names, use:
 
 	./run fdsys --list-collections
-	
+
 All arguments are optional. Without --store, the script just updates a local copy of the sitemap files in cache/fdsys/sitemap/YEAR/COLLECTION.xml. Use --cached to force the use of cached files and not hit the network except when a file does not exist. Use --force to download all files anew.
 
 Committee Meetings
@@ -146,13 +146,13 @@ Committee Meetings
 The committee_meetings scraper pulls upcoming House and Senate committee meetings from http://docs.house.gov/Committee and http://www.senate.gov/general/committee_schedules/hearings.xml, respectively. To run the scraper:
 
     ./run committee_meetings --force --debug
-    
+
 This outputs two JSON files: data/committee_meetings_house.json and data/committee_meetings_senate.json.
 
 Each meeting is assigned a GUID. If you re-run the scraper (without deleting the output JSON files), the GUIDs will be preserved from run to run so that you can tell when meetings are added or revised. For Senate committee meetings, we preserve the GUID by a heuristic. The House provides stable IDs.
 
 The House-side scraper is very slow. Each meeting is requested from a separate file whose response time seems to be pretty slow.
-   
+
 Options
 -------
 
@@ -169,7 +169,7 @@ Since the --force flag forces a download and parse of every object, the --fast f
 For bills and amendments, the --fast flag will only download bills that appear to have new activity based on whether the bill's search result listing on pages like http://thomas.loc.gov/cgi-bin/bdquery/d?d113:0:./list/bss/d113HR.lst: have changed. This doesn't detect all changes to a bill, but it results in a much faster scrape by not having to fetch the pages for every bill. You should still do a complete re-download (without `--fast`) every so often to ensure data is fully current.
 
 For votes, the --fast flag will have the scraper download only votes taken in the last three days, which is the time during which most vote changes and corrections are posted.
-    
+
 Debugging messages are hidden by default. To include them, run with --log=info or --debug. To hide even warnings, run with --log=error.
 
 To get emailed with errors, copy config.yml.example to config.yml and fill in the SMTP options. The script will automatically use the details when a parsing or execution error occurs.
@@ -223,6 +223,10 @@ Who's Using This Data
 
 Here are the ones we know about:
 
-* [GovTrack.us](http://govtrack.us) 
+* [GovTrack.us](http://govtrack.us)
 * [Sunlight Congress API](http://sunlightlabs.github.com/congress/)
 * [Scout](https://scout.sunlightfoundation.com/)
+
+### License
+
+All data and code in this project is [licensed under CC0](LICENSE) ([summary](http://creativecommons.org/publicdomain/zero/1.0/)).
