@@ -11,7 +11,7 @@ Includes:
 
 * A scraper for GPO FDSys, the official repository for most legislative documents.
 
-Read about the [contents and schema](https://github.com/unitedstates/congress/wiki).
+Read about the [contents and schema](https://github.com/unitedstates/congress/wiki). For background on how this repository came to be, see [Eric's blog post](http://sunlightfoundation.com/blog/2013/08/20/a-modern-approach-to-open-data/).
 
 
 Setting Up
