@@ -131,9 +131,9 @@ def parse_nomination(nomination_id, body, options):
 
   # get overview from the text of the nomination
   try:
-    (name, state, position) = re.search("(.+?), of (.+?), to be (.+?)", info["nominee"]).groups()
+    (name, state, position) = re.search("(.+?), of (.+?), (?:to be|for the rank of|to serve concurrently and without additional compensation as) (.+?)", info["nominee"]).groups()
   except Exception, e:
-    raise Exception("Couldn't parse %s" % info["nominee"])
+    raise Exception("Couldn't parse nominee entry: %s" % info["nominee"])
 
   info["name"] = name
   info["state_name"] = re.sub("^the ", "", state) #the District -> District
