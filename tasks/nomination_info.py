@@ -60,7 +60,8 @@ def parse_nomination(nomination_id, body, options):
   #the markup on these pages is a disaster, so we're going to use a heuristic based on boldface, inline tags followed by text
   for pair in doc.xpath('//span[@class="elabel"]|//strong'):
     if pair.tail:
-        label, data = pair.text.replace(':', '').strip(), pair.tail.strip()
+        text = pair.text or pair.text_content()
+        label, data = text.replace(':', '').strip(), pair.tail.strip()
 
         # handle actions separately
         if label.split(" ")[-1] == "Action":
@@ -90,8 +91,10 @@ def parse_nomination(nomination_id, body, options):
             elif label == "Control Number":
               info["control_number"] = data
 
-            elif label == "Referred to":
-              info["referred_to"] = data
+            elif label.lower() == "referred to":
+              if info.get("referred_to", None) == None:
+                info["referred_to"] = []
+              info["referred_to"].append(data)
 
             elif label == "Reported by":
               info["reported_by"] = data
