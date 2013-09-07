@@ -609,46 +609,82 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
     return None
   return matches[0][0]['id'][id_requested]
 
-def get_govtrack_person_id(source_id_type, source_id):
-  # Load the legislators database to map various IDs to GovTrack IDs.
-  # Cache in a pickled file because loading the whole YAML db is super slow.
-  global govtrack_person_id_map
+person_id_map = {}
+def generate_person_id_map():
   import os, os.path, pickle
 
-  # On the first call to this function...
-  if not govtrack_person_id_map:
-    require_congress_legislators_repo()
+  # Make sure we have the congress-legislators repo available.
+  require_congress_legislators_repo()
 
-    govtrack_person_id_map = { }
-    for fn in ('legislators-historical', 'legislators-current'):
-      # Check if the pickled file is older than the YAML files.
-      cachefn = os.path.join(cache_dir(), fn + '-id-map')
-      if os.path.exists(cachefn) and os.stat(cachefn).st_mtime > os.stat("cache/congress-legislators/%s.yaml" % fn).st_mtime:
-        # Pickled file is newer, so use it.
-        m = pickle.load(open(cachefn))
-      else:
-        # Make a new mapping. Load the YAML file and create
-        # a master map from (id-type, id) to GovTrack ID,
-        # where id-type is e.g. thomas, lis, bioguide. Then
-        # save it to a pickled file.
-        logging.warn("Making %s ID map..." % fn)
-        m = { }
-        for moc in yaml_load("cache/congress-legislators/" + fn + ".yaml"):
-          if "govtrack" in moc["id"]:
-            for k, v in moc["id"].items():
-              if k in ('bioguide', 'lis', 'thomas'):
-                m[(k,v)] = moc["id"]["govtrack"]
-        pickle.dump(m, open(cachefn, "w"))
+  # Make the person ID map available in the global space.
+  global person_id_map
+  person_id_map = {}
 
-      # Combine the mappings from the historical and current files.
-      govtrack_person_id_map.update(m)
+  # Load the legislators database to map each ID to the other IDs.
+  # Cache in a pickled file because loading the whole YAML db is super slow.
+  for filename in ('executive', 'legislators-historical', 'legislators-current'):
+    cache_filename = os.path.join(cache_dir(), filename + '-id-map')
 
-  # Now do the lookup.
-  if (source_id_type, source_id) not in govtrack_person_id_map:
-      see_also = ""
-      if source_id_type == "thomas":
-        see_also = "http://beta.congress.gov/member/xxx/" + source_id
-      logging.error("GovTrack ID not known for %s %s. (%s)" % (source_id_type, str(source_id), see_also))
-      raise UnmatchedIdentifer(source_id_type, source_id, see_also)
-  return govtrack_person_id_map[(source_id_type, source_id)]
+    # Check if the pickled file is older than the YAML files.
+    if os.path.exists(cache_filename) and os.stat(cache_filename).st_mtime > os.stat("cache/congress-legislators/%s.yaml" % filename).st_mtime:
+      # The pickled file is newer, so use the cached map.
+      person_id_map = pickle.load(open(cache_filename))
+    else:
+      # We have to generate a new map.
+      logging.warn("Making %s ID map..." % filename)
 
+      # Load the YAML file and create a master map from one ID type to the others.
+      for person in yaml_load("cache/congress-legislators/" + filename + ".yaml"):
+        for source_id_type, source_id in person["id"].items():
+          # Instantiate this ID type.
+          if source_id_type not in person_id_map:
+            person_id_map[source_id_type] = {}
+
+          # Certain ID types have multiple IDs.
+          source_ids = source_id if isinstance(source_id, list) else [source_id]
+
+          for source_id in source_ids:
+            # Instantiate this value for this ID type.
+            if source_id not in person_id_map[source_id_type]:
+              person_id_map[source_id_type][source_id] = {}
+
+            # Loop through all the ID types and values and map them to this ID type.
+            for target_id_type, target_id in person["id"].items():
+              # Don't map an ID type to itself.
+              if target_id_type != source_id_type:
+                person_id_map[source_id_type][source_id][target_id_type] = target_id
+
+      # Save the new map to a pickled file.
+      pickle.dump(person_id_map, open(cache_filename, "w"))
+
+  return person_id_map
+
+def get_person_id(source_id_type, source_id, target_id_type):
+  global person_id_map
+
+  # If the person ID map is not available yet, generate it.
+  if not person_id_map:
+    person_id_map = generate_person_id_map()
+
+  if source_id_type in person_id_map:
+    if source_id in person_id_map[source_id_type]:
+      if target_id_type in person_id_map[source_id_type][source_id]:
+        return person_id_map[source_id_type][source_id][target_id_type]
+
+      raise KeyError("No corresponding '%s' ID for '%s' ID '%s'." % ( target_id_type, source_id_type, source_id ))
+
+    raise KeyError("'%s' is not a valid '%s' ID." % ( source_id, source_id_type ))
+
+  raise KeyError("'%s' is not a valid ID type." % ( source_id_type ))
+
+def get_govtrack_person_id(source_id_type, source_id):
+  try:
+    govtrack_person_id = get_person_id(source_id_type, source_id, "govtrack")
+  except KeyError:
+    see_also = ""
+    if source_id_type == "thomas":
+      see_also = "http://beta.congress.gov/member/xxx/" + source_id
+    logging.error("GovTrack ID not known for %s %s. (%s)" % (source_id_type, str(source_id), see_also))
+    raise UnmatchedIdentifer(source_id_type, source_id, see_also)
+
+  return govtrack_person_id
