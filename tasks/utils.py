@@ -657,14 +657,12 @@ def generate_person_id_map():
       # Save the new map to a pickled file.
       pickle.dump(person_id_map, open(cache_filename, "w"))
 
-  return person_id_map
-
 def get_person_id(source_id_type, source_id, target_id_type):
   global person_id_map
 
   # If the person ID map is not available yet, generate it.
   if not person_id_map:
-    person_id_map = generate_person_id_map()
+    generate_person_id_map()
 
   if source_id_type in person_id_map:
     if source_id in person_id_map[source_id_type]:
