@@ -159,7 +159,14 @@ def output_for_nomination(nomination_id, format):
 
 def nomination_url_for(nomination_id):
   nomination_type, number, congress = utils.split_nomination_id(nomination_id)
-  return "http://thomas.loc.gov/cgi-bin/ntquery/z?nomis:%03d%s%05d00:/" % (int(congress), nomination_type.upper(), int(number))
+
+  # numbers can be either of the form "63" or "64-01"
+  number_pieces = number.split("-")
+  if len(number_pieces) == 1:
+    number_pieces.append("00")
+  url_number = "%05d%s" % (int(number_pieces[0]), number_pieces[1])
+
+  return "http://thomas.loc.gov/cgi-bin/ntquery/z?nomis:%03d%s%s:/" % (int(congress), nomination_type.upper(), url_number)
 
 def nomination_cache_for(nomination_id, file):
   nomination_type, number, congress = utils.split_nomination_id(nomination_id)

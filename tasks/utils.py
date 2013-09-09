@@ -85,11 +85,12 @@ def split_bill_version_id(bill_version_id):
 def split_vote_id(bill_id):
   return re.match("^(h|s)(\d+)-(\d+).(\d\d\d\d)$", bill_id).groups()
 
-# nomination_type, congress, nomination_number
-# I think it's always PN, but might as well include
+# nomination_type (always PN), nomination_number, congress
+#   nomination_number is usually a number, but can be hyphenated, e.g. PN64-01-111
+#   which would produce a nomination_number of "64-01"
 def split_nomination_id(nomination_id):
   try:
-    return re.match("^([A-z]{2})(\d+)-(\d+)$", nomination_id).groups()
+    return re.match("^([A-z]{2})([\d-]+)-(\d+)$", nomination_id).groups()
   except Exception, e:
     logging.error("Unabled to parse %s" % nomination_id)
     return (None, None, None)
