@@ -118,6 +118,9 @@ def parse_nomination(nomination_id, body, options):
             elif label == "Nominee":
               # remove final clause if there
               info["nominee"] = data.split(", vice")[0]
+            elif (label.lower() == "nominees") or (label.lower() == "list of nominees"):
+              # TEMPORARY: fake comma to ease parsing later
+              info["nominee"] = "Multiple Nominees,"
             else:
               logging.info("Unrecognized label: %s" % label)
 
@@ -134,16 +137,11 @@ def parse_nomination(nomination_id, body, options):
 
   # get overview from the text of the nomination
   try:
-    (name) = re.search("(.+?), of .+?, .+?", info["nominee"]).groups()
+    name = re.search("(.+?),", info["nominee"]).groups()[0]
   except Exception, e:
     raise Exception("Couldn't parse nominee entry: %s" % info["nominee"])
 
   info["name"] = name
-  # info["state_name"] = re.sub("^the ", "", state) #the District -> District
-
-  # if we want to test whether the info in the comments align with the info gleaned from text, can ask if name == facts[-3]
-  # doesn't handle suffixes at the moment
-  # info["parsed"] = re.search("([A-z-'\s,\.]+),\s([A-z-\']+)([A-z-\'\.\s]*)", facts[-4]).groups()
 
   if facts[-5]:
     info["position"] = facts[-5]
