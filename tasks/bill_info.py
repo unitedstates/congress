@@ -277,6 +277,19 @@ def output_bill(bill, options):
       attrs = attrs2
 
     return utils.make_node(parent, tag, text, **attrs)
+    
+  # for American Memory Century of Lawmaking bills...
+  for source in bill.get("sources", []):
+    n = make_node(root, "source", "")
+    for k, v in sorted(source.items()):
+      if k == "source":
+        n.text = v
+      elif k == "source_url":
+        n.set("url", v)
+      else:
+        n.set(k, unicode(v))
+  if "original_bill_number" in bill:
+    make_node(root, "bill-number", bill["original_bill_number"])
 
   make_node(root, "state", bill['status'], datetime=bill['status_at'])
   old_status = make_node(root, "status", None)
