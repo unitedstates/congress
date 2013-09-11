@@ -1,4 +1,4 @@
-import json
+import json, os.path
 import utils
 
 def run(options):
@@ -54,9 +54,15 @@ def document_filename_for(bill_version_id, filename):
   return "%s/%s/bills/%s/%s%s/text-versions/%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code, filename)
 
 def write_bill_catoxml(bill_version_id, options):
+  fn = document_filename_for(bill_version_id, "catoxml.xml")
+  
+  # Until we have last modified dates, just skip files if we've already
+  # downloaded them.
+  if os.path.exists(fn): return {'ok': True, 'saved': False, 'reason': 'File already exists.'}
+  
   utils.write(
     extract_xml_from_json(fetch_single_bill_json(bill_version_id)),
-    document_filename_for(bill_version_id, "catoxml.xml")
+    fn
   )
 
   return {'ok': True, 'saved': True}
