@@ -150,12 +150,18 @@ def parse_nomination(nomination_id, body, options):
               # stop when we get to a strong or span (next label)
               nominees = []
 
+              current_position = None
               for sibling in pair.itersiblings():
                 if sibling.tag == "br":
                   if sibling.tail:
                     name = sibling.tail.strip()
-                    if name and (name[0:5].lower() != "to be"):
-                      nominees.append({"name": sibling.tail.strip()})
+                    if (name[0:5].lower() == "to be"):
+                      current_position = name[6:].strip()
+                    elif name:
+                      nominees.append({
+                        "name": sibling.tail.strip(),
+                        "position": current_position
+                      })
                 elif (sibling.tag == "strong") or (sibling.tag == "span"):
                   break
 
