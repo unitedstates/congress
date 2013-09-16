@@ -121,52 +121,64 @@ def parse_nomination(nomination_id, body, options):
               info["received_on"] = datetime.strptime(data.split(" (")[0], "%B %d, %Y").strftime("%Y-%m-%d")
 
             elif label == "Nominee":
-              # remove final clause if there
-              info["nominee"] = data.split(", vice")[0]
 
-            elif (label.lower() == "nominees") or (label.lower() == "list of nominees"):
-              # TEMPORARY: fake comma to ease parsing later
-              info["nominee"] = "Multiple Nominees,"
+              name = data.split(", vice")[0]
+
+              try:
+                name = re.search("(.+?),", name).groups()[0]
+              except Exception, e:
+                raise Exception("Couldn't parse nominee entry: %s" % name)
+
+              # and grab the state and position out of the comment facts
+              if facts[-5]:
+                position = facts[-5]
+              else:
+                raise Exception("Couldn't find the position in the comments.")
+
+              info["nominees"] = [{
+                "name": name,
+                "position": position,
+                "state": facts[-6][2:]
+              }]
+
+            elif label.lower() == "nominees":
+              pass
+
+            elif label.lower() == "list of nominees":
+              # step through each sibling, collecting each br's stripped tail for names as we go
+              # stop when we get to a strong or span (next label)
+              nominees = []
+
+              for sibling in pair.itersiblings():
+                if sibling.tag == "br":
+                  if sibling.tail:
+                    name = sibling.tail.strip()
+                    if name and (name[0:5].lower() != "to be"):
+                      nominees.append({"name": sibling.tail.strip()})
+                elif (sibling.tag == "strong") or (sibling.tag == "span"):
+                  break
+
+              info["nominees"] = nominees
 
             else:
               # choke, I think we handle all of them now
               raise Exception("Unrecognized label: %s" % label)
 
-  '''
-  Some of the data is structured fine as is (e.g. Organization, Referred to, Reported by)
-  Some needs processing, like date and nominee
-  '''
-
   if not info.get("received_on", None):
     raise Exception("Choked, couldn't find received date.")
 
-  if not info.get("nominee", None):
+  if not info.get("nominees", None):
     raise Exception("Choked, couldn't find nominee info.")
 
 
   # try to normalize committee name to an ID
   # choke if it doesn't work - the names should match up.
-  for name in committee_names:
-    committee_id = utils.committee_names[name]
+  for committee_name in committee_names:
+    committee_id = utils.committee_names[committee_name]
     committees.append(committee_id)
   info["referred_to"] = committees
   info["referred_to_names"] = committee_names
 
-
-  # get overview from the text of the nomination
-  try:
-    name = re.search("(.+?),", info["nominee"]).groups()[0]
-  except Exception, e:
-    raise Exception("Couldn't parse nominee entry: %s" % info["nominee"])
-
-  info["name"] = name
-
-  if facts[-5]:
-    info["position"] = facts[-5]
-  else:
-    raise Exception("Couldn't find the position in the comments.")
-
-  info["state"] = facts[-6][2:]
 
   return info
 
