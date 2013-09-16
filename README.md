@@ -165,8 +165,8 @@ Each meeting is assigned a GUID. If you re-run the scraper (without deleting the
 
 The House-side scraper is very slow. Each meeting is requested from a separate file whose response time seems to be pretty slow.
 
-Options
--------
+Other Options
+-------------
 
 The script will cache all downloaded pages, and it will not re-fetch them from the network unless a force flag is passed:
 
@@ -192,14 +192,14 @@ Data Output
 
 The script will cache downloaded pages in a top-level `cache` directory, and output bulk data in a top-level `data` directory.
 
-Two bulk data output files will be generated for each object: a JSON version (data.json) and an XML version (data.xml). The XML version attempts to maintain backwards compatibility with the XML bulk data that [GovTrack.us](http://govtrack.us) has provided for years. Add the --govtrack flag to get fully backward-compatible output using GovTrack IDs (otherwise the source IDs used for legislators is used).
+Two bulk data output files will be generated for each object: a JSON version (data.json) and an XML version (data.xml). The XML version attempts to maintain backwards compatibility with the XML bulk data that [GovTrack.us](https://www.govtrack.us) has provided for years. Add the --govtrack flag to get fully backward-compatible output using GovTrack IDs (otherwise the source IDs used for legislators is used).
 
 See the project wiki for documentation on the output format.
 
 Contributing
 ------------
 
-Pull requests with patches are awesome. Including unit tests is strongly encouraged ([example tests](https://github.com/unitedstates/congress/blob/master/test/test_bill_actions.py)).
+Pull requests with patches are awesome. Unit tests are strongly encouraged ([example tests](https://github.com/unitedstates/congress/blob/master/test/test_bill_actions.py)).
 
 The best way to file a bug is to [open a ticket](https://github.com/unitedstates/congress/issues).
 
@@ -212,32 +212,24 @@ To run this project's unit tests:
     ./test/run
 
 
-TODO
-----
-
-* Treaties - everything (may wait until they are in Congress.gov)
-* Nominations - everything (may wait until they are in Congress.gov)
-
-As [Congress.gov](http://beta.congress.gov) starts reaching [data parity](http://beta.congress.gov/help/coverage-dates/) with THOMAS.gov, the scraper will be gradually converted to get different pieces of information from Congress.gov instead of THOMAS.gov, which will be shut down after Congress.gov's 1-year beta period.
-
-
 Contributors
------
+------------
 
-* [Eric Mill](http://github.com/konklone) - [Sunlight Foundation](http://sunlightfoundation.com)
-* [Josh Tauberer](http://github.com/tauberer) - [GovTrack.us](http://govtrack.us)
-* [Derek Willis](http://github.com/dwillis)
-* [Alex Engler](http://github.com/AlexEngler)
-* [Chris Wilson](http://github.com/wilson428)
+* [Eric Mill](https://github.com/konklone) - [Sunlight Foundation](http://sunlightfoundation.com)
+* [Josh Tauberer](https://github.com/tauberer) - [GovTrack.us](http://govtrack.us)
+* [Derek Willis](https://github.com/dwillis)
+* [Alex Engler](https://github.com/AlexEngler)
+* [Chris Wilson](https://github.com/wilson428)
 
 Who's Using This Data
 ---------------------
 
-Here are the ones we know about:
+The [Sunlight Foundation](http://sunlightfoundation.com) and [GovTrack.us](https://www.govtrack.us) are the two principal maintainers of this project.
 
-* [GovTrack.us](http://govtrack.us)
-* [Sunlight Congress API](http://sunlightlabs.github.com/congress/)
-* [Scout](https://scout.sunlightfoundation.com/)
+Both Sunlight and GovTrack operate APIs where you can get much of this data delivered over HTTP:
+
+* [GovTrack.us API](https://www.govtrack.us/developers/api)
+* [Sunlight Congress API](http://sunlightlabs.github.io/congress/)
 
 ### License
 
