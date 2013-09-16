@@ -60,7 +60,9 @@ def parse_nomination(nomination_id, body, options):
   committees = []
 
   doc = fromstring(body)
-  info = { 'nomination_id': nomination_id, 'actions': [] }
+  info = {
+    'nomination_id': nomination_id, 'actions': []
+  }
 
   #the markup on these pages is a disaster, so we're going to use a heuristic based on boldface, inline tags followed by text
   for pair in doc.xpath('//span[@class="elabel"]|//strong'):
@@ -121,31 +123,35 @@ def parse_nomination(nomination_id, body, options):
             elif label == "Nominee":
               # remove final clause if there
               info["nominee"] = data.split(", vice")[0]
+
             elif (label.lower() == "nominees") or (label.lower() == "list of nominees"):
               # TEMPORARY: fake comma to ease parsing later
               info["nominee"] = "Multiple Nominees,"
+
             else:
-              logging.info("Unrecognized label: %s" % label)
+              # choke, I think we handle all of them now
+              raise Exception("Unrecognized label: %s" % label)
 
   '''
   Some of the data is structured fine as is (e.g. Organization, Referred to, Reported by)
   Some needs processing, like date and nominee
   '''
 
-  # try to normalize committee name to an ID
-  # choke if it doesn't work - the names should match up.
-  for name in committee_names:
-    committee_id = utils.committee_names[name]
-    committees.append(committee_id)
-
-  info["referred_to"] = committees
-  info["referred_to_names"] = committee_names
-
   if not info.get("received_on", None):
     raise Exception("Choked, couldn't find received date.")
 
   if not info.get("nominee", None):
     raise Exception("Choked, couldn't find nominee info.")
+
+
+  # try to normalize committee name to an ID
+  # choke if it doesn't work - the names should match up.
+  for name in committee_names:
+    committee_id = utils.committee_names[name]
+    committees.append(committee_id)
+  info["referred_to"] = committees
+  info["referred_to_names"] = committee_names
+
 
   # get overview from the text of the nomination
   try:
