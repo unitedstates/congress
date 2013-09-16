@@ -96,7 +96,8 @@ def parse_nomination(nomination_id, body, options):
               info["organization"] = data
 
             elif label == "Control Number":
-              info["control_number"] = data
+              # this doesn't seem useful
+              pass
 
             elif label.lower() == "referred to":
               committee_names.append(data)
