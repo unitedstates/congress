@@ -5,7 +5,7 @@ Public domain code that collects data about the bills, amendments, roll call vot
 
 Includes:
 
-* A scraper for THOMAS.gov, the official source of information on the life and times of legislation in Congress.
+* A scraper for THOMAS.gov, the official source of information on the life and times of legislation and presidential nominations in Congress.
 
 * Scrapers for House and Senate roll call votes.
 
@@ -43,11 +43,12 @@ where data-type is one of:
 
     * bills
     * amendments
+    * nominations
     * votes
     * fdsys
     * committee_meetings
 
-To scrape bills and resolutions from THOMAS run:
+To scrape bills and resolutions from THOMAS, run:
 
     ./run bills
 
@@ -83,6 +84,17 @@ To get only a specific amendment:
 To get only amendments specific to a certain bill:
 
     ./run amendments --bill_id=hr152-113
+
+Scraping nominations
+--------------------
+
+Nominations are gathered similarly to bills and amendments. Nomination IDs are of the form `PNXXX-YYY`, where `XXX` is the number, and `YYY` is the congress.
+
+Examples:
+
+    ./run nominations --limit=10 --congress=113
+
+    ./run nominations --nomination_id=PN173-113
 
 Scraping votes
 --------------
