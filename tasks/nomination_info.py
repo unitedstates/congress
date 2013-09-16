@@ -26,6 +26,8 @@ def fetch_nomination(nomination_id, options={}):
   if not number:
     return {'saved': False, 'ok': False, 'reason': "Couldn't parse %s" % nomination_id }
 
+  if not utils.committee_names: utils.fetch_committee_names(congress, options)
+
   # fetch bill details body
   body = utils.download(
     nomination_url_for(nomination_id),
@@ -53,6 +55,9 @@ def parse_nomination(nomination_id, body, options):
   #remove (and store) comments, which contain some info for the nomination but also mess up the parser
   facts = re.findall("<!--(.+?)-->", body)
   body = re.sub("<!--.+?-->", "", body)
+
+  committee_names = []
+  committees = []
 
   doc = fromstring(body)
   info = { 'nomination_id': nomination_id, 'actions': [] }
@@ -92,9 +97,7 @@ def parse_nomination(nomination_id, body, options):
               info["control_number"] = data
 
             elif label.lower() == "referred to":
-              if info.get("referred_to", None) == None:
-                info["referred_to"] = []
-              info["referred_to"].append(data)
+              committee_names.append(data)
 
             elif label == "Reported by":
               info["reported_by"] = data
@@ -128,6 +131,15 @@ def parse_nomination(nomination_id, body, options):
   Some of the data is structured fine as is (e.g. Organization, Referred to, Reported by)
   Some needs processing, like date and nominee
   '''
+
+  # try to normalize committee name to an ID
+  # choke if it doesn't work - the names should match up.
+  for name in committee_names:
+    committee_id = utils.committee_names[name]
+    committees.append(committee_id)
+
+  info["referred_to"] = committees
+  info["referred_to_names"] = committee_names
 
   if not info.get("received_on", None):
     raise Exception("Choked, couldn't find received date.")
