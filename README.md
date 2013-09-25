@@ -1,5 +1,4 @@
-Congress
-========
+## unitedstates/congress
 
 Public domain code that collects data about the bills, amendments, roll call votes, and other core data about the U.S. Congress.
 
