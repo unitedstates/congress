@@ -207,7 +207,7 @@ def process_bill(bill_id, options,
   history = history_from_actions(actions)
 
   slip_law = slip_law_from(actions)
-  
+
   # Get the updated_at time.
   if not options.get("preserve_update_time", False):
     updated_at = datetime.datetime.fromtimestamp(time.time())
@@ -277,7 +277,7 @@ def output_bill(bill, options):
       attrs = attrs2
 
     return utils.make_node(parent, tag, text, **attrs)
-    
+
   # for American Memory Century of Lawmaking bills...
   for source in bill.get("sources", []):
     n = make_node(root, "source", "")
@@ -589,7 +589,7 @@ def titles_for(body):
         # This and subsequent titles in this piece are all for a portion of the bill.
         # The <I> tag will be removed below.
         is_for_portion = True
-      
+
       # Strip, remove tabs, and replace whitespace and nonbreaking spaces with spaces,
       # since occasionally (e.g. s649-113) random \r's etc. appear instead of spaces.
       title = re.sub("<[^>]+>", "", title) # strip tags
@@ -606,7 +606,7 @@ def titles_for(body):
         'as': state,
         'type': type,
       })
-      
+
 
   return titles
 
@@ -1082,6 +1082,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
   """Parse a THOMAS bill action line. Returns attributes to be set in the XML file on the action line."""
 
   bill_type, number, congress = utils.split_bill_id(bill_id)
+  if not utils.committee_names: utils.fetch_committee_names(congress, {})
 
   status = None
   action = {
@@ -1096,7 +1097,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
     return None, None
 
   # Otherwise, parse the action line for key actions.
-  
+
   # VOTES
 
   # A House Vote.
@@ -1224,7 +1225,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
 
     if new_status:
       status = new_status
-      
+
   # OLD-STYLE VOTES (93rd Congress-ish)
 
   m = re.search(r"Measure passed (House|Senate)(, amended(?: \(.*?\)|, with an amendment to the title)?)?(?:,? in lieu[^,]*)?(?:, roll call #(\d+) \(\d+-\d+\))?", line, re.I)
@@ -1281,7 +1282,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
       action["calendar"] = m.group(2)
       action["under"] = m.group(4)
       action["number"] = m.group(5)
-      
+
   # COMMITTEE ACTIONS
 
   # reported
@@ -1344,10 +1345,14 @@ def parse_bill_action(line, prev_status, bill_id, title):
     else:
       status = "ENACTED:VETO_OVERRIDE"
 
-  m = re.search(r"Referred to (the )?((House|Senate|Committee) [^\.]+).?", line, re.I)
+  m = re.search(r"Referred to (?:the )?(House|Senate)?\s?(?:Committee)?(?: on)?(?: the)? ([^\.]+).?", line, re.I)
   if m != None:
     action["type"] = "referral"
-    action["committee"] = m.group(2)
+    action["committee"] = " ".join([t for t in m.groups() if t is not None]).replace("House House", "House")
+    try:
+      action["committee_id"] = utils.committee_names[action["committee"]]
+    except KeyError:
+      logging.info("[%s] Committee id not found for '%s' in action" % (bill_id, action["committee"]))
     if prev_status == "INTRODUCED":
       status = "REFERRED"
 
@@ -1358,10 +1363,14 @@ def parse_bill_action(line, prev_status, bill_id, title):
     if prev_status == "INTRODUCED":
       status = "REFERRED"
 
-  m = re.search(r"Received in the Senate and referred to (the )?(.*[^\.]).?", line, re.I)
+  m = re.search(r"Received in the Senate and referred to (?:the )?(House|Senate)?\s?(?:Committee)?(?: on)?(?: the)? ([^\.]+).?", line, re.I)
   if m != None:
     action["type"] = "referral"
-    action["committee"] = m.group(2)
+    action["committee"] = " ".join([t for t in m.groups() if t is not None]).replace("House House", "House")
+    try:
+      action["committee_id"] = utils.committee_names[action["committee"]]
+    except KeyError:
+      logging.info("[%s] Committee id not found for '%s' in action" % (bill_id, action["committee"]))
 
   # no matter what it is, sweep the action line for bill IDs of related bills
   bill_ids = utils.extract_bills(line, congress)

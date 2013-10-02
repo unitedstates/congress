@@ -70,8 +70,8 @@ class BillActions(unittest.TestCase):
     state = "PASSED:BILL"
     line = "Cleared for White House."
 
-    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)    
-    
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+
     # should not be marked as presented to president, since it hasn't been yet
     # self.assertEqual(new_action['type'], 'action')
 
@@ -81,7 +81,7 @@ class BillActions(unittest.TestCase):
     state = "PASSED:BILL"
     line = "Presented to President."
 
-    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)    
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
     self.assertEqual(new_action['type'], 'topresident')
 
   def test_signed_by_president(self):
@@ -90,10 +90,10 @@ class BillActions(unittest.TestCase):
     state = "PASSED:BILL"
     line = "Signed by President."
 
-    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)    
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
     self.assertEqual(new_action['type'], 'signed')
 
-  
+
   # voting tests
 
   def test_vote_normal_roll(self):
@@ -103,7 +103,7 @@ class BillActions(unittest.TestCase):
     line = "On motion to suspend the rules and pass the bill Agreed to by the Yeas and Nays: (2/3 required): 416 - 0 (Roll no. 768)."
 
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
-    
+
     self.assertEqual(new_action['type'], "vote")
     self.assertEqual(new_action['vote_type'], "vote")
     self.assertEqual(new_action['where'], "h")
@@ -120,7 +120,7 @@ class BillActions(unittest.TestCase):
     line = "Passed Senate with an amendment and an amendment to the Title by Yea-Nay Vote. 60 - 39. Record Vote Number: 396."
 
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
-    
+
     self.assertEqual(new_action['type'], "vote")
     self.assertEqual(new_action['vote_type'], "vote2")
     self.assertEqual(new_action['where'], "s")
@@ -176,7 +176,7 @@ class BillActions(unittest.TestCase):
 
     self.assertEqual(new_state, None) # unchanged
 
-  
+
   # not sure whether to include votes that are on process, not passage or cloture
 
   # def test_vote_process_voice_senate(self):
@@ -320,10 +320,10 @@ class BillActions(unittest.TestCase):
     self.assertEqual(new_action["roll"], "177")
     # self.assertEqual(new_state, "VETOED:OVERRIDE_COMPLETE:SENATE")
 
-  # Fictional bill, no constitutional amendment passed by both Houses 
+  # Fictional bill, no constitutional amendment passed by both Houses
   # in the THOMAS era (1973-present).
   # The 26th was passed by Congress in 1971, 27th passed by Congress in 1789.
-  # The line here is taken from hjres10-109, when the House passed a 
+  # The line here is taken from hjres10-109, when the House passed a
   # flag burning amendment. (A separate version later failed the Senate by one vote.)
   def test_passed_constitutional_amendment(self):
     bill_id = "sjres64-1000"
@@ -411,7 +411,7 @@ class BillActions(unittest.TestCase):
     self.assertEqual(new_action["how"], "roll")
     self.assertEqual(new_action['roll'], "379")
     self.assertEqual(new_state, "PROV_KILL:SUSPENSIONFAILED")
-  
+
   def test_passed_by_special_rule(self):
     bill_id = "hres240-109"
     title = "Amending the Rules of the House of Representatives to reinstate certain provisions of the rules relating to procedures of the Committee on Standards of Official Conduct to the form in which those provisions existed at the close of the 108th Congress."
@@ -427,6 +427,17 @@ class BillActions(unittest.TestCase):
     self.assertEqual(new_state, "PASSED:SIMPLERES")
 
     self.assertEqual(new_action['bill_ids'], ["hres241-109"])
+
+  def test_identify_committee(self):
+    bill_id = "hr547-113"
+    title = "To provide for the establishment of a border protection strategy for the international land borders of the United States, to address the ecological and environmental impacts of border security infrastructure, measures, and activities along the international land borders of the United States, and for other purposes."
+    state = "INTRODUCED"
+    line = "Referred to House Homeland Security"
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+
+    self.assertEqual(new_action['committee'], "House Homeland Security")
+    self.assertEqual(new_action['committee_id'], "HSHM")
 
   def test_referral_committee(self):
     bill_id = "hr547-113"
