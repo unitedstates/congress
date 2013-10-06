@@ -38,6 +38,8 @@ class UnmatchedIdentifer(Exception):
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
     return eastern_time_zone.localize(obj.replace(microsecond=0)).isoformat()
+  elif isinstance(obj, datetime.date):
+    return obj.isoformat()
   elif isinstance(obj, (str, unicode)):
     return obj
   else:
@@ -82,8 +84,10 @@ def split_bill_id(bill_id):
 def split_bill_version_id(bill_version_id):
   return re.match("^([a-z]+)(\d+)-(\d+)-([a-z\d]+)$", bill_version_id).groups()
 
-def split_vote_id(bill_id):
-  return re.match("^(h|s)(\d+)-(\d+).(\d\d\d\d)$", bill_id).groups()
+def split_vote_id(vote_id):
+  # Sessions are either four-digit years for modern day votes or a digit or letter
+  # for historical votes before sessions were basically calendar years.
+  return re.match("^(h|s)(\d+)-(\d+).(\d\d\d\d|[0-9A-Z])$", vote_id).groups()
 
 # nomination_type (always PN), nomination_number, congress
 #   nomination_number is usually a number, but can be hyphenated, e.g. PN64-01-111
