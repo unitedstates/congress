@@ -62,7 +62,7 @@ def fetch_vote(vote_id, options):
 
   return {'ok': True, 'saved': True}
 
-def output_vote(vote, options):
+def output_vote(vote, options, id_type=None):
   logging.info("[%s] Writing to disk..." % vote['vote_id'])
   
   # output JSON - so easy!
@@ -70,6 +70,11 @@ def output_vote(vote, options):
     json.dumps(vote, sort_keys=True, indent=2, default=utils.format_datetime), 
     output_for_vote(vote["vote_id"], "json"),
   )
+
+  # What kind of IDs are we passed for Members of Congress?
+  # For current data, we infer from the chamber. For historical data from voteview,
+  # we're passed the type in id_type, which is set to "bioguide".
+  if not id_type: id_type = ("bioguide" if vote["chamber"] == "h" else "lis")
 
   # output XML
   root = etree.Element("roll")
@@ -130,7 +135,7 @@ def output_vote(vote, options):
       elif not options.get("govtrack", False):
         n.set("id", str(v["id"]))
       else:
-        n.set("id", str(utils.get_govtrack_person_id("bioguide" if vote["chamber"] == "h" else "lis", v["id"])))
+        n.set("id", str(utils.get_govtrack_person_id(id_type, v["id"])))
       n.set("vote", option_keys[option])
       n.set("value", option)
       if v != "VP":

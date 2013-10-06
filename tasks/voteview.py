@@ -1,7 +1,8 @@
-import re
+import re, StringIO, csv, datetime, time
 import logging
 
 import utils
+from vote_info import output_vote
 
 def run(options):
 	congress = options.get("congress", None)
@@ -9,15 +10,16 @@ def run(options):
 
 	chamber = options.get('chamber', None)
 
+	# we're going to need to map votes to sessions because in modern history the numbering resets by session
+	session_dates = list(csv.DictReader(StringIO.StringIO(utils.download("http://www.govtrack.us/data/us/sessions.tsv").encode("utf8")), delimiter="\t"))
+
+	# download the vote data now
 	if chamber and chamber in [ "h", "s" ]:
-		votes = get_votes(chamber, congress, options)
+		votes = get_votes(chamber, congress, options, session_dates)
 	else:
-		votes = get_votes("h", congress, options) + get_votes("s", congress, options)
+		votes = get_votes("h", congress, options, session_dates) + get_votes("s", congress, options, session_dates)
 
 	utils.process_set(votes, put_vote, options)
-
-def vote_path_for(congress, chamber, vote_number):
-	return "%s/%s/votes/voteview/%s%d/data.json" % (utils.data_dir(), congress, chamber, vote_number)
 
 def vote_list_source_url_for(congress, chamber):
 	chamber_map = { "h": "HOU", "s": "SEN" }
@@ -302,7 +304,7 @@ def extract_rollcall_info_from_parsed_rollcall_dtl_list_line(parsed_rollcall_dtl
 	return rollcall_info
 
 def parse_vote_list_file(vote_list_file):
-	logging.warn("Parsing vote list file...")
+	logging.info("Parsing vote list file...")
 
 	vote_list_info = []
 
@@ -317,11 +319,17 @@ def parse_vote_list_file(vote_list_file):
 
 		icpsr_id = vote_info["icpsr_id"]
 
-		try:
-			bioguide_id = utils.get_person_id("icpsr", icpsr_id, "bioguide")
-		except KeyError as e:
-			logging.error("Problem with member %s ([%d] %s) of %s %s: %s" % ( vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"], vote_info["state_name"], vote_info["district"], e.message ))
-			continue
+		if vote_info["icpsr_state"] == 99:
+			# This is used to record the President's position, or something.
+			# Mark this record so build_votes can separated it out from Member votes.
+			bioguide_id = "__PRESIDENT__"
+		else:
+			try:
+				bioguide_id = utils.get_person_id("icpsr", icpsr_id, "bioguide")
+			except KeyError as e:
+				logging.error("Problem with member %s ([%d] %s) of %s %s: %s" % ( vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
+					vote_info["state_name"], vote_info["district"], e.message ))
+				continue
 
 		vote_info["bioguide_id"] = bioguide_id
 
@@ -359,7 +367,6 @@ def parse_rollcall_dtl_list_file(rollcall_dtl_list_file):
 	return rollcall_dtl_list_info
 
 def parse_rollcall_list_file(rollcall_list_type, rollcall_list_file):
-	logging.warn("Parsing rollcall list file...")
 	logging.info("Rollcall list type: %s" % ( rollcall_list_type ))
 
 	if rollcall_list_type == "dtl":
@@ -370,9 +377,10 @@ def parse_rollcall_list_file(rollcall_list_type, rollcall_list_file):
 	return rollcall_list_info
 
 def build_votes(vote_list):
-	logging.warn("Building votes...")
+	logging.info("Building votes...")
 
 	votes = {}
+	presidents_position = {}
 
 	for vote_info in vote_list:
 		for i in range(len(vote_info["votes"])):
@@ -380,6 +388,12 @@ def build_votes(vote_list):
 
 			if vote_type is None:
 				continue
+
+			# Separate the president's position from Member votes.
+			if vote_info["bioguide_id"] == "__PRESIDENT__":
+				presidents_position[i] = vote_type
+				continue
+
 
 			if i not in votes:
 				votes[i] = {}
@@ -401,10 +415,10 @@ def build_votes(vote_list):
 		for vote_type in votes[vote_number]:
 			votes[vote_number][vote_type].sort(key = lambda vote : vote["display_name"])
 
-	return votes
+	return (votes, presidents_position)
 
 def fetch_vote_list_file(chamber, congress, options):
-	logging.warn("Fetching vote list file...")
+	logging.info("Fetching vote list file...")
 
 	vote_list_file = utils.download(vote_list_source_url_for(congress, chamber), vote_list_target_path_for(congress, chamber), options).encode("utf-8")
 
@@ -415,7 +429,7 @@ def fetch_vote_list_file(chamber, congress, options):
 	return vote_list_file
 
 def fetch_rollcall_list_file(rollcall_list_type, chamber, congress, options):
-	logging.warn("Fetching rollcall list file...")
+	logging.info("Fetching rollcall list file...")
 
 	rollcall_list_file = utils.download(rollcall_list_source_url_for(rollcall_list_type, congress, chamber), rollcall_list_target_path_for(congress, chamber), options).encode("utf-8")
 
@@ -425,13 +439,13 @@ def fetch_rollcall_list_file(rollcall_list_type, chamber, congress, options):
 
 	return rollcall_list_file
 
-def get_votes(chamber, congress, options):
+def get_votes(chamber, congress, options, session_dates):
 	logging.warn("Getting votes for %d-%s..." % ( congress, chamber ))
 
 	vote_list_file = fetch_vote_list_file(chamber, congress, options)
 
 	vote_list = parse_vote_list_file(vote_list_file)
-	votes = build_votes(vote_list)
+	votes, presidents_position = build_votes(vote_list)
 
 	rollcall_list_type = rollcall_list_type_for(congress, chamber)
 	rollcall_list_file = fetch_rollcall_list_file(rollcall_list_type, chamber, congress, options)
@@ -444,13 +458,37 @@ def get_votes(chamber, congress, options):
 		vote_results = votes[rollcall_number - 1]
 		rollcall = rollcall_list[rollcall_number]
 
+		# Which session is this in? Compare the vote's date to the sessions.tsv file.
+		for sess in session_dates:
+			if sess["start"] <= rollcall["date"] <= sess["end"]:
+				if int(sess["congress"]) != congress:
+					logging.error("Vote on %s disagrees about which Congress it is in." % rollcall["date"])
+				session = sess["session"]
+				break
+		else:
+			# This vote did not occur durring a session of Congress. Some sort of data error.
+			logging.error("Vote on %s is not within a session of Congress." % rollcall["date"])
+			continue
+
+		# Form the vote dict.
 		vote_output = {
+			"vote_id": "%s%s-%d.%s" % (chamber, rollcall_number, congress, session),
+			"source_url": "http://www.voteview.com",
+		    "updated_at": datetime.datetime.fromtimestamp(time.time()),
+
 			"congress": congress,
+			"session": session,
 			"chamber": chamber,
 			"number": rollcall_number, # XXX: This is not the right number.
 			"question": rollcall["description"],
-			"date": rollcall["date"],
+			"type": rollcall["description"], # TODO: normalized to a type
+			"date": datetime.date(*[int(dd) for dd in rollcall["date"].split("-")]), # turn YYYY-MM-DD into datetime.date() instance
 			"votes": vote_results,
+			"presidents_position": presidents_position.get(rollcall_number),
+
+			"category": "unknown",
+			"requires": "unknown",
+			"result": "unknown",
 		}
 
 		vote_output_list.append(vote_output)
@@ -458,12 +496,5 @@ def get_votes(chamber, congress, options):
 	return vote_output_list
 
 def put_vote(vote, options):
-	import json
-
-	logging.warn("Writing vote %d-%s%d..." % ( vote["congress"], vote["chamber"], vote["number"] ))
-
-	vote_path = vote_path_for(vote["congress"], vote["chamber"], vote["number"])
-
-	utils.write(json.dumps(vote, sort_keys=True, indent=2), vote_path)
-
+	output_vote(vote, options, id_type="bioguide")
 	return { "ok": True, "saved": True }
