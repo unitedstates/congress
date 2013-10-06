@@ -21,46 +21,20 @@ def run(options):
 
 	utils.process_set(votes, put_vote, options)
 
-def vote_list_source_url_for(congress, chamber):
-	chamber_map = { "h": "HOU", "s": "SEN" }
+def vote_list_source_urls_for(congress, chamber, options):
+	url = "http://www.voteview.com/%s%02d.htm" % (("house" if chamber == "h" else "senate"), congress)
+	index_page = utils.download(url, cache_file_for(congress, chamber, "html"), options)
 
-	# XXX: This filename format is not always the latest available.
-	return "ftp://voteview.com/dtaord/%s%02dKH.ORD" % ( chamber_map[chamber], int(congress) )
+	def match(pattern):
+		matches = re.findall(pattern, index_page, re.I)
+		if len(matches) != 1:
+			raise ValueError("Index page %s did not match one value for pattern %s." % (url, pattern))
+		return matches[0]
 
-def rollcall_list_type_for(congress, chamber):
-	if congress <= 106:
-		rollcall_list_type = "dtl"
-	elif congress in [ 107, 108 ]:
-		rollcall_list_type = "dict"
-	else:
-		rollcall_list_type = "csv"
+	return match("ftp://voteview.com/[^\.\s]+\.ord"), match("ftp://voteview.com/dtl/[^\.\s]+\.dtl")
 
-	return rollcall_list_type
-
-def rollcall_list_source_url_for(rollcall_list_type, congress, chamber):
-	if rollcall_list_type == "dtl":
-		chamber_map = { "h": "", "s": "S" }
-
-		# XXX: This filename format is not always the latest available.
-		rollcall_list_source_url = "ftp://voteview.com/dtl/%d%s.DTL" % ( int(congress), chamber_map[chamber] )
-	elif rollcall_list_type == "dict":
-		chamber_map = { "h": "house", "s": "senate" }
-
-		# XXX: This filename format is not always the latest available.
-		rollcall_list_source_url = "ftp://voteview.com/%s%d_dictionary.txt" % ( chamber_map[chamber], int(congress) )
-	else:
-		chamber_map = { "h": "H", "s": "S" }
-
-		# XXX: This filename format is not always the latest available.
-		rollcall_list_source_url = "ftp://voteview.com/dtaord/%s%ddesc.csv" % ( chamber_map[chamber], int(congress) )
-
-	return rollcall_list_source_url
-
-def vote_list_target_path_for(congress, chamber):
-	return "%s/votes/voteview/vote_list_%s.txt" % (congress, chamber)
-
-def rollcall_list_target_path_for(congress, chamber):
-	return "%s/votes/voteview/rollcall_list_%s.txt" % (congress, chamber)
+def cache_file_for(congress, chamber, file_type):
+	return "%s/votes/voteview/%s.%s" % (congress, chamber, file_type)
 
 def get_state_from_icpsr_state_code(icpsr_state_code):
 	icpsr_state_code_map = {
@@ -264,6 +238,10 @@ def parse_rollcall_dtl_list_first_line(rollcall_dtl_first_line):
 def parse_rollcall_dtl_date(rollcall_dtl_date):
 	from datetime import datetime
 
+	# Match locale abbreviations.
+	rollcall_dtl_date = rollcall_dtl_date.replace("SEPT.", "SEP.")
+	rollcall_dtl_date = rollcall_dtl_date.replace("JAN ", "JANUARY ")
+
 	try:
 		parsed_date = datetime.strptime(rollcall_dtl_date, "%B %d, %Y")
 	except ValueError:
@@ -355,6 +333,7 @@ def parse_rollcall_dtl_list_file(rollcall_dtl_list_file):
 			rollcall_info["journal_id"] = rollcall_dtl_list_first_line_parts[1].strip()
 			rollcall_info["bill"] = rollcall_dtl_list_first_line_parts[2].strip()
 			rollcall_info["date"] = parse_rollcall_dtl_date(rollcall_dtl_list_first_line_parts[3].strip())
+			rollcall_info["date_unparsed"] = rollcall_dtl_list_first_line_parts[3].strip()
 		elif rollcall_dtl_list_line_info["line"] == 2:
 			pass
 		elif rollcall_dtl_list_line_info["line"] == 3:
@@ -365,16 +344,6 @@ def parse_rollcall_dtl_list_file(rollcall_dtl_list_file):
 		rollcall_dtl_list_info[rollcall_dtl_list_line_info["vote"]] = rollcall_info
 
 	return rollcall_dtl_list_info
-
-def parse_rollcall_list_file(rollcall_list_type, rollcall_list_file):
-	logging.info("Rollcall list type: %s" % ( rollcall_list_type ))
-
-	if rollcall_list_type == "dtl":
-		rollcall_list_info = parse_rollcall_dtl_list_file(rollcall_list_file)
-	else:
-		raise ValueError("Rollcall list type not supported: %s" % ( rollcall_list_type ))
-
-	return rollcall_list_info
 
 def build_votes(vote_list):
 	logging.info("Building votes...")
@@ -417,40 +386,30 @@ def build_votes(vote_list):
 
 	return (votes, presidents_position)
 
-def fetch_vote_list_file(chamber, congress, options):
-	logging.info("Fetching vote list file...")
+def get_votes(chamber, congress, options, session_dates):
+	logging.warn("Getting votes for %d-%s..." % ( congress, chamber ))
 
-	vote_list_file = utils.download(vote_list_source_url_for(congress, chamber), vote_list_target_path_for(congress, chamber), options).encode("utf-8")
+	vote_list_url, rollcall_list_url = vote_list_source_urls_for(congress, chamber, options)
 
+	# Load the ORD file which contains the matrix of how people voted.
+
+	vote_list_file = utils.download(vote_list_url, cache_file_for(congress, chamber, "ord"), options).encode("utf-8")
 	if not vote_list_file:
 		logging.error("Couldn't download vote list file.")
 		return None
 
-	return vote_list_file
-
-def fetch_rollcall_list_file(rollcall_list_type, chamber, congress, options):
-	logging.info("Fetching rollcall list file...")
-
-	rollcall_list_file = utils.download(rollcall_list_source_url_for(rollcall_list_type, congress, chamber), rollcall_list_target_path_for(congress, chamber), options).encode("utf-8")
-
-	if not rollcall_list_file:
-		logging.error("Couldn't download rollcall list file.")
-		return None
-
-	return rollcall_list_file
-
-def get_votes(chamber, congress, options, session_dates):
-	logging.warn("Getting votes for %d-%s..." % ( congress, chamber ))
-
-	vote_list_file = fetch_vote_list_file(chamber, congress, options)
-
 	vote_list = parse_vote_list_file(vote_list_file)
 	votes, presidents_position = build_votes(vote_list)
 
-	rollcall_list_type = rollcall_list_type_for(congress, chamber)
-	rollcall_list_file = fetch_rollcall_list_file(rollcall_list_type, chamber, congress, options)
+	# Load the DTL file which lists each roll call vote.
 
-	rollcall_list = parse_rollcall_list_file(rollcall_list_type, rollcall_list_file)
+	rollcall_list_file = utils.download(rollcall_list_url, cache_file_for(congress, chamber, "dtl"), options).encode("utf-8")
+	if not rollcall_list_file:
+		logging.error("Couldn't download rollcall list file.")
+		return None
+	rollcall_list = parse_rollcall_dtl_list_file(rollcall_list_file)
+
+	# Form the output data.
 
 	vote_output_list = []
 
@@ -459,6 +418,10 @@ def get_votes(chamber, congress, options, session_dates):
 		rollcall = rollcall_list[rollcall_number]
 
 		# Which session is this in? Compare the vote's date to the sessions.tsv file.
+		if not rollcall["date"]:
+			logging.error("Vote on %s was an invalid date, so we can't determine the session to save the file." % rollcall["date_unparsed"])
+			continue
+
 		for sess in session_dates:
 			if sess["start"] <= rollcall["date"] <= sess["end"]:
 				if int(sess["congress"]) != congress:
