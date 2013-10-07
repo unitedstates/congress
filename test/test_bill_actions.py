@@ -458,7 +458,9 @@ class BillActions(unittest.TestCase):
 
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
 
-    self.assertNotIn("committees", new_action)
+    # it's a Senate bill, so we assume un-chamber-ed committee refs are to a Senate committee
+    self.assertIn("committees", new_action)
+    self.assertEqual(new_action['committees'], ["SSAP"])
 
   def test_referral_committee(self):
     bill_id = "hr547-113"

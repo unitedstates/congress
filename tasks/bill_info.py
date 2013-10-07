@@ -1383,17 +1383,17 @@ def parse_bill_action(line, prev_status, bill_id, title):
           cand = "House %s" % cand
         elif in_senate and not in_house:
           cand = "Senate %s" % cand
-        elif "hres" in bill_id:
+        elif bill_id.startswith("h"):
           cand = "House %s" % cand
-        elif "sres" in bill_id:
+        elif bill_id.startswith("s"):
           cand = "Senate %s" % cand
 
       try:
         cmte_id = utils.committee_names[cand]
         committees.append(cmte_id)
       except KeyError:
-        pass
-        # logging.warn("[%s] Committee id not found for '%s' in action" % (bill_id, cand))
+        # pass
+        logging.warn("[%s] Committee id not found for '%s' in action" % (bill_id, cand))
     if committees:
       action['committees'] = committees
 
