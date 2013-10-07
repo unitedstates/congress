@@ -436,8 +436,29 @@ class BillActions(unittest.TestCase):
 
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
 
-    self.assertIn("HSHM", new_action['committees'])
-    self.assertEqual(new_action['committees']["HSHM"], "House Homeland Security")
+    self.assertIn("committees", new_action)
+    self.assertEqual(new_action['committees'], ["HSHM"])
+
+  def test_identify_committees_2(self):
+    bill_id = "hr1002-113"
+    title = "Anything"
+    state = "INTRODUCED"
+    line = "Referred to the House Committee on Financial Services."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+
+    self.assertIn("committees", new_action)
+    self.assertEqual(new_action['committees'], ["HSBA"])
+
+  def test_identify_committees_ambiguous(self):
+    bill_id ="s1329-113"
+    title = "Anything"
+    state = "INTRODUCED"
+    line = "Committee on Appropriations. Original measure reported to Senate by Senator Mikulski. With written report No. 113-78."
+
+    new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
+
+    self.assertNotIn("committees", new_action)
 
   def test_referral_committee(self):
     bill_id = "hr547-113"
@@ -470,5 +491,5 @@ class BillActions(unittest.TestCase):
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
 
     self.assertEqual(new_action['type'], "hearings")
-    self.assertEqual(new_action['committee'], "Committee on the Judiciary Subcommittee on the Constitution, Civil Rights and Human Rights")
+    # self.assertEqual(new_action['committees'], "Committee on the Judiciary Subcommittee on the Constitution, Civil Rights and Human Rights")
     self.assertEqual(new_state, None) # did not change state

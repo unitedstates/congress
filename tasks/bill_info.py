@@ -1352,20 +1352,48 @@ def parse_bill_action(line, prev_status, bill_id, title):
     if prev_status == "INTRODUCED":
       status = "REFERRED"
 
-  # Check for committee and store committee ids
-  cmte_names = [re.sub(r"\(.*\)", '', n).strip() for n in  utils.committee_names.keys() if n.find('|') < 0]
+  # Check for committee name, and store committee ids
+
+  # excluding subcommittee names (they have pipes),
+  # and make chamber prefix optional
+  cmte_names = []
+  for name in utils.committee_names.keys():
+    if name.find('|') == -1:
+      # name = re.sub(r"\(.*\)", '', name).strip()
+      name = re.sub(r"^(House|Senate) ", "(?:\\1 )?", name)
+      cmte_names.append(name)
+
   cmte_reg = r"(House|Senate)?\s*(?:Committee)?\s*(?:on)?\s*(?:the)?\s*({0})".format("|".join(cmte_names))
+
   m = re.search(cmte_reg, line)
   if m:
-    committees = {}
+    committees = []
+    chamber = m.groups()[0] # optional match
+
     # This could be made to look for multiple committee names.
     cmte_name_candidates = [" ".join([t for t in m.groups() if t is not None]).replace("House House", "House")]
+
     for cand in cmte_name_candidates:
+      # many actions just say "Committee on the Judiciary", without a chamber
+      # do our best to assign a chamber if we can be sure
+      if ("House" not in cand) and ("Senate" not in cand):
+        in_house = utils.committee_names.get("House %s" % cand, False)
+        in_senate = utils.committee_names.get("Senate %s" % cand, False)
+        if in_house and not in_senate:
+          cand = "House %s" % cand
+        elif in_senate and not in_house:
+          cand = "Senate %s" % cand
+        elif "hres" in bill_id:
+          cand = "House %s" % cand
+        elif "sres" in bill_id:
+          cand = "Senate %s" % cand
+
       try:
         cmte_id = utils.committee_names[cand]
-        committees[cmte_id] = cand
+        committees.append(cmte_id)
       except KeyError:
-        logging.warn("[%s] Committee id not found for '%s' in action" % (bill_id, cand))
+        pass
+        # logging.warn("[%s] Committee id not found for '%s' in action" % (bill_id, cand))
     if committees:
       action['committees'] = committees
 
