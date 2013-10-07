@@ -1345,32 +1345,29 @@ def parse_bill_action(line, prev_status, bill_id, title):
     else:
       status = "ENACTED:VETO_OVERRIDE"
 
-  m = re.search(r"Referred to (?:the )?(House|Senate)?\s?(?:Committee)?(?: on)?(?: the)? ([^\.]+).?", line, re.I)
+  # Check for referral type
+  m = re.search(r"Referred to (?:the )?(House|Senate)?\s?(?:Committee|Subcommittee)?", line, re.I)
   if m != None:
     action["type"] = "referral"
-    action["committee"] = " ".join([t for t in m.groups() if t is not None]).replace("House House", "House")
-    try:
-      action["committee_id"] = utils.committee_names[action["committee"]]
-    except KeyError:
-      logging.info("[%s] Committee id not found for '%s' in action" % (bill_id, action["committee"]))
     if prev_status == "INTRODUCED":
       status = "REFERRED"
 
-  m = re.search(r"Referred to (the )?Subcommittee(?: on)? (.*[^\.]).?", line, re.I)
-  if m != None:
-    action["type"] = "referral"
-    action["subcommittee"] = m.group(2)
-    if prev_status == "INTRODUCED":
-      status = "REFERRED"
-
-  m = re.search(r"Received in the Senate and referred to (?:the )?(House|Senate)?\s?(?:Committee)?(?: on)?(?: the)? ([^\.]+).?", line, re.I)
-  if m != None:
-    action["type"] = "referral"
-    action["committee"] = " ".join([t for t in m.groups() if t is not None]).replace("House House", "House")
-    try:
-      action["committee_id"] = utils.committee_names[action["committee"]]
-    except KeyError:
-      logging.info("[%s] Committee id not found for '%s' in action" % (bill_id, action["committee"]))
+  # Check for committee and store committee ids
+  cmte_names = [re.sub(r"\(.*\)", '', n).strip() for n in  utils.committee_names.keys() if n.find('|') < 0]
+  cmte_reg = r"(House|Senate)?\s*(?:Committee)?\s*(?:on)?\s*(?:the)?\s*({0})".format("|".join(cmte_names))
+  m = re.search(cmte_reg, line)
+  if m:
+    committees = {}
+    # This could be made to look for multiple committee names.
+    cmte_name_candidates = [" ".join([t for t in m.groups() if t is not None]).replace("House House", "House")]
+    for cand in cmte_name_candidates:
+      try:
+        cmte_id = utils.committee_names[cand]
+        committees[cmte_id] = cand
+      except KeyError:
+        logging.warn("[%s] Committee id not found for '%s' in action" % (bill_id, cand))
+    if committees:
+      action['committees'] = committees
 
   # no matter what it is, sweep the action line for bill IDs of related bills
   bill_ids = utils.extract_bills(line, congress)

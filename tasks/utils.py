@@ -499,6 +499,9 @@ def fetch_committee_names(congress, options):
     # This appears to be a mistake, a subcommittee appearing as a full committee. Map it to
     # the full committee for now.
     committee_names["House Antitrust (Full Committee Task Force)"] = committee_names["House Judiciary"]
+    committee_names["House Homeland Security"] = committee_names["House Homeland Security (Select)"]
+  if congress in range(108,113):
+    committee_names["House Intelligence"] = committee_names["House Intelligence (Permanent Select)"]
 
 def make_node(parent, tag, text, **attrs):
   """Make a node in an XML document."""

@@ -428,7 +428,7 @@ class BillActions(unittest.TestCase):
 
     self.assertEqual(new_action['bill_ids'], ["hres241-109"])
 
-  def test_identify_committee(self):
+  def test_identify_committees(self):
     bill_id = "hr547-113"
     title = "To provide for the establishment of a border protection strategy for the international land borders of the United States, to address the ecological and environmental impacts of border security infrastructure, measures, and activities along the international land borders of the United States, and for other purposes."
     state = "INTRODUCED"
@@ -436,8 +436,8 @@ class BillActions(unittest.TestCase):
 
     new_action, new_state = bill_info.parse_bill_action(line, state, bill_id, title)
 
-    self.assertEqual(new_action['committee'], "House Homeland Security")
-    self.assertEqual(new_action['committee_id'], "HSHM")
+    self.assertIn("HSHM", new_action['committees'])
+    self.assertEqual(new_action['committees']["HSHM"], "House Homeland Security")
 
   def test_referral_committee(self):
     bill_id = "hr547-113"
