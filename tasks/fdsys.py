@@ -63,7 +63,7 @@ def update_sitemap_cache(fetch_collections, options):
   particular FDSys collections a set of collection names. Only
   downloads changed sitemap files."""
 	
-  seen_collections = set()
+  seen_collections = dict() # maps collection name to a set() of sitemap years in which the collection is present
   
   # Load the root sitemap.
   master_sitemap = get_sitemap(None, None, None, options)
@@ -97,7 +97,7 @@ def update_sitemap_cache(fetch_collections, options):
       
       # To help the user find a collection name, record this collection but don't download it.
       if options.get("list-collections", False):
-        seen_collections.add(collection)
+        seen_collections.setdefault(collection, set()).add(int(year))
         continue
 
       # Should we download the sitemap?
@@ -109,7 +109,21 @@ def update_sitemap_cache(fetch_collections, options):
       if collection_sitemap.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}urlset": raise Exception("Mismatched sitemap type in %s_%s sitemap." % (year, collection))
       
   if options.get("list-collections", False):
-    print "\n".join(sorted(seen_collections))
+    max_collection_name_len = max(len(n) for n in seen_collections)
+    def make_nice_year_range(years):
+      ranges = []
+      for y in sorted(years):
+        if len(ranges) > 0 and ranges[-1][1] == y-1:
+          # extend the previous range
+          ranges[-1][1] = y
+        else:
+          # append a new range
+          ranges.append( [y, y] )
+      ranges = [(("%d" % r[0]) if r[0] == r[1] else "%d-%d" % tuple(r)) for r in ranges]
+      return ", ".join(ranges)
+
+    for collection in sorted(seen_collections):
+      print collection.ljust(max_collection_name_len), " ", make_nice_year_range(seen_collections[collection])
     
 def get_sitemap(year, collection, lastmod, options):
   """Gets a single sitemap, downloading it if the sitemap has changed.
