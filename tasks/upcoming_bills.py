@@ -38,18 +38,24 @@ def fetch_bills_week(for_the_week, options):
   for node in dom.xpath('//floorschedule/category/floor-items/floor-item'):
     bill = {}
     bill['congress'] = congress_num
-    bill['bill_id'] = node.xpath('legis-num//text()')[0]
-    bill['context'] = node.xpath('floor-text//text()')[0]
+    bill['bill_id']  = node.xpath('legis-num//text()')[0]
+    bill['floor_item_id'] = node.get('id') 
+    bill['added_at'] = node.get('add-date')
+    bill['published_at'] = node.get('publish-date')
+    bill['context']  = node.xpath('floor-text//text()')[0]
     bill['url'] = week_url
     bill['files'] = []
     for file in node.xpath('files/file'):
-      file_url = file.get('doc-url')
-      file_destination = 'upcoming_bills/%s' % file_url.split('/')[-1]
+      file_field = {}
+      file_field['url'] = file.get('doc-url')
+      file_field['path'] = 'upcoming_bills/%s' % file_field['url'].split('/')[-1]
+      file_field['added_at'] = file.get('add-date')
+      file_field['published_at'] = file.get('publish-date')
       try:
-        utils.download(file_url, file_destination, options)
-        bill['files'].append(file_url)
+        utils.download(file_field['url'], file_field['path'], options)
+        bill['files'].append(file_field)
       except:
-        logging.error("Couldn't download file %s from House floors for day %s" % (file_url, for_the_week))
+        logging.error("Couldn't download file %s from House floors for day %s" % (file_field['url'], for_the_week))
 
     bill['chamber'] = 'house'
     bill['source_type'] = 'house_floor_weekly'
