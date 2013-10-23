@@ -47,7 +47,6 @@ def fetch_floor_week(for_the_week, options):
 
 
   # always present at the feed level
-  status = dom.xpath("/floorschedule/current-status//text()")[0] # what is this?
   congress = int(dom.xpath('//floorschedule')[0].get('congress-num'))
 
   # week of this day, e.g. '2013-01-21'
@@ -130,7 +129,6 @@ def fetch_floor_week(for_the_week, options):
   house_floor = {
     'congress': congress,
     'week_of': legislative_day,
-    'status': status,
     'upcoming_bills': upcoming_bills
   }
   return house_floor
