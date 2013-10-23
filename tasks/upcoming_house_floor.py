@@ -60,6 +60,15 @@ def fetch_floor_week(for_the_week, options):
     bill_number = node.xpath('legis-num//text()')[0]
     description  = node.xpath('floor-text//text()')[0]
 
+    # how is this bill being considered?
+    category = node.iterancestors("category").next().get('type')
+    if "suspension" in category:
+      consideration = "suspension"
+    elif "pursuant" in category:
+      consideration = "rule"
+    else:
+      consideration = "unknown"
+
     if not bill_number:
       logging.warn("Skipping item, not a bill: %s" % description)
       continue
@@ -73,6 +82,7 @@ def fetch_floor_week(for_the_week, options):
     bill = {
       'description': description,
       'floor_item_id': node.get('id'),
+      'consideration': consideration,
       'published_at': date_for(node.get('publish-date')),
       'added_at': date_for(node.get('add-date')),
     }
