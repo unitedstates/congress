@@ -11,8 +11,7 @@ import lxml, json
 # http://docs.house.gov/floor/
 #
 # This contains data on what bills and draft bills are coming up
-# on the floor of the House. It can also contain links to committee
-# reports associated with those bills.
+# on the floor of the House.
 #
 # This script will transform the data in the provided XML feed to JSON,
 # and download associated documents to disk.
@@ -20,6 +19,7 @@ import lxml, json
 # TODO:
 #   * Detect and extract any XML files attached to PDFs.
 #   * parsing out metadata from any provided XML documents.
+#   * handle 'subitems' (e.g. House committee reports)
 #
 # options:
 #   week_of: the date of a Monday of a week to look for. defaults to current week.
@@ -29,16 +29,16 @@ def run(options):
   for_the_week = get_monday_of_week(options.get('week_of', None))
 
   logging.warn('Scraping upcoming bills from docs.house.gov/floor for the week of %s.\n' % for_the_week)
-  upcoming_bills = fetch_bills_week(for_the_week, options)
+  house_floor = fetch_floor_week(for_the_week, options)
 
   output_file = "%s/upcoming_house_floor/%s.json" % (utils.data_dir(), for_the_week)
-  output = json.dumps(upcoming_bills, sort_keys=True, indent=2, default=utils.format_datetime)
+  output = json.dumps(house_floor, sort_keys=True, indent=2, default=utils.format_datetime)
   utils.write(output, output_file)
 
-  logging.warn("\nFound %i bills for the week of %s, written to %s" % (len(upcoming_bills), for_the_week, output_file))
+  logging.warn("\nFound %i bills for the week of %s, written to %s" % (len(house_floor['upcoming_bills']), for_the_week, output_file))
 
 # For any week, e.g. http://docs.house.gov/floor/Download.aspx?file=/billsthisweek/20131021/20131021.xml
-def fetch_bills_week(for_the_week, options):
+def fetch_floor_week(for_the_week, options):
   base_url = 'http://docs.house.gov/floor/Download.aspx?file=/billsthisweek/'
   week_url = base_url + '%s/%s.xml' % (for_the_week, for_the_week)
 
@@ -46,7 +46,8 @@ def fetch_bills_week(for_the_week, options):
   dom = lxml.etree.fromstring(body)
 
 
-  # always present, the congress this is taking place in
+  # always present at the feed level
+  status = dom.xpath("/floorschedule/current-status//text()")[0] # what is this?
   congress = int(dom.xpath('//floorschedule')[0].get('congress-num'))
 
   # week of this day, e.g. '2013-01-21'
@@ -70,7 +71,6 @@ def fetch_bills_week(for_the_week, options):
 
     # all items will have this
     bill = {
-      'congress': congress,
       'description': description,
       'floor_item_id': node.get('id'),
       'published_at': date_for(node.get('publish-date')),
@@ -115,7 +115,15 @@ def fetch_bills_week(for_the_week, options):
 
     upcoming_bills.append(bill)
 
-  return upcoming_bills
+
+
+  house_floor = {
+    'congress': congress,
+    'week_of': legislative_day,
+    'status': status,
+    'upcoming_bills': upcoming_bills
+  }
+  return house_floor
 
 
 def get_monday_of_week(day_to_get_bills):
