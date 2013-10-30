@@ -227,28 +227,41 @@ def parse_icpsr_vote_string(icpsr_vote_string):
 	return votes
 
 def parse_vote_list_line(vote_list_line):
-	return re.match(r"^([\s\d]{2}\d)([\s\d]{4}\d)([\s\d]\d)([\s\d]{2})([^\d]+?)([\s\d]{3}\d)([\s\d])([\s\d])([^\s\d][^\d]+?)(\d+)$", vote_list_line).groups()
+	return re.match(r"^([\s\d]{2}\d)([\s\d]{4}\d)([\s\d]\d)([\s\d]{2})([^\d]+?)([\s\d]{3}\d)([\s\d])([\s\d])([^\s\d][^\d]+?(?:\d\s+)?)(\d+)$", vote_list_line).groups()
 
 def parse_rollcall_dtl_list_line(rollcall_list_line):
 	return re.match(r"^([\s\d]{3}\d)([\s\d]{4}\d)?([\s\d]\d)\s(.*?)\s*$", rollcall_list_line).groups()
 
 def parse_rollcall_dtl_list_first_line(rollcall_dtl_first_line):
-	return re.match(r"^(.{14})(.{15})(.{10})?(.+)$", rollcall_dtl_first_line).groups()
+	return re.match(r"^(.{14})(.{15})(.{10})?(.+?)(?:\s{3,}\d{2,3})?$", rollcall_dtl_first_line).groups()
 
 def parse_rollcall_dtl_date(rollcall_dtl_date):
 	from datetime import datetime
 
-	# Match locale abbreviations.
-	rollcall_dtl_date = rollcall_dtl_date.replace("SEPT.", "SEP.")
-	rollcall_dtl_date = rollcall_dtl_date.replace("JAN ", "JANUARY ")
+	potential_date_formats = [
+		"%b. %d, %Y", # JAN. 1, 1900
+		"%B %d, %Y", # JANUARY 1, 1900
+		"%b %d, %Y", # JAN 1, 1900
+		"%b. %d,%Y", # JAN. 1,1900
+		"%B %d,%Y", # JANUARY 1,1900
+		"%B. %d, %Y", # JANUARY. 1, 1900
+		"%b, %d, %Y", # JAN, 1, 1900
+		"%B, %d, %Y", # JANUARY, 1, 1900
+		"%b.%d, %Y", # JAN.1, 1900
+	]
 
-	try:
-		parsed_date = datetime.strptime(rollcall_dtl_date, "%B %d, %Y")
-	except ValueError:
+	# Python doesn't consider "SEPT" a valid abbreviation for September.
+	rollcall_dtl_date = rollcall_dtl_date.replace("SEPT.", "SEP.").replace("SEPT ", "SEP ")
+
+	parsed_date = None
+
+	for potential_date_format in potential_date_formats:
 		try:
-			parsed_date = datetime.strptime(rollcall_dtl_date, "%b. %d, %Y")
+			parsed_date = datetime.strptime(rollcall_dtl_date, potential_date_format)
 		except ValueError:
-			parsed_date = None
+			pass
+		else:
+			break
 
 	formatted_date = utils.format_datetime(parsed_date)
 
@@ -311,6 +324,9 @@ def parse_vote_list_file(vote_list_file):
 
 		vote_info["bioguide_id"] = bioguide_id
 
+		logging.debug("Parsed member %s ([%d] %s) of %s %s..." % ( vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
+					vote_info["state_name"], vote_info["district"] ))
+
 		vote_list_info.append(vote_info)
 
 	return vote_list_info
@@ -332,8 +348,8 @@ def parse_rollcall_dtl_list_file(rollcall_dtl_list_file):
 			rollcall_info["record_id"] = rollcall_dtl_list_first_line_parts[0].strip()
 			rollcall_info["journal_id"] = rollcall_dtl_list_first_line_parts[1].strip()
 			rollcall_info["bill"] = rollcall_dtl_list_first_line_parts[2].strip()
-			rollcall_info["date"] = parse_rollcall_dtl_date(rollcall_dtl_list_first_line_parts[3].strip())
 			rollcall_info["date_unparsed"] = rollcall_dtl_list_first_line_parts[3].strip()
+			rollcall_info["date"] = parse_rollcall_dtl_date(rollcall_info["date_unparsed"])
 		elif rollcall_dtl_list_line_info["line"] == 2:
 			pass
 		elif rollcall_dtl_list_line_info["line"] == 3:
@@ -443,8 +459,8 @@ def get_votes(chamber, congress, options, session_dates):
 			"session": session,
 			"chamber": chamber,
 			"number": rollcall_number, # XXX: This is not the right number.
-			"question": rollcall["description"],
-			"type": rollcall["description"], # TODO: normalized to a type
+			"question": rollcall["description"] if "description" in rollcall else None, # Sometimes there isn't a description.
+			"type": rollcall["description"] if "description" in rollcall else None, # TODO: normalized to a type
 			"date": datetime.date(*[int(dd) for dd in rollcall["date"].split("-")]), # turn YYYY-MM-DD into datetime.date() instance
 			"votes": vote_results,
 			"presidents_position": presidents_position.get(rollcall_number),
