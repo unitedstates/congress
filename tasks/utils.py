@@ -1,6 +1,6 @@
 import os, os.path, errno, sys, traceback, zipfile
 import re, htmlentitydefs
-import yaml, json
+import json
 from pytz import timezone
 import datetime, time
 from lxml import html, etree
@@ -18,7 +18,8 @@ import getpass
 # returns None if it's not there, and this should always be handled gracefully
 path = "config.yml"
 if os.path.exists(path):
-  config = yaml.load(open(path, 'r'))
+  # Don't use a cached config file, just in case.
+  config = direct_yaml_load(path)
 else:
   config = None
 
@@ -555,7 +556,7 @@ def thomas_corrections(thomas_id):
   return thomas_id
 
 # Load a YAML file directly.
-def yaml_load(filename):
+def direct_yaml_load(filename):
   import yaml
   try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -582,7 +583,7 @@ def check_cached_file(filename, cache_filename):
   return (os.path.exists(cache_filename) and os.stat(cache_filename).st_mtime > os.stat(filename).st_mtime)
 
 # Attempt to load a cached version of a YAML file before loading the YAML file directly.
-def cached_yaml_load(filename):
+def yaml_load(filename):
   cache_filename = get_cache_filename(filename)
 
   # Check if the cached pickle file is older than the original YAML file.
@@ -597,7 +598,7 @@ def cached_yaml_load(filename):
     logging.warn("Using original YAML file...")
 
     # Load the YAML file.
-    yaml_data = yaml_load(filename)
+    yaml_data = direct_yaml_load(filename)
 
     # Save the YAML data to a new pickle file.
     pickle_write(yaml_data, cache_filename)
@@ -638,7 +639,7 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
     require_congress_legislators_repo()
     lookup_legislator_cache = { } # from Congress number to list of (moc,term) tuples that might be in that Congress
     for filename in ("legislators-historical", "legislators-current"):
-      for moc in cached_yaml_load("congress-legislators/%s.yaml" % ( filename )):
+      for moc in yaml_load("congress-legislators/%s.yaml" % ( filename )):
         for term in moc["terms"]:
           for c in xrange(congress_from_legislative_year(int(term['start'][0:4]))-1,
             congress_from_legislative_year(int(term['end'][0:4]))+1+1):
@@ -715,7 +716,7 @@ def create_legislators_map(map_from, map_to, map_function, filename="legislators
     logging.warn("Generating new map from %s to %s for %s..." % ( map_from, map_to, filename ))
 
     # Load the YAML file and create a map based on the provided map function.
-    for item in cached_yaml_load("congress-legislators/%s.yaml" % ( filename )):
+    for item in yaml_load("congress-legislators/%s.yaml" % ( filename )):
       legislators_map = map_function(legislators_map, item)
 
     # Save the new map to a new pickle file.
