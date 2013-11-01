@@ -29,12 +29,6 @@ eastern_time_zone = timezone('US/Eastern')
 scraper = scrapelib.Scraper(requests_per_minute=120, follow_robots=False, retry_attempts=3)
 scraper.user_agent = "unitedstates/congress (https://github.com/unitedstates/congress)"
 
-govtrack_person_id_map = None
-
-class UnmatchedIdentifer(Exception):
-  def __init__(self, id_type, id_value, help_url):
-    super(UnmatchedIdentifer, self).__init__("%s=%s %s" % (id_type, str(id_value), help_url))
-
 def format_datetime(obj):
   if isinstance(obj, datetime.datetime):
     return eastern_time_zone.localize(obj.replace(microsecond=0)).isoformat()
@@ -75,6 +69,36 @@ def get_congress_first_year(congress):
 def get_congress_years(congress):
   y1 = get_congress_first_year(congress)
   return (y1, y1+1, y1+2)
+
+# Get a list of Congresses associated with a particular term.
+# XXX: This can be highly unreliable and may be deeply flawed.
+# XXX: This would be much simpler if we already included Congresses in the data.
+def get_term_congresses(term):
+  start_year = int(format_datetime(term["start"])[:4])
+  end_year = int(format_datetime(term["end"])[:4])
+
+  start_congress = congress_from_legislative_year(start_year)
+  start_congress_years = get_congress_years(start_congress)
+  start_congress_first_year = start_congress_years[0]
+
+  if term["type"] in [ "sen" ]:
+    end_congress_years = get_congress_years(start_congress + 2)
+    congresses = [ start_congress, start_congress + 1, start_congress + 2 ]
+  elif term["type"] in [ "prez", "viceprez" ] or term["state"] in [ "PR" ]:
+    end_congress_years = get_congress_years(start_congress + 1)
+    congresses = [ start_congress, start_congress + 1 ]
+  else:
+    end_congress_years = start_congress_years
+    congresses = [ start_congress ]
+
+  end_congress_last_year = end_congress_years[2]
+
+  valid_congresses = (start_year >= start_congress_first_year) and (end_year <= end_congress_last_year)
+
+#  if not valid_congresses:
+#    print term["type"], start_congress, (start_year, start_congress_first_year), (end_year, end_congress_last_year)
+
+  return congresses if valid_congresses else []
 
 # bill_type, bill_number, congress
 def split_bill_id(bill_id):
@@ -530,24 +554,71 @@ def thomas_corrections(thomas_id):
 
   return thomas_id
 
-def yaml_load(file_name):
+def yaml_load(filename):
   import yaml
   try:
     from yaml import CLoader as Loader, CDumper as Dumper
   except ImportError:
     from yaml import Loader, Dumper
-  return yaml.load(open(file_name), Loader=Loader)
+  return yaml.load(open(filename), Loader=Loader)
 
+def pickle_load(filename):
+  import pickle
+  return pickle.load(open(filename))
+
+def pickle_write(data, filename):
+  import pickle
+  return pickle.dump(data, open(filename, "w"))
+
+def get_cache_filename(filename):
+  return os.path.join(cache_dir(), filename + '.pickle')
+
+# Check if the cached file is newer.
+def check_cached_file(filename, cache_filename):
+  return (os.path.exists(cache_filename) and os.stat(cache_filename).st_mtime > os.stat(filename).st_mtime)
+
+def cached_yaml_load(filename):
+  cache_filename = get_cache_filename(filename)
+
+  # Check if the cached pickle file is older than the original YAML file.
+  if check_cached_file(filename, cache_filename):
+    # The pickled file is newer, so it's probably safe to use it.
+    logging.info("Using cached pickle file...")
+
+    # Load the pickle file.
+    yaml_data = pickle_load(cache_filename)
+  else:
+    # The YAML file is newer, so we have to generate a new pickle file.
+    logging.warn("Using original YAML file...")
+
+    # Load the YAML file.
+    yaml_data = yaml_load(filename)
+
+    # Save the YAML data to a new pickle file.
+    pickle_write(yaml_data, cache_filename)
+
+  return yaml_data
+
+has_congress_legislators_repo = False
 def require_congress_legislators_repo():
+  global has_congress_legislators_repo
+
+  # Once we have the congress-legislators repo, we don't need to keep getting it.
+  if has_congress_legislators_repo:
+    return
+
   # Clone the congress-legislators repo if we don't have it.
-  if not os.path.exists("cache/congress-legislators"):
-    logging.warn("Cloning the congress-legislators repo into the cache directory...")
-    os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators cache/congress-legislators")
+  if not os.path.exists("congress-legislators"):
+    logging.warn("Cloning the congress-legislators repo...")
+    os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators congress-legislators")
 
   # Update the repo so we have the latest.
   logging.warn("Updating the congress-legislators repo...")
-  os.system("cd cache/congress-legislators; git fetch -pq") # these two == git pull, but git pull ignores -q on the merge part so is less quiet
-  os.system("cd cache/congress-legislators; git merge --ff-only -q origin/master")
+  # these two == git pull, but git pull ignores -q on the merge part so is less quiet
+  os.system("cd congress-legislators; git fetch -pq; git merge --ff-only -q origin/master")
+
+  # We now have the congress-legislators repo.
+  has_congress_legislators_repo = True
 
 lookup_legislator_cache = []
 def lookup_legislator(congress, role_type, name, state, party, when, id_requested, exclude=set()):
@@ -560,8 +631,8 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
   if not lookup_legislator_cache:
     require_congress_legislators_repo()
     lookup_legislator_cache = { } # from Congress number to list of (moc,term) tuples that might be in that Congress
-    for fn in ('legislators-historical', 'legislators-current'):
-      for moc in yaml_load("cache/congress-legislators/" + fn + ".yaml"):
+    for filename in ("legislators-historical", "legislators-current"):
+      for moc in cached_yaml_load("congress-legislators/%s.yaml" % ( filename )):
         for term in moc["terms"]:
           for c in xrange(congress_from_legislative_year(int(term['start'][0:4]))-1,
             congress_from_legislative_year(int(term['end'][0:4]))+1+1):
@@ -617,60 +688,78 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
     return None
   return matches[0][0]['id'][id_requested]
 
-person_id_map = {}
-def generate_person_id_map():
-  import os, os.path, pickle
-
+def create_legislators_map(map_from, map_to, map_function, filename="legislators-current", legislators_map={}):
   # Make sure we have the congress-legislators repo available.
   require_congress_legislators_repo()
 
+  cache_filename = get_cache_filename("map-%s-%s-%s" % ( map_from.lower().replace(" ", "_"), map_to.lower().replace(" ", "_"), filename ))
+
+  # Check if the cached pickle file is newer than the original YAML file.
+  if check_cached_file("congress-legislators/%s.yaml" % ( filename ), cache_filename):
+    # The pickle file is newer, so it's probably safe to use the cached map.
+    logging.info("Using cached map from %s to %s for %s..." % ( map_from, map_to, filename ))
+    legislators_map = pickle_load(cache_filename)
+  else:
+    # The YAML file is newer, so we have to generate a new map.
+    logging.warn("Generating new map from %s to %s for %s..." % ( map_from, map_to, filename ))
+
+    # Load the YAML file and create a map based on the provided map function.
+    for item in cached_yaml_load("congress-legislators/%s.yaml" % ( filename )):
+      legislators_map = map_function(legislators_map, item)
+
+    # Save the new map to a new pickle file.
+    pickle_write(legislators_map, cache_filename)
+
+  return legislators_map
+
+def create_combined_legislators_map(map_from, map_to, map_function, filenames=[ "executive", "legislators-historical", "legislators-current" ]):
+  combined_legislators_map = {}
+
+  for filename in filenames:
+    combined_legislators_map = create_legislators_map(map_from, map_to, map_function, filename, combined_legislators_map)
+
+  return combined_legislators_map
+
+person_id_map = {}
+def generate_person_id_map():
+  def map_function(person_id_map, person):
+    for source_id_type, source_id in person["id"].items():
+      # Instantiate this ID type.
+      if source_id_type not in person_id_map:
+        person_id_map[source_id_type] = {}
+
+      # Certain ID types have multiple IDs.
+      source_ids = source_id if isinstance(source_id, list) else [source_id]
+
+      for source_id in source_ids:
+        # Instantiate this value for this ID type.
+        if source_id not in person_id_map[source_id_type]:
+          person_id_map[source_id_type][source_id] = {}
+
+        # Loop through all the ID types and values and map them to this ID type.
+        for target_id_type, target_id in person["id"].items():
+          # Don't map an ID type to itself.
+          if target_id_type != source_id_type:
+            person_id_map[source_id_type][source_id][target_id_type] = target_id
+
+    return person_id_map
+
   # Make the person ID map available in the global space.
   global person_id_map
-  person_id_map = {}
 
-  # Load the legislators database to map each ID to the other IDs.
-  # Cache in a pickled file because loading the whole YAML db is super slow.
-  for filename in ('executive', 'legislators-historical', 'legislators-current'):
-    cache_filename = os.path.join(cache_dir(), filename + '-id-map')
+  person_id_map = create_combined_legislators_map("person", "ID", map_function)
 
-    # Check if the pickled file is older than the YAML files.
-    if os.path.exists(cache_filename) and os.stat(cache_filename).st_mtime > os.stat("cache/congress-legislators/%s.yaml" % filename).st_mtime:
-      # The pickled file is newer, so use the cached map.
-      person_id_map = pickle.load(open(cache_filename))
-    else:
-      # We have to generate a new map.
-      logging.warn("Making %s ID map..." % filename)
-
-      # Load the YAML file and create a master map from one ID type to the others.
-      for person in yaml_load("cache/congress-legislators/" + filename + ".yaml"):
-        for source_id_type, source_id in person["id"].items():
-          # Instantiate this ID type.
-          if source_id_type not in person_id_map:
-            person_id_map[source_id_type] = {}
-
-          # Certain ID types have multiple IDs.
-          source_ids = source_id if isinstance(source_id, list) else [source_id]
-
-          for source_id in source_ids:
-            # Instantiate this value for this ID type.
-            if source_id not in person_id_map[source_id_type]:
-              person_id_map[source_id_type][source_id] = {}
-
-            # Loop through all the ID types and values and map them to this ID type.
-            for target_id_type, target_id in person["id"].items():
-              # Don't map an ID type to itself.
-              if target_id_type != source_id_type:
-                person_id_map[source_id_type][source_id][target_id_type] = target_id
-
-      # Save the new map to a pickled file.
-      pickle.dump(person_id_map, open(cache_filename, "w"))
-
-def get_person_id(source_id_type, source_id, target_id_type):
+def get_person_id_map():
   global person_id_map
 
   # If the person ID map is not available yet, generate it.
   if not person_id_map:
     generate_person_id_map()
+
+  return person_id_map
+
+def get_person_id(source_id_type, source_id, target_id_type):
+  person_id_map = get_person_id_map()
 
   if source_id_type in person_id_map:
     if source_id in person_id_map[source_id_type]:
@@ -683,6 +772,96 @@ def get_person_id(source_id_type, source_id, target_id_type):
 
   raise KeyError("'%s' is not a valid ID type." % ( source_id_type ))
 
+person_congresses_map = {}
+def generate_person_congresses_map():
+  def map_function(person_congresses_map, person):
+    try:
+      bioguide_id = person["id"]["bioguide"]
+    except KeyError:
+#      print person["id"], person["name"]
+      return person_congresses_map
+
+    if bioguide_id not in person_congresses_map:
+      person_congresses_map[bioguide_id] = []
+
+    for term in person["terms"]:
+      for congress in get_term_congresses(term):
+        person_congresses_map[bioguide_id].append(congress)
+
+    person_congresses_map[bioguide_id].sort()
+
+    return person_congresses_map
+
+  # Make the person congresses map available in the global space.
+  global person_congresses_map
+
+  person_congresses_map = create_combined_legislators_map("person", "Congresses", map_function)
+
+def get_person_congresses_map():
+  global person_congresses_map
+
+  # If the person Congresses map is not available yet, generate it.
+  if not person_congresses_map:
+    generate_person_congresses_map()
+
+  return person_congresses_map
+
+def get_person_congresses(person_id, person_id_type="bioguide"):
+  bioguide_id = person_id if person_id_type == "bioguide" else get_person_id(person_id_type, person_id, "bioguide")
+
+  person_congresses_map = get_person_congresses_map()
+
+  if bioguide_id not in person_congresses_map:
+    raise KeyError("No known Congresses for BioGuide ID '%s'." % ( bioguide_id ))
+
+  return person_congresses_map[bioguide_id]
+
+congress_persons_map = {}
+def generate_congress_persons_map():
+  def map_function(congress_persons_map, person):
+    try:
+      bioguide_id = person["id"]["bioguide"]
+    except KeyError:
+#      print person["id"], person["name"]
+      return congress_persons_map
+
+    for term in person["terms"]:
+      for congress in get_term_congresses(term):
+        if congress not in congress_persons_map:
+          congress_persons_map[congress] = set()
+
+        congress_persons_map[congress].add(bioguide_id)
+
+    return congress_persons_map
+
+  # Make the person congresses map available in the global space.
+  global congress_persons_map
+
+  congress_persons_map = create_combined_legislators_map("Congress", "persons", map_function)
+
+def get_congress_persons_map():
+  global congress_persons_map
+
+  # If the Congress persons map is not available yet, generate it.
+  if not congress_persons_map:
+    generate_congress_persons_map()
+
+  return congress_persons_map
+
+def get_congress_persons(congress):
+  congress_persons_map = get_congress_persons_map()
+
+  if congress not in congress_persons_map:
+    raise KeyError("No known persons for Congress '%s'." % ( congress ))
+
+  return congress_persons_map[congress]
+
+# XXX: This exception is deprecated. (It has a typo.) Only use in relation to get_govtrack_person_id().
+class UnmatchedIdentifer(Exception):
+  def __init__(self, id_type, id_value, help_url):
+    super(UnmatchedIdentifer, self).__init__("%s=%s %s" % (id_type, str(id_value), help_url))
+
+# XXX: This function is deprecated. Use get_person_id() instead.
 def get_govtrack_person_id(source_id_type, source_id):
   try:
     govtrack_person_id = get_person_id(source_id_type, source_id, "govtrack")
