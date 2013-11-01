@@ -310,22 +310,21 @@ def parse_vote_list_file(vote_list_file):
 
 		icpsr_id = vote_info["icpsr_id"]
 
-		if vote_info["icpsr_state"] == 99:
-			# This is used to record the President's position, or something.
-			# Mark this record so build_votes can separated it out from Member votes.
-			bioguide_id = "__PRESIDENT__"
+		try:
+			bioguide_id = utils.get_person_id("icpsr", icpsr_id, "bioguide")
+		except KeyError as e:
+			logging.error("Problem with member %s ([%d] %s) of %s %s: %s" % ( vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
+				vote_info["state_name"], vote_info["district"], e.message ))
+			bioguide_id = None
 		else:
-			try:
-				bioguide_id = utils.get_person_id("icpsr", icpsr_id, "bioguide")
-			except KeyError as e:
-				logging.error("Problem with member %s ([%d] %s) of %s %s: %s" % ( vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
-					vote_info["state_name"], vote_info["district"], e.message ))
-				continue
+			logging.debug("Parsed member %s ([%d] %s) of %s %s..." % ( vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
+						vote_info["state_name"], vote_info["district"] ))
 
 		vote_info["bioguide_id"] = bioguide_id
 
-		logging.debug("Parsed member %s ([%d] %s) of %s %s..." % ( vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
-					vote_info["state_name"], vote_info["district"] ))
+		# This is used to record the President's position, or something.
+		# Mark this record so build_votes can separated it out from Member votes.
+		vote_info["is_president"] = True if vote_info["icpsr_state"] == 99 else False
 
 		vote_list_info.append(vote_info)
 
@@ -371,14 +370,18 @@ def build_votes(vote_list):
 		for i in range(len(vote_info["votes"])):
 			vote_type = vote_info["votes"][i]
 
+			# XXX: When does this ever happen?
 			if vote_type is None:
 				continue
 
-			# Separate the president's position from Member votes.
-			if vote_info["bioguide_id"] == "__PRESIDENT__":
-				presidents_position[i] = vote_type
+			# The vote data is useless if we don't know whose it is.
+			if vote_info["bioguide_id"] is None:
 				continue
 
+			# Separate the president's position from Member votes.
+			if vote_info["is_president"]:
+				presidents_position[i] = vote_type
+				continue
 
 			if i not in votes:
 				votes[i] = {}
