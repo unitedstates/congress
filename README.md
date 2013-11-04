@@ -10,7 +10,9 @@ Includes:
 
 * A scraper for GPO FDSys, the official repository for most legislative documents.
 
-Read about the [contents and schema](https://github.com/unitedstates/congress/wiki). For background on how this repository came to be, see [Eric's blog post](http://sunlightfoundation.com/blog/2013/08/20/a-modern-approach-to-open-data/).
+Read about the contents and schema in the [documentation](https://github.com/unitedstates/congress/wiki) in the github project wiki.
+
+For background on how this repository came to be, see [Eric's blog post](http://sunlightfoundation.com/blog/2013/08/20/a-modern-approach-to-open-data/).
 
 
 Setting Up
@@ -64,10 +66,7 @@ To get only a specific bill, pass in the ID for that bill. For example, S. 968 i
 
     ./run bills --bill_id=s968-112
 
-To download the complete bill text from GPO in HTML or PDF formats, pass either or both using the ```--formats``` flag:
-
-    ./run bills --bill_id=s968-112 --formats=html,pdf
-
+For more, see the [documentation](https://github.com/unitedstates/congress/wiki/bills).
 
 Scraping amendments
 -------------------
@@ -110,46 +109,12 @@ To get only a specific vote, pass in the ID for the vote. For the Senate vote 50
 
     ./run votes --vote_id=s50-112.2012
 
-Scraping GPO FDSys and Bill Text
---------------------------------
+Scraping other data
+-------------------
 
-The scraper for GPO FDSys provides infrastructure for other tasks, such as fetching bill text. FDSys is organized by collection (bills, committee reports, etc.) and year.
+See the documentation for:
 
-To download all bill text, run:
-
-	./run fdsys --collections=BILLS --congress=112 --store=pdf,mods,xml,text
-
-Bill text is stored in a text-versions directory within each bill directory, e.g.:
-
-	data/112/bills/hr/hr68/text-versions/ih/document.pdf
-	data/112/bills/hr/hr68/text-versions/ih/mods.xml
-	data/112/bills/hr/hr68/text-versions/ih/document.xml
-	data/112/bills/hr/hr68/text-versions/ih/document.html (original HTML wrapper around plain text)
-	data/112/bills/hr/hr68/text-versions/ih/document.txt (UTF-8 encoded)
-	data/112/bills/hr/hr68/text-versions/ih/data.json (common metadata extracted from mods.xml)
-
-The subdirectory name indicates the bill text version code assigned by GPO (ih, enr, etc.). The mods.xml file has metadata from GPO, some of which is also extracted into data.json. Use the JSON file to determine which is the most recent text version if you want to find the most recent text of a bill.
-
-Running the command again will smartly update changed files by scanning through FDSys's sitemaps.
-
-A separate task called bill_versions will download just the mods.xml files (if they aren't already downloaded) and will create just the data.json files.
-
-	./run bill_versions --congress=112
-	data/112/bills/hjres/hjres6/text-versions/ih/mods.xml
-	data/112/bills/hjres/hjres6/text-versions/ih/data.json
-
-Use bill_versions if you only need the MODS and JSON files, or to update the JSON files in bulk if our data format changes.
-
-Back on the fdsys scraper, the stored files for other collections (besides bills) are organized in a more generic way: in data/fdsys/COLLECTION/YEAR/PKGID. The PKGID is the package identifier for the file on FDSys. For instance:
-
-	./run fdsys --collections=STATUTE --year=1982 --store=mods
-	data/fdsys/STATUTE/1982/STATUTE-96/mods.xml
-
-The collections argument can take a comma-separated list of collections. To get a list of collection names, use:
-
-	./run fdsys --list-collections
-
-All arguments are optional. Without --store, the script just updates a local copy of the sitemap files in cache/fdsys/sitemap/YEAR/COLLECTION.xml. Use --cached to force the use of cached files and not hit the network except when a file does not exist. Use --force to download all files anew.
+* [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text).
 
 Committee Meetings
 ------------------
