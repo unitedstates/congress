@@ -18,9 +18,9 @@ For background on how this repository came to be, see [Eric's blog post](http://
 Setting Up
 ----------
 
-On Ubuntu, you'll need these packages (the last three are required for the lxml python package):
+The scripts are tested with Python 2.7. On Ubuntu, you'll need these packages (the last three are required for the lxml python package):
 
-    sudo apt-get install git python-virtualenv python-dev libxml2-dev libxslt1-dev
+    sudo apt-get install git python-virtualenv python-dev libxml2-dev libxslt1-dev libz-dev
 
 It's recommended you first create and activate a virtualenv with:
 
