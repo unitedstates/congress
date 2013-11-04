@@ -134,6 +134,7 @@ def proc_statute_volume(path, options):
       "title": title_text,
       "as": "enacted",
       "type": "official",
+      "is_for_portion": False,
     } )
 
     # Subject
@@ -253,6 +254,7 @@ def proc_statute_volume(path, options):
       'version_code': version_code,
       'issued_on': status_date,
       'urls': { "pdf": bill.find( "mods:location/mods:url[@displayLabel='PDF rendition']", mods_ns ).text },
+      'sources': sources,
     }
     utils.write(
       json.dumps(bill_version, sort_keys=True, indent=2, default=utils.format_datetime),
@@ -264,7 +266,7 @@ def proc_statute_volume(path, options):
     # - Run "pdftotext -layout" to convert it to plain text and save it in the bill text location.
     pdf_file = path + "/" + sources[0]["access_id"] + "/document.pdf"
     if os.path.exists(pdf_file):
-      dst_path = fdsys.output_for_bill(int(bill_data["congress"]), bill_data["bill_type"], bill_data["number"], "text-versions/" + version_code)
+      dst_path = fdsys.output_for_bill(bill_data["bill_id"], "text-versions/" + version_code, is_data_dot=False)
       if options.get("linkpdf", False):
         os.link(pdf_file, dst_path + "/document.pdf") # a good idea
       if options.get("extracttext", False):
