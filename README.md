@@ -42,12 +42,15 @@ The general form to start the scraping process is:
 
 where data-type is one of:
 
-    * bills
-    * amendments
-    * nominations
-    * votes
-    * fdsys
-    * committee_meetings
+* `bills` (see [Bills](https://github.com/unitedstates/congress/wiki/bills))
+* `amendments` (see [Amendments](https://github.com/unitedstates/congress/wiki/amendments))
+* `votes` (see [Votes](https://github.com/unitedstates/congress/wiki/votes))
+* `nominations` (see [Nominations](https://github.com/unitedstates/congress/wiki/nominations))
+* `committee_meetings` (see [Committee Meetings](https://github.com/unitedstates/congress/wiki/committee-meetings))
+* `fdsys` (see [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
+* `bill_versions` (see [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
+* `deepbills` (see [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
+* `statutes` (see [Bills](https://github.com/unitedstates/congress/wiki/bills) and [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
 
 To scrape bills and resolutions from THOMAS, run:
 
@@ -55,101 +58,18 @@ To scrape bills and resolutions from THOMAS, run:
 
 The bills script will output bulk data into a top-level `data` directory, then organized by Congress number, bill type, and bill number. Two data output files will be generated for each bill: a JSON version (data.json) and an XML version (data.xml).
 
-Scraping bills
+Common options
 --------------
 
-You can supply a few kinds of flags when scraping bills and resolutions. To limit it to 10 House simple resolutions in the 111th Congress:
-
-    ./run bills --limit=10 --bill_type=hres --congress=111
-
-To get only a specific bill, pass in the ID for that bill. For example, S. 968 in the 112th congress:
-
-    ./run bills --bill_id=s968-112
-
-For more, see the [documentation](https://github.com/unitedstates/congress/wiki/bills).
-
-Scraping amendments
--------------------
-
-You can supply a few kinds of flags when scraping amendments, similar to the options for bills. To limit to 10 House amendments in the 111th Congress:
-
-    ./run amendments --limit=10 --amendment_type=hamdt --congress=111
-
-To get only a specific amendment:
-
-    ./run amendments --amendment_id=samdt5-112
-
-To get only amendments specific to a certain bill:
-
-    ./run amendments --bill_id=hr152-113
-
-Scraping nominations
---------------------
-
-Nominations are gathered similarly to bills and amendments. Nomination IDs are of the form `PNXXX-YYY`, where `XXX` is the number, and `YYY` is the congress.
-
-Examples:
-
-    ./run nominations --limit=10 --congress=113
-
-    ./run nominations --nomination_id=PN173-113
-
-Scraping votes
---------------
-
-Similar commands are available for roll call votes. Start with:
-
-    ./run votes
-
-You can supply a few kinds of flags, such as limit and congress as above. Votes are grouped by the Senate and House into two sessions per Congress, which (in modern times) roughly follow the calendar years. Senate votes are numbered uniquely by session. House vote numbering continues consecutively throughout the Congress. To get votes from 2012, run:
-
-    ./run votes --congress=112 --session=2012
-
-To get only a specific vote, pass in the ID for the vote. For the Senate vote 50 in the 2nd session of the 112th Congress:
-
-    ./run votes --vote_id=s50-112.2012
-
-Scraping other data
--------------------
-
-See the documentation for:
-
-* [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text).
-
-Committee Meetings
-------------------
-
-The committee_meetings scraper pulls upcoming House and Senate committee meetings from http://docs.house.gov/Committee and http://www.senate.gov/general/committee_schedules/hearings.xml, respectively. To run the scraper:
-
-    ./run committee_meetings --force --debug
-
-This outputs two JSON files: data/committee_meetings_house.json and data/committee_meetings_senate.json.
-
-Each meeting is assigned a GUID. If you re-run the scraper (without deleting the output JSON files), the GUIDs will be preserved from run to run so that you can tell when meetings are added or revised. For Senate committee meetings, we preserve the GUID by a heuristic. The House provides stable IDs.
-
-The House-side scraper is very slow. Each meeting is requested from a separate file whose response time seems to be pretty slow.
-
-Other Options
--------------
-
-The script will cache all downloaded pages, and it will not re-fetch them from the network unless a force flag is passed:
+The scripts will cache all downloaded pages, and it will not re-fetch them from the network unless a force flag is passed:
 
     ./run bills --force
 
-The --force flag applies to all data types. If you are trying to automatically sync bill information on an ongoing basis, it's recommended to do this only once or twice a day, as THOMAS is not updated in real time, and most information is delayed by a day.
-
-Since the --force flag forces a download and parse of every object, the --fast flag will attempt to process only objects that are believed to have changed. Always use --fast with --force.
-
-    ./run bills --force --fast
-
-For bills and amendments, the --fast flag will only download bills that appear to have new activity based on whether the bill's search result listing on pages like http://thomas.loc.gov/cgi-bin/bdquery/d?d113:0:./list/bss/d113HR.lst: have changed. This doesn't detect all changes to a bill, but it results in a much faster scrape by not having to fetch the pages for every bill. You should still do a complete re-download (without `--fast`) every so often to ensure data is fully current.
-
-For votes, the --fast flag will have the scraper download only votes taken in the last three days, which is the time during which most vote changes and corrections are posted.
+The --force flag applies to all data types. Since the --force flag forces a download and parse of every object, the --fast flag for bills and votes will attempt to process only objects that are believed to have changed. Always use --fast with --force.
 
 Debugging messages are hidden by default. To include them, run with --log=info or --debug. To hide even warnings, run with --log=error.
 
 To get emailed with errors, copy config.yml.example to config.yml and fill in the SMTP options. The script will automatically use the details when a parsing or execution error occurs.
-
 
 Data Output
 -----------
@@ -158,7 +78,7 @@ The script will cache downloaded pages in a top-level `cache` directory, and out
 
 Two bulk data output files will be generated for each object: a JSON version (data.json) and an XML version (data.xml). The XML version attempts to maintain backwards compatibility with the XML bulk data that [GovTrack.us](https://www.govtrack.us) has provided for years. Add the --govtrack flag to get fully backward-compatible output using GovTrack IDs (otherwise the source IDs used for legislators is used).
 
-See the project wiki for documentation on the output format.
+See the [project wiki](https://github.com/unitedstates/congress/wiki) for documentation on the output format.
 
 Contributing
 ------------
