@@ -18,8 +18,9 @@ import getpass
 # returns None if it's not there, and this should always be handled gracefully
 path = "config.yml"
 if os.path.exists(path):
-  # Don't use a cached config file, just in case.
-  config = direct_yaml_load(path)
+  # Don't use a cached config file, just in case, and direct_yaml_load is not yet defined.
+  import yaml
+  config = yaml.load(open(path))
 else:
   config = None
 
