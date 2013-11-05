@@ -324,6 +324,12 @@ def mirror_file(year, collection, package_name, lastmod, granule_name, file_type
   updated_file_types = set()
   for file_type in file_types:
     if file_type not in targets: raise Exception("Invalid file type: %s" % file_type)
+    
+    # For BILLS, XML was not available until the 108th Congress, though even after that
+    # it was spotty until the 111th or so Congress.
+    if file_type == "xml" and collection == "BILLS" and int(package_name[6:9]) < 108:
+      continue
+    
     f_url, f_path = targets[file_type]
     
     if (not force) and os.path.exists(f_path): continue # we already have the current file
