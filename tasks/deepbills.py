@@ -32,7 +32,13 @@ def bill_version_ids_for(only_congress, options):
   bill_index_json = fetch_bill_index_json()
 
   for bill in bill_index_json:
-    bill_version_ids.append("%s%s-%s-%s" % (bill["billtype"], bill["billnumber"], bill["congress"], bill["billversion"]))
+    bill_ver_id = "%s%s-%s-%s" % (bill["billtype"], bill["billnumber"], bill["congress"], bill["billversion"])
+
+    # Until we have last modified dates, just skip files if we've already downloaded them.
+    fn = document_filename_for(bill_ver_id, "catoxml.xml")
+    if os.path.exists(fn): continue
+
+    bill_version_ids.append(bill_ver_id)
 
   return bill_version_ids
 
@@ -55,11 +61,7 @@ def document_filename_for(bill_version_id, filename):
 
 def write_bill_catoxml(bill_version_id, options):
   fn = document_filename_for(bill_version_id, "catoxml.xml")
-  
-  # Until we have last modified dates, just skip files if we've already
-  # downloaded them.
-  if os.path.exists(fn): return {'ok': True, 'saved': False, 'reason': 'File already exists.'}
-  
+
   utils.write(
     extract_xml_from_json(fetch_single_bill_json(bill_version_id)),
     fn
