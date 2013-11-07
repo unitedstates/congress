@@ -262,7 +262,13 @@ def download(url, destination=None, options={}):
         if not needs_content:
           import subprocess
           mkdir_p(os.path.dirname(cache_path))
-          return True if (subprocess.call(["wget", "-q", "-O", cache_path, url]) == 0) else None
+          if subprocess.call(["wget", "-q", "-O", cache_path, url]) == 0:
+            return True
+          else:
+            # wget failed. when that happens it leaves a zero-byte file on disk, which
+            # for us means we've created an invalid file, so delete it.
+            os.unlink(cache_path)
+            return None
         response = scraper.urlopen(url)
 
       if not is_binary:
