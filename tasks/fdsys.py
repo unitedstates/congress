@@ -19,14 +19,15 @@
 # and then outputs text-versions.json next to each bill data.json
 # file from the bills scraper.
 #
-# ./run fdsys ... --store mods,pdf,text,xml [--granules]
-# When downloading, also locally mirror the MODS, PDF, text, or XML
-# documents associated with each package. Update as the sitemap
-# indicates. Pass --granules to locally cache only granule files
+# ./run fdsys ... --store mods,pdf,text,xml,premis,zip [--granules]
+# When downloading, also locally mirror the MODS, PDF, text, XML,
+# PREMIS, or the whole package ZIP file associated with each package.
+# Update only changed files as the sitemap indicates.
+# Pass --granules in addition to locally cache only granule files
 # (e.g. the individual statute files w/in a volume).
 
 from lxml import etree, html
-import glob, json, re, logging, os.path
+import glob, json, re, logging, os.path, zipfile
 import utils
 from bill_info import output_for_bill
 
@@ -49,7 +50,7 @@ def run(options):
   
   # Locally store MODS, PDF, etc.
   if "store" in options:
-    mirror_files(fetch_collections, options)
+    mirror_packages(fetch_collections, options)
 
   # Create a JSON file listing all available bill text documents.
   # Only if --collections is omitted or specifies BILLS, and if
@@ -62,7 +63,7 @@ def update_sitemap_cache(fetch_collections, options):
   Pass fetch_collections as None, or to restrict the update to
   particular FDSys collections a set of collection names. Only
   downloads changed sitemap files."""
-	
+  
   seen_collections = dict() # maps collection name to a set() of sitemap years in which the collection is present
   
   # Load the root sitemap.
@@ -202,7 +203,7 @@ def entries_from_collection(year, collection, lastmod, options):
 
 
 
-def mirror_files(fetch_collections, options):
+def mirror_packages(fetch_collections, options):
   """Create a local mirror of FDSys document files. Only downloads
   changed files, according to the sitemap. Run update_sitemap_cache first.
   
@@ -210,7 +211,7 @@ def mirror_files(fetch_collections, options):
   particular FDSys collections a set of collection names.
   
   Set options["store"] to a comma-separated list of file types (pdf,
-  mods, text, xml).
+  mods, text, xml, zip).
   """
   
   # For determining whether we need to process a sitemap file again on a later
@@ -259,7 +260,7 @@ def mirror_files(fetch_collections, options):
       else:
         # In some collections, like STATUTE, each document has subparts which are not
         # described in the sitemap. Load the main HTML page and scrape for the sub-files.
-        # In the STATUTE collection, the MODS information in granules is redudant with
+        # In the STATUTE collection, the MODS information in granules is redundant with
         # information in the top-level package MODS file. But the only way to get granule-
         # level PDFs is to go through the granules.
         content_detail_url = "http://www.gpo.gov/fdsys/pkg/%s/content-detail.html" % package_name
@@ -278,7 +279,7 @@ def mirror_files(fetch_collections, options):
         
       # Download the files of the desired types.
       for granule_name in file_list:
-        mirror_file(year, collection, package_name, lastmod, granule_name, file_types, options)
+        mirror_package(year, collection, package_name, lastmod, granule_name, file_types, options)
         
     # If we got this far, we successfully downloaded all of the files in this year/collection.
     # To speed up future updates, save the lastmod time of this sitemap in a file indicating
@@ -309,7 +310,7 @@ def get_sitemap_entries(sitemap_filename):
     
     yield package_name, lastmod
 
-def mirror_file(year, collection, package_name, lastmod, granule_name, file_types, options):
+def mirror_package(year, collection, package_name, lastmod, granule_name, file_types, options):
   # Where should we store the file?
   path = get_output_path(year, collection, package_name, granule_name, options)
   if not path: return # should skip
@@ -343,7 +344,7 @@ def mirror_file(year, collection, package_name, lastmod, granule_name, file_type
     updated_file_types.add(file_type)
     
     if not data:
-      if file_type == "pdf":
+      if file_type in ("pdf", "zip"):
         # expected to be present for all packages
         raise Exception("Failed to download %s" % package_name)
       else:
@@ -356,8 +357,33 @@ def mirror_file(year, collection, package_name, lastmod, granule_name, file_type
       # TODO: Encoding? The HTTP content-type header says UTF-8, but do we trust it?
       #       html.fromstring does auto-detection.
       with open(f_path[0:-4] + "txt", "w") as f:
-        text_content = unicode(html.fromstring(data).text_content())
-        f.write(text_content.encode("utf8"))
+      	f.write(unwrap_text_in_html(data))
+
+    if file_type == "zip":
+      # This is the entire package in a ZIP file. Extract the contents of this file
+      # to the appropriate paths.
+      with zipfile.ZipFile(f_path) as zf:
+        for z2 in zf.namelist():
+          if not z2.startswith(package_name + "/"): raise ValueError("Unmatched file name in package ZIP: " + z2)
+          z2 = z2[len(package_name)+1:] # strip off leading package name
+
+          if z2 in ("mods.xml", "premis.xml", "dip.xml"):
+            # Extract this file to a file of the same name.
+            z3 = path + "/" + z2
+          elif z2 == "pdf/" + package_name + ".pdf":
+            # Extract this file to "document.pdf".
+            z3 = path + "/document.pdf"
+          elif z2 == "html/" + package_name + ".htm":
+            # Extract this file and unwrap text to "document.txt".
+            z3 = path + "/document.txt"
+          else:
+            raise ValueError("Unmatched file name in package ZIP: " + z2)
+
+          with zf.open(package_name + "/" + z2) as zff:
+            with open(z3, "w") as output_file:
+              data = zff.read()
+              if z3 == path + "/document.txt": data = unwrap_text_in_html(data)
+              output_file.write(data)
         
   if collection == "BILLS" and "mods" in updated_file_types:
     # When we download bill files, also create the text-versions/data.json file
@@ -399,27 +425,33 @@ def get_output_path(year, collection, package_name, granule_name, options):
     return path
 
 def get_package_files(package_name, granule_name, path):
-  baseurl = "http://www.gpo.gov/fdsys/pkg/%s/" % package_name
-  baseurl_mods = baseurl
+  baseurl = "http://www.gpo.gov/fdsys/pkg/%s" % package_name
+  baseurl2 = baseurl
   
   if not granule_name:
     file_name = package_name
   else:
     file_name = granule_name
-    baseurl_mods = "http://www.gpo.gov/fdsys/granule/%s/%s/" % (package_name, granule_name)
+    baseurl2 = "http://www.gpo.gov/fdsys/granule/%s/%s" % (package_name, granule_name)
     
   ret = {
-    'mods': (baseurl_mods + "mods.xml", path + "/mods.xml"),
-    'pdf': (baseurl + "pdf/" + file_name + ".pdf", path + "/document.pdf"),
-    'xml': (baseurl + "xml/" + file_name + ".xml", path + "/document.xml"),
-    'text': (baseurl + "html/" + file_name + ".htm", path + "/document.html"), # text wrapped in HTML
+    # map file type names used on the command line to a tuple of the URL path on FDSys and the relative path on disk
+    'zip': (baseurl2 + ".zip", path + "/document.zip"),
+    'mods': (baseurl2 + "/mods.xml", path + "/mods.xml"),
+    'pdf': (baseurl + "/pdf/" + file_name + ".pdf", path + "/document.pdf"),
+    'xml': (baseurl + "/xml/" + file_name + ".xml", path + "/document.xml"),
+    'text': (baseurl + "/html/" + file_name + ".htm", path + "/document.html"), # text wrapped in HTML
   }
   if not granule_name:
     # granules don't have PREMIS files?
-    ret['premis'] = (baseurl + "premis.xml", path + "/premis.xml")
+    ret['premis'] = (baseurl + "/premis.xml", path + "/premis.xml")
     
   return ret
 
+def unwrap_text_in_html(data):
+  text_content = unicode(html.fromstring(data).text_content())
+  return text_content.encode("utf8")
+  
 def update_bill_version_list(only_congress):
   bill_versions = { }
   
