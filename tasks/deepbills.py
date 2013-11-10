@@ -1,4 +1,4 @@
-import json, os.path
+import json, os.path, logging
 import utils
 
 def run(options):
@@ -18,7 +18,6 @@ def run(options):
   else:
     to_fetch = bill_version_ids_for(congress, options)
     if not to_fetch:
-      logging.error("Error figuring out which bills to download, aborting.")
       return None
 
   saved_versions = utils.process_set(to_fetch, write_bill_catoxml, options)
@@ -30,6 +29,8 @@ def bill_version_ids_for(only_congress, options):
   bill_version_ids = []
 
   bill_index_json = fetch_bill_index_json()
+  if len(bill_index_json) == 0:
+    logging.error("Error figuring out which bills to download, aborting.")
 
   for bill in bill_index_json:
     bill_ver_id = "%s%s-%s-%s" % (bill["billtype"], bill["billnumber"], bill["congress"], bill["billversion"])
