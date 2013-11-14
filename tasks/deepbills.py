@@ -3,23 +3,27 @@ import json, os.path, datetime, iso8601
 import utils
 
 def run(options):
-  bill_id = options.get('bill_id', None)
-  bill_version_id = options.get('bill_version_id', None)
-
-  # using a specific bill or version overrides the congress flag/default
-  if bill_id:
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-  elif bill_version_id:
-    bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
-  else:
-    congress = options.get('congress', utils.current_congress())
+  bill_version_id = options.get("bill_version_id", None)
 
   if bill_version_id:
-    to_fetch = [bill_version_id]
+    bill_type, bill_number, congress, version_code = utils.split_bill_version_id(bill_version_id)
+    bill_id = utils.build_bill_id(bill_type, bill_number, congress)
   else:
-    to_fetch = bill_version_ids_for(congress, options)
-    if not to_fetch:
-      return None
+    version_code = None
+    bill_id = options.get("bill_id", None)
+
+    if bill_id:
+      bill_type, bill_number, congress = utils.split_bill_id(bill_id)
+    else:
+      bill_type = bill_number = None
+      congress = options.get("congress", utils.current_congress())
+
+  force = options.get("force", False)
+
+  to_fetch = bill_version_ids_for(congress, bill_type, bill_number, version_code, force)
+
+  if not to_fetch:
+    return None
 
   saved_versions = utils.process_set(to_fetch, write_bill_catoxml, options)
 
@@ -27,22 +31,47 @@ def newer_version_available(our_filename, their_last_changed_timestamp):
   their_last_changed_datetime = iso8601.parse_date(their_last_changed_timestamp)
   return (not (os.path.exists(our_filename) and (datetime.datetime.fromtimestamp(os.path.getmtime(our_filename), their_last_changed_datetime.tzinfo) > their_last_changed_datetime)))
 
-def bill_version_ids_for(only_congress, options):
-  if int(only_congress) != 113:
-    raise Exception("The DeepBills Project currently only supports the 113th Congress.")
+def bill_version_ids_for(congress, bill_type=None, bill_number=None, version_code=None, force=False):
+  # XXX: This could change in the future.
+  if int(congress) != 113:
+    logging.error("The DeepBills Project currently only supports the 113th Congress.")
+    return
+
+  # Bypass the bill index if the user is forcing a download and has provided enough information.
+  if force and (version_code is not None) and (bill_number is not None) and (bill_type is not None):
+    bill_version_id = utils.build_bill_version_id(bill_type, bill_number, congress, version_code)
+    return [ bill_version_id ]
 
   bill_version_ids = []
 
   bill_index_json = fetch_bill_index_json()
+
   if len(bill_index_json) == 0:
-    logging.error("Error figuring out which bills to download, aborting.")
+    logging.error("Could not retrieve bill index. Aborting...")
+    return
 
   for bill in bill_index_json:
-    bill_version_id = "%s%s-%s-%s" % ( bill["billtype"], bill["billnumber"], bill["congress"], bill["billversion"] )
+    # Ignore bills from a different Congress than the one requested.
+    if int(bill["congress"]) != int(congress):
+      continue
+
+    # Ignore bills with a different bill type than the one requested, if applicable.
+    if (bill_type is not None) and (str(bill["billtype"]) != bill_type):
+      continue
+
+    # Ignore bills with a different bill number than the one requested, if applicable.
+    if (bill_number is not None) and (str(bill["billnumber"]) != bill_number):
+      continue
+
+    # Ignore bills with a different version code than the one requested, if applicable.
+    if (version_code is not None) and (str(bill["billversion"]) != version_code):
+      continue
+
+    bill_version_id = utils.build_bill_version_id(bill["billtype"], bill["billnumber"], bill["congress"], bill["billversion"])
 
     # Only download a file that has a newer version available.
-    if not newer_version_available(document_filename_for(bill_version_id, "catoxml.xml"), bill["commitdate"]):
-      logging.info("No newer version of %s available." % ( bill_version_id ))
+    if (not force) and (not newer_version_available(catoxml_filename_for(bill_version_id), bill["commitdate"])):
+      logging.debug("No newer version of %s available." % ( bill_version_id ))
       continue
     else:
       logging.info("Adding %s to list of files to download." % ( bill_version_id ))
@@ -68,8 +97,11 @@ def document_filename_for(bill_version_id, filename):
   bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
   return "%s/%s/bills/%s/%s%s/text-versions/%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code, filename)
 
+def catoxml_filename_for(bill_version_id):
+  return document_filename_for(bill_version_id, "catoxml.xml")
+
 def write_bill_catoxml(bill_version_id, options):
-  catoxml_filename = document_filename_for(bill_version_id, "catoxml.xml")
+  catoxml_filename = catoxml_filename_for(bill_version_id)
 
   utils.write(
     extract_xml_from_json(fetch_single_bill_json(bill_version_id)),
