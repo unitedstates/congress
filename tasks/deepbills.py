@@ -1,4 +1,5 @@
-import json, os.path, logging
+import logging
+import json, os.path, datetime, iso8601
 import utils
 
 def run(options):
@@ -22,6 +23,10 @@ def run(options):
 
   saved_versions = utils.process_set(to_fetch, write_bill_catoxml, options)
 
+def newer_version_available(our_filename, their_last_changed_timestamp):
+  their_last_changed_datetime = iso8601.parse_date(their_last_changed_timestamp)
+  return (not (os.path.exists(our_filename) and (datetime.datetime.fromtimestamp(os.path.getmtime(our_filename), their_last_changed_datetime.tzinfo) > their_last_changed_datetime)))
+
 def bill_version_ids_for(only_congress, options):
   if int(only_congress) != 113:
     raise Exception("The DeepBills Project currently only supports the 113th Congress.")
@@ -33,13 +38,16 @@ def bill_version_ids_for(only_congress, options):
     logging.error("Error figuring out which bills to download, aborting.")
 
   for bill in bill_index_json:
-    bill_ver_id = "%s%s-%s-%s" % (bill["billtype"], bill["billnumber"], bill["congress"], bill["billversion"])
+    bill_version_id = "%s%s-%s-%s" % ( bill["billtype"], bill["billnumber"], bill["congress"], bill["billversion"] )
 
-    # Until we have last modified dates, just skip files if we've already downloaded them.
-    fn = document_filename_for(bill_ver_id, "catoxml.xml")
-    if os.path.exists(fn): continue
+    # Only download a file that has a newer version available.
+    if not newer_version_available(document_filename_for(bill_version_id, "catoxml.xml"), bill["commitdate"]):
+      logging.info("No newer version of %s available." % ( bill_version_id ))
+      continue
+    else:
+      logging.info("Adding %s to list of files to download." % ( bill_version_id ))
 
-    bill_version_ids.append(bill_ver_id)
+    bill_version_ids.append(bill_version_id)
 
   return bill_version_ids
 
@@ -61,11 +69,11 @@ def document_filename_for(bill_version_id, filename):
   return "%s/%s/bills/%s/%s%s/text-versions/%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code, filename)
 
 def write_bill_catoxml(bill_version_id, options):
-  fn = document_filename_for(bill_version_id, "catoxml.xml")
+  catoxml_filename = document_filename_for(bill_version_id, "catoxml.xml")
 
   utils.write(
     extract_xml_from_json(fetch_single_bill_json(bill_version_id)),
-    fn
+    catoxml_filename
   )
 
-  return {'ok': True, 'saved': True}
+  return { "ok": True, "saved": True }
