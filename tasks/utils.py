@@ -106,9 +106,17 @@ def get_term_congresses(term):
 def split_bill_id(bill_id):
   return re.match("^([a-z]+)(\d+)-(\d+)$", bill_id).groups()
 
+# "hjres1234-115"
+def build_bill_id(bill_type, bill_number, congress):
+  return "%s%s-%s" % ( bill_type, bill_number, congress )
+
 # bill_type, bill_number, congress, version_code
 def split_bill_version_id(bill_version_id):
   return re.match("^([a-z]+)(\d+)-(\d+)-([a-z\d]+)$", bill_version_id).groups()
+
+# "hjres1234-115-enr"
+def build_bill_version_id(bill_type, bill_number, congress, version_code):
+  return "%s%s-%s-%s" % ( bill_type, bill_number, congress, version_code )
 
 def split_vote_id(vote_id):
   # Sessions are either four-digit years for modern day votes or a digit or letter
