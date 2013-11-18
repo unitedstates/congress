@@ -589,7 +589,12 @@ def pickle_write(data, filename):
   import pickle
   return pickle.dump(data, open(filename, "w"))
 
-# Get the location of the cached version of the given filename.
+# Get the hash used to verify the contents of a file.
+def get_file_hash(filename):
+  import hashlib
+  return hashlib.sha1(open(filename).read()).hexdigest()
+
+# Get the location of the cached version of a file.
 def get_cache_filename(filename):
   return os.path.join(cache_dir(), filename + '.pickle')
 
@@ -597,26 +602,52 @@ def get_cache_filename(filename):
 def check_cached_file(filename, cache_filename):
   return (os.path.exists(cache_filename) and os.stat(cache_filename).st_mtime > os.stat(filename).st_mtime)
 
+# Problem with finding a cache entry.
+class CacheError(LookupError):
+  pass
+
+# Load a cached file.
+def cache_load(cache_filename, file_hash):
+  try:
+    cache_data = pickle_load(cache_filename)
+  except IOError:
+    raise CacheError("Could not retrieve potential cache file: %s" % ( cache_filename ))
+
+  # A cache file has a specific structure.
+  if "hash" not in cache_data or "data" not in cache_data:
+    raise TypeError("Not a cache file: %s" % ( cache_filename ))
+
+  # If the hashes don't match, we've retrieved the cache for something else.
+  if cache_data["hash"] != file_hash:
+    raise CacheError("Hashes do not match: %s, %s" % ( file_hash, cache_data["hash"] ))
+
+  return cache_data["data"]
+
+# Cache a file.
+def cache_write(file_data, filename, file_hash):
+  cache_data = { "hash": file_hash, "data": file_data }
+  return pickle_write(cache_data, filename)
+
 # Attempt to load a cached version of a YAML file before loading the YAML file directly.
 def yaml_load(filename):
+  file_hash = get_file_hash(filename)
   cache_filename = get_cache_filename(filename)
 
-  # Check if the cached pickle file is older than the original YAML file.
-  if check_cached_file(filename, cache_filename):
-    # The pickled file is newer, so it's probably safe to use it.
-    logging.info("Using cached pickle file...")
-
-    # Load the pickle file.
-    yaml_data = pickle_load(cache_filename)
-  else:
-    # The YAML file is newer, so we have to generate a new pickle file.
+  # Try to load a cached version of the requested YAML file.
+  try:
+    yaml_data = cache_load(cache_filename, file_hash)
+  except CacheError:
+    # We don't have a cached version of the requested YAML file available, so we have to load it directly.
     logging.warn("Using original YAML file...")
 
-    # Load the YAML file.
+    # Load the requested YAML file directly.
     yaml_data = direct_yaml_load(filename)
 
-    # Save the YAML data to a new pickle file.
-    pickle_write(yaml_data, cache_filename)
+    # Cache the YAML data so we can retrieve it more quickly next time.
+    cache_write(yaml_data, cache_filename, file_hash)
+  else:
+    # We have a cached version of the requested YAML file available, so we can use it.
+    logging.info("Using cached YAML file...")
 
   return yaml_data
 
