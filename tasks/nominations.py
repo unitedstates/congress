@@ -49,9 +49,8 @@ def nomination_ids_for(congress, options = {}):
 def page_cache_for(congress):
   return "%s/nominations/pages/search.html" % congress
 
-#unlike bills.py, we're going to fetch the page instead of producing the URL, since a POST is required (I think)
-#currently only gets civilian nominations
-#TO DO: include military
+# unlike bills.py, we're going to fetch the page instead of producing the URL,
+# since a POST is required.
 def page_for(congress, options):
   congress = int(congress)
   postdata = {
