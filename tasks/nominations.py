@@ -8,7 +8,7 @@ import nomination_info
 
 def run(options):
   nomination_id = options.get('nomination_id', None)
-  
+
   if nomination_id:
     nomination_type, number, congress = utils.split_nomination_id(nomination_id)
     to_fetch = [nomination_id]
@@ -27,14 +27,14 @@ def run(options):
       to_fetch = to_fetch[:int(limit)]
 
   logging.warn("Going to fetch %i nominations from congress #%s" % (len(to_fetch), congress))
-  
-  saved_nominations = utils.process_set(to_fetch, nomination_info.fetch_nomination, options)  
+
+  saved_nominations = utils.process_set(to_fetch, nomination_info.fetch_nomination, options)
 
 # page through listings for bills of a particular congress
-def nomination_ids_for(congress, options = {}):  
+def nomination_ids_for(congress, options = {}):
   nomination_ids = []
 
-  page = page_for(congress)
+  page = page_for(congress, options)
   if not page:
     logging.error("Couldn't download page for %d congress" % congress)
     return None
@@ -48,30 +48,37 @@ def nomination_ids_for(congress, options = {}):
 
 def page_cache_for(congress):
   return "%s/nominations/pages/search.html" % congress
-  
+
 #unlike bills.py, we're going to fetch the page instead of producing the URL, since a POST is required (I think)
 #currently only gets civilian nominations
 #TO DO: include military
-def page_for(congress):
+def page_for(congress, options):
   congress = int(congress)
   postdata = {
     "database": "nominations",
-    "MaxDocs":'',
+    "MaxDocs":'5000',
+    "submit":"SEARCH",
     "querytype":"phrase",
     "query":"",
-    "Stemming":"Yes",
+    "Stemming":"No",
     "congress":"%d" % congress,
-    "CIVcategory":"on",
+    "CIVcategory": "on",
+    "LSTcategory": "on",
     "committee":"",
     "LBDateSel":"FLD606",
     "EBSDate":"",
     "EBEDate":"",
-    "sort":"sh_docid_c",
-    "submit":"SEARCH"
+    "sort":"sh_docid_rc",
   }
 
+  post_options = { 'postdata': postdata }
+  post_options.update(options)
+
+  # unused: never cache search listing
+  cache = page_cache_for(congress)
+
   page = utils.download("http://thomas.loc.gov/cgi-bin/thomas",
-        page_cache_for(congress), 
-        { 'postdata': postdata }
+        None,
+        post_options
   )
-  return page 
+  return page
