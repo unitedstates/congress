@@ -311,7 +311,7 @@ def parse_vote_list_file(vote_list_file):
 		icpsr_id = vote_info["icpsr_id"]
 
 		try:
-			bioguide_id = utils.get_person_id("icpsr", icpsr_id, "bioguide")
+			bioguide_id = utils.get_person_id("icpsr" if vote_info["state_name"] != "USA" else "icpsr_prez", icpsr_id, "bioguide")
 		except KeyError as e:
 			logging.error("Problem with member %s ([%d] %s) of %s %s: %s" % ( vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
 				vote_info["state_name"], vote_info["district"], e.message ))
