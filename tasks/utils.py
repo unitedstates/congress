@@ -828,17 +828,12 @@ def get_person_id_map():
 # 'target_id_type' is the desired ID type for the aforementioned person.
 def get_person_id(source_id_type, source_id, target_id_type):
   person_id_map = get_person_id_map()
+  if source_id_type not in person_id_map: raise KeyError("'%s' is not a valid ID type." % ( source_id_type ))
+  if source_id not in person_id_map[source_id_type]: raise KeyError("'%s' is not a valid '%s' ID." % ( source_id, source_id_type ))
+  if target_id_type not in person_id_map[source_id_type][source_id]: raise KeyError("No corresponding '%s' ID for '%s' ID '%s'." % ( target_id_type, source_id_type, source_id ))
+  return person_id_map[source_id_type][source_id][target_id_type]
+    
 
-  if source_id_type in person_id_map:
-    if source_id in person_id_map[source_id_type]:
-      if target_id_type in person_id_map[source_id_type][source_id]:
-        return person_id_map[source_id_type][source_id][target_id_type]
-
-      raise KeyError("No corresponding '%s' ID for '%s' ID '%s'." % ( target_id_type, source_id_type, source_id ))
-
-    raise KeyError("'%s' is not a valid '%s' ID." % ( source_id, source_id_type ))
-
-  raise KeyError("'%s' is not a valid ID type." % ( source_id_type ))
 
 # Generate a map from a person to the Congresses they served during.
 person_congresses_map = {}
