@@ -665,10 +665,11 @@ def require_congress_legislators_repo():
     logging.warn("Cloning the congress-legislators repo...")
     os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators congress-legislators")
 
-  # Update the repo so we have the latest.
-  logging.warn("Updating the congress-legislators repo...")
-  # these two == git pull, but git pull ignores -q on the merge part so is less quiet
-  os.system("cd congress-legislators; git fetch -pq; git merge --ff-only -q origin/master")
+  if os.environ.get("UPDATE_CONGRESS_LEGISLATORS") != "NO":
+    # Update the repo so we have the latest.
+    logging.warn("Updating the congress-legislators repo...")
+    # these two == git pull, but git pull ignores -q on the merge part so is less quiet
+    os.system("cd congress-legislators; git fetch -pq; git merge --ff-only -q origin/master")
 
   # We now have the congress-legislators repo.
   has_congress_legislators_repo = True
