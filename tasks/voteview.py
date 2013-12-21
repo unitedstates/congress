@@ -10,16 +10,31 @@ def run(options):
 
 	chamber = options.get('chamber', None)
 
-	# we're going to need to map votes to sessions because in modern history the numbering resets by session
-	session_dates = list(csv.DictReader(StringIO.StringIO(utils.download("http://www.govtrack.us/data/us/sessions.tsv").encode("utf8")), delimiter="\t"))
+	congress_dates = get_congress_dates(options)
 
 	# download the vote data now
 	if chamber and chamber in [ "h", "s" ]:
-		votes = get_votes(chamber, congress, options, session_dates)
+		votes = get_votes(chamber, congress, options, congress_dates)
 	else:
-		votes = get_votes("h", congress, options, session_dates) + get_votes("s", congress, options, session_dates)
+		votes = get_votes("h", congress, options, congress_dates) + get_votes("s", congress, options, congress_dates)
 
 	utils.process_set(votes, put_vote, options)
+
+def get_congress_dates(options):
+	# To sanity check vote dates against the Congress in which it ocurred,
+	# grab the sessions file from GovTrack and find the start/end date of
+	# each Congress.
+	congress_dates = { }
+	session_dates = list(csv.DictReader(StringIO.StringIO(utils.download("http://www.govtrack.us/data/us/sessions.tsv", "sessions.tsv", options).encode("utf8")), delimiter="\t"))
+	for sess in session_dates:
+		congress = int(sess["congress"])
+		if congress not in congress_dates:
+			# the first time we see a session, set the Congress's start and end according to the session
+			congress_dates[congress] = [sess["start"], sess["end"]]
+		else:
+			# as we encounter later sessions, update the Congress's end date
+			congress_dates[congress][1] = sess["end"]
+	return congress_dates
 
 def vote_list_source_urls_for(congress, chamber, options):
 	url = "http://www.voteview.com/%s%02d.htm" % (("house" if chamber == "h" else "senate"), congress)
@@ -405,7 +420,7 @@ def build_votes(vote_list):
 
 	return (votes, presidents_position)
 
-def get_votes(chamber, congress, options, session_dates):
+def get_votes(chamber, congress, options, congress_dates):
 	logging.warn("Getting votes for %d-%s..." % ( congress, chamber ))
 
 	vote_list_url, rollcall_list_url = vote_list_source_urls_for(congress, chamber, options)
@@ -436,35 +451,27 @@ def get_votes(chamber, congress, options, session_dates):
 		vote_results = votes[rollcall_number - 1]
 		rollcall = rollcall_list[rollcall_number]
 
-		# Which session is this in? Compare the vote's date to the sessions.tsv file.
+		# Sanity check the date.
 		if not rollcall["date"]:
-			logging.error("Vote on %s was an invalid date, so we can't determine the session to save the file." % rollcall["date_unparsed"])
+			logging.error("Vote on %s was an invalid date." % rollcall["date_unparsed"])
 			continue
-
-		for sess in session_dates:
-			if sess["start"] <= rollcall["date"] <= sess["end"]:
-				if int(sess["congress"]) != congress:
-					logging.error("Vote on %s disagrees about which Congress it is in." % rollcall["date"])
-				session = sess["session"]
-				break
-		else:
-			# This vote did not occur durring a session of Congress. Some sort of data error.
-			logging.error("Vote on %s is not within a session of Congress." % rollcall["date"])
+		elif not (congress_dates[congress][0] <= rollcall["date"] <= congress_dates[congress][1]):
+			logging.error("Vote on %s disagrees about which Congress it is in." % rollcall["date"])
 			continue
 
 		# Form the vote dict.
 		vote_output = {
-			"vote_id": "%s%s-%d.%s" % (chamber, rollcall_number, congress, session),
+			"vote_id": "%s%s-%d.X" % (chamber, rollcall_number, congress),
 			"source_url": "http://www.voteview.com",
 		    "updated_at": datetime.datetime.fromtimestamp(time.time()),
 
 			"congress": congress,
-			"session": session,
 			"chamber": chamber,
 			"number": rollcall_number, # XXX: This is not the right number.
 			"question": rollcall["description"] if "description" in rollcall else None, # Sometimes there isn't a description.
 			"type": rollcall["description"] if "description" in rollcall else None, # TODO: normalized to a type
 			"date": datetime.date(*[int(dd) for dd in rollcall["date"].split("-")]), # turn YYYY-MM-DD into datetime.date() instance
+			"date_unparsed": rollcall["date_unparsed"],
 			"votes": vote_results,
 			"presidents_position": presidents_position.get(rollcall_number),
 
