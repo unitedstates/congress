@@ -95,16 +95,6 @@ To run this project's unit tests:
 
     ./test/run
 
-
-Contributors
-------------
-
-* [Eric Mill](https://github.com/konklone) - [Sunlight Foundation](http://sunlightfoundation.com)
-* [Josh Tauberer](https://github.com/tauberer) - [GovTrack.us](http://govtrack.us)
-* [Derek Willis](https://github.com/dwillis)
-* [Alex Engler](https://github.com/AlexEngler)
-* [Chris Wilson](https://github.com/wilson428)
-
 Who's Using This Data
 ---------------------
 
