@@ -41,8 +41,20 @@ def nomination_ids_for(congress, options = {}):
 
   # extract matching links
   doc = html.document_fromstring(page)
-  nomination_ids = doc.xpath('//div[@id="content"]/p[2]/a/text()')
-  nomination_ids = [x.split(' ')[1] for x in nomination_ids]
+  raw_nomination_ids = doc.xpath('//div[@id="content"]/p[2]/a/text()')
+  nomination_ids = []
+
+  for raw_id in raw_nomination_ids:
+    pieces = raw_id.split(' ')
+
+    # ignore these
+    if raw_id in ["PDF", "Text"]:
+      pass
+    elif len(pieces) < 2:
+      logging.error("Bad nomination ID detected: %s" % raw_id)
+      return None
+    else:
+      nomination_ids.append(pieces[1])
 
   return utils.uniq(nomination_ids)
 
