@@ -453,12 +453,15 @@ def summary_for(body):
     if ret["as"].endswith("."): ret["as"] = ret["as"][:-1]
   text = re.sub(sumdate, "", text)
 
+  # Preserve paragraph breaks. Convert closing p tags (and surrounding whitespace) into two newlines. Strip trailing whitespace
+  text = re.sub("\s*</\s*p\s*>\s*", "\n\n", text).strip()
+
   # naive stripping of tags, should work okay in this limited context
   text = re.sub("<[^>]+>", "", text)
 
-  # compress and strip whitespace artifacts
-  text = re.sub("\s{2,}", " ", text).strip()
-
+  # compress and strip whitespace artifacts, except for the paragraph breaks
+  text = re.sub("[ \t\r\f\v]{2,}", " ", text).strip()
+  
   ret["text"] = text
 
   return ret
