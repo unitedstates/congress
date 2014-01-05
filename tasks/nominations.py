@@ -48,7 +48,7 @@ def nomination_ids_for(congress, options = {}):
     pieces = raw_id.split(' ')
 
     # ignore these
-    if raw_id in ["PDF", "Text"]:
+    if raw_id in ["PDF", "Text", "split into two or more parts"]:
       pass
     elif len(pieces) < 2:
       logging.error("Bad nomination ID detected: %s" % raw_id)
