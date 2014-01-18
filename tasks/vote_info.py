@@ -442,9 +442,10 @@ def get_vote_category(vote_question):
     (r"^Guilty or Not Guilty", "conviction"), # was "impeachment" in sunlightlabs/congress but that's not quite right
     (r"^On the Resolution of Ratification", "treaty"),
     (r"^On (?:the )?Motion to Recommit", "recommit"),
+    (r"^On the Motion \(Motion to Concur", "passage"),
       
     # house only
-    (r"^(On Motion to )?(Concur in|Concurring|On Concurring|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "passage"),
+    (r"^(On Motion to )?(Concur in|Concurring|Concurring in|On Concurring|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "passage"),
     (r"^(On Motion to )?Suspend (the )?Rules and (Agree|Concur|Pass)", "passage-suspension"),
     (r"^Call of the House$", "quorum"),
     (r"^Election of the Speaker$", "leadership"),
