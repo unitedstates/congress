@@ -1386,9 +1386,9 @@ def parse_bill_action(line, prev_status, bill_id, title):
           cand = "House %s" % cand
         elif in_senate and not in_house:
           cand = "Senate %s" % cand
-        elif bill_id.startswith("h"):
+        elif "House" in line:
           cand = "House %s" % cand
-        elif bill_id.startswith("s"):
+        elif "Senate" in line:
           cand = "Senate %s" % cand
 
       try:
