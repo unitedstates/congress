@@ -939,7 +939,7 @@ def process_actions(actions, bill_id, title, introduced_date):
   new_actions = []
 
   for action in actions:
-    new_action, new_status = parse_bill_action(action['text'], status, bill_id, title)
+    new_action, new_status = parse_bill_action(action, status, bill_id, title)
 
     # only change/reflect status change if there was one
     if new_status:
@@ -1081,11 +1081,13 @@ def activation_from(actions):
   else:
     return first
 
-def parse_bill_action(line, prev_status, bill_id, title):
+def parse_bill_action(action_dict, prev_status, bill_id, title):
   """Parse a THOMAS bill action line. Returns attributes to be set in the XML file on the action line."""
 
   bill_type, number, congress = utils.split_bill_id(bill_id)
   if not utils.committee_names: utils.fetch_committee_names(congress, {})
+
+  line = action_dict['text']
 
   status = None
   action = {
@@ -1386,17 +1388,36 @@ def parse_bill_action(line, prev_status, bill_id, title):
           cand = "House %s" % cand
         elif in_senate and not in_house:
           cand = "Senate %s" % cand
-        elif bill_id.startswith("h"):
+
+        # if this action is a committee-level action (indented on THOMAS), look
+        # at the parent action to infer the chamber
+        elif len(action_dict.get("committee_action_ref", {}).get("committees", [])) > 0:
+          chamber = action_dict["committee_action_ref"]["committees"][0][0] # H, S, or J
+          if chamber == "H":
+            cand = "House %s" % cand
+          elif chamber == "S":
+            cand = "Senate %s" % cand
+
+        # look at other signals on the action line
+        elif re.search("Received in the House|Reported to House", line):
           cand = "House %s" % cand
-        elif bill_id.startswith("s"):
+        elif re.search("Received in the Senate|Reported to Senate", line):
           cand = "Senate %s" % cand
+
+        # if a bill is in an early stage where we're pretty sure activity is in the originating
+        # chamber, fall back to the bill's originating chamber
+        elif prev_status in ("INTRODUCED", "REFERRED", "REPORTED") and bill_id.startswith("h"):
+          cand = "House %s" % cand
+        elif prev_status in ("INTRODUCED", "REFERRED", "REPORTED") and bill_id.startswith("s"):
+          cand = "Senate %s" % cand
+
 
       try:
         cmte_id = utils.committee_names[cand]
         committees.append(cmte_id)
       except KeyError:
         # pass
-        logging.warn("[%s] Committee id not found for '%s' in action" % (bill_id, cand))
+        logging.warn("[%s] Committee id not found for '%s' in action <%s>" % (bill_id, cand, line))
     if committees:
       action['committees'] = committees
 
