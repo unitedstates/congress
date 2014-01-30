@@ -539,6 +539,8 @@ def fetch_committee_names(congress, options):
     committee_names["Senate Indian Affairs (Permanent Select)"] = committee_names["Senate Indian Affairs"]
   if congress == 104:
     committee_names["House Oversight"] = committee_names["House House Oversight"]
+  if congress == 105: # fixing error for s1566
+    committee_names["House Oversight"] = "HSHA"
   if congress == 108:
     # This appears to be a mistake, a subcommittee appearing as a full committee. Map it to
     # the full committee for now.
@@ -546,6 +548,11 @@ def fetch_committee_names(congress, options):
     committee_names["House Homeland Security"] = committee_names["House Homeland Security (Select)"]
   if congress in range(108,113):
     committee_names["House Intelligence"] = committee_names["House Intelligence (Permanent Select)"]
+  if congress in range(93,113):
+    committee_names["Senate Agriculture"] = "SSAF"
+  if congress in range(93,102):
+    committee_names["House Public Works"] = "HSPW"
+
 
 def make_node(parent, tag, text, **attrs):
   """Make a node in an XML document."""
