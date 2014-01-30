@@ -1378,8 +1378,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
 
     for cand in cmte_name_candidates:
       # many actions just say "Committee on the Judiciary", without a chamber
-      # do our best to assign a chamber if we can be sure. Altered last two elif's to hopefully better capture 
-      # the ambiguities
+      # do our best to assign a chamber if we can be sure. 
       if ("House" not in cand) and ("Senate" not in cand):
         in_house = utils.committee_names.get("House %s" % cand, False)
         in_senate = utils.committee_names.get("Senate %s" % cand, False)
@@ -1387,10 +1386,16 @@ def parse_bill_action(line, prev_status, bill_id, title):
           cand = "House %s" % cand
         elif in_senate and not in_house:
           cand = "Senate %s" % cand
+        # before resorting to chamber of origin, check if chamber is mentioned in line.
         elif "House" in line:
           cand = "House %s" % cand
         elif "Senate" in line:
           cand = "Senate %s" % cand
+        elif bill_id.startswith("h"):
+          cand = "House %s" % cand
+        elif bill_id.startswith("s"):
+          cand = "Senate %s" % cand
+
 
       try:
         cmte_id = utils.committee_names[cand]
