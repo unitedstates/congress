@@ -1368,7 +1368,7 @@ def parse_bill_action(line, prev_status, bill_id, title):
 
   cmte_reg = r"(House|Senate)?\s*(?:Committee)?\s*(?:on)?\s*(?:the)?\s*({0})".format("|".join(cmte_names))
 
-  m = re.search(cmte_reg, line)
+  m = re.search(cmte_reg, line, re.I)
   if m:
     committees = []
     chamber = m.groups()[0] # optional match
