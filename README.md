@@ -105,6 +105,10 @@ Both Sunlight and GovTrack operate APIs where you can get much of this data deli
 * [GovTrack.us API](https://www.govtrack.us/developers/api)
 * [Sunlight Congress API](http://sunlightlabs.github.io/congress/)
 
-### License
+## Public domain
 
-All data and code in this project is [licensed under CC0](LICENSE) ([summary](http://creativecommons.org/publicdomain/zero/1.0/)).
+This project is [dedicated to the public domain](LICENSE). As spelled out in [CONTRIBUTING](CONTRIBUTING.md):
+
+> The project is in the public domain within the United States, and copyright and related rights in the work worldwide are waived through the [CC0 1.0 Universal public domain dedication](http://creativecommons.org/publicdomain/zero/1.0/).
+
+> All contributions to this project will be released under the CC0 dedication. By submitting a pull request, you are agreeing to comply with this waiver of copyright interest.
