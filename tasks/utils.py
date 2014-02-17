@@ -763,6 +763,9 @@ def create_legislators_map(map_from, map_to, map_function, filename="legislators
     logging.warn("Generating new map from %s to %s for %s..." % ( map_from, map_to, filename ))
 
     # Load the YAML file and create a map based on the provided map function.
+    # Because we'll be caching the YAML file in a pickled file, create the cache
+    # directory where that will be stored.
+    if not os.path.exists("cache/congress-legislators"): os.mkdir("cache/congress-legislators")
     for item in yaml_load("congress-legislators/%s.yaml" % ( filename )):
       legislators_map = map_function(legislators_map, item)
 
