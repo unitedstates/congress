@@ -231,10 +231,12 @@ def parse_senate_vote(dom, vote):
     
     # In the 101st Congress, 1st session (1989), votes 133 through 136 lack lis_member_id nodes.
     if voter != "VP" and voter["id"] == "":
-      logging.warn("Missing lis_member_id in %s, falling back to name lookup for %s" % (vote["vote_id"], voter["last_name"]))
       voter["id"] = utils.lookup_legislator(vote["congress"], "sen", voter["last_name"], voter["state"], voter["party"], vote["date"], "lis")
       if voter["id"] == None:
+        logging.error("[%s] Missing lis_member_id and name lookup failed for %s" % (vote["vote_id"], voter["last_name"]))
         raise Exception("Could not find ID for %s (%s-%s)" % (voter["last_name"], voter["state"], voter["party"]))
+      else:
+        logging.info("[%s] Missing lis_member_id, falling back to name lookup for %s" % (vote["vote_id"], voter["last_name"]))
   
   # Ensure the options are noted, even if no one votes that way.
   if unicode(dom.xpath("string(vote_question)")) == "Guilty or Not Guilty":
@@ -370,17 +372,18 @@ def parse_house_vote(dom, vote):
     if v["id"] not in ("", "0000000"): continue
 
     if vote["congress"] > 107:
-      logging.warn("Missing bioguide ID in %s, falling back to name lookup for %s" % (vote["vote_id"], v["display_name"]))
+      logging.warn("[%s] Missing bioguide ID, falling back to name lookup for %s" % (vote["vote_id"], v["display_name"]))
 
     # get the last name without the state abbreviation in parenthesis, if it is present
-    display_name = v["display_name"]
+    display_name = v["display_name"].strip()
     ss = " (%s)" % v["state"]
-    if display_name.endswith(ss): display_name = display_name[:-len(ss)]
+    if display_name.endswith(ss): display_name = display_name[:-len(ss)].strip()
 
     # look up ID
     v["id"] = utils.lookup_legislator(vote["congress"], "rep", display_name, v["state"], v["party"], vote["date"], "bioguide", exclude=seen_ids)
       
     if v["id"] == None:
+      logging.error("[%s] Missing bioguide ID and name lookup failed for %s (%s-%s on %s)" % (vote["vote_id"], display_name, v["state"], v["party"], vote["date"]))
       raise Exception("No bioguide ID for %s (%s-%s)" % (display_name, v["state"], v["party"]))
     else:
       seen_ids.add(v["id"])
