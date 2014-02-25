@@ -371,13 +371,20 @@ def parse_house_vote(dom, vote):
   for v in all_voters:
     if v["id"] not in ("", "0000000"): continue
 
-    if vote["congress"] > 107:
-      logging.warn("[%s] Missing bioguide ID, falling back to name lookup for %s" % (vote["vote_id"], v["display_name"]))
+    # here are wierd cases from h610-103.1993 that confound our name lookup since it has the wrong state abbr
+    if v["state"] == "XX":
+      for st in ("PR", "AS", "GU", "VI", "DC"):
+        if v["display_name"].endswith(" (%s)" % st): v["state"] = st
 
     # get the last name without the state abbreviation in parenthesis, if it is present
     display_name = v["display_name"].strip()
     ss = " (%s)" % v["state"]
     if display_name.endswith(ss): display_name = display_name[:-len(ss)].strip()
+
+    # wrong party in upstream data
+    if vote["vote_id"] == "h2-106.1999" and display_name == "Hastert":
+      v["id"] = "H000323"
+      continue
 
     # look up ID
     v["id"] = utils.lookup_legislator(vote["congress"], "rep", display_name, v["state"], v["party"], vote["date"], "bioguide", exclude=seen_ids)
@@ -386,6 +393,8 @@ def parse_house_vote(dom, vote):
       logging.error("[%s] Missing bioguide ID and name lookup failed for %s (%s-%s on %s)" % (vote["vote_id"], display_name, v["state"], v["party"], vote["date"]))
       raise Exception("No bioguide ID for %s (%s-%s)" % (display_name, v["state"], v["party"]))
     else:
+      if vote["congress"] > 107:
+        logging.warn("[%s] Used name lookup for %s because bioguide ID was missing." % (vote["vote_id"], v["display_name"]))
       seen_ids.add(v["id"])
 
 def normalize_vote_type(vote_type):
