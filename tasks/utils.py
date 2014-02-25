@@ -721,17 +721,32 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
 
     # Compare the last name. Allow "Chenoweth" to match "Chenoweth Hage", but also
     # allow "Millender McDonald" to match itself.
-    if name_parts[0] != to_ascii(moc['name']['last']) and \
-      name_parts[0] not in to_ascii(moc['name']['last']).split(" "): continue
+    for name_info_rec in [moc['name']] + moc.get('other_names', []):
+      # for other_names, check that the record covers the right date range
+      if 'start' in name_info_rec and name_info_rec['start'] > when: continue # comparing ISO-formatted date strings
+      if 'end' in name_info_rec and name_info_rec['end'] < when: continue # comparing ISO-formatted date strings
 
-    # Compare the first name. Allow it to match either the first or middle name,
-    # and an initialized version of the first name (i.e. "E." matches "Eddie").
-    # Test the whole string (so that "Jo Ann" is compared to "Jo Ann") but also
-    # the first part of a string split (so "E. B." is compared as "E." to "Eddie").
-    first_names = (to_ascii(moc['name']['first']), to_ascii(moc['name'].get('nickname', "")), to_ascii(moc['name']['first'])[0] + ".")
-    if len(name_parts) >= 2 and \
-      name_parts[1] not in first_names and \
-      name_parts[1].split(" ")[0] not in first_names: continue
+      # in order to process an other_name we have to go like this...
+      name_info = dict(moc['name']) # clone
+      name_info.update(name_info_rec) # override with the other_name information
+
+      # check last name
+      if name_parts[0] != to_ascii(name_info['last']) \
+        and name_parts[0] not in to_ascii(name_info['last']).split(" "): continue # no match
+
+      # Compare the first name. Allow it to match either the first or middle name,
+      # and an initialized version of the first name (i.e. "E." matches "Eddie").
+      # Test the whole string (so that "Jo Ann" is compared to "Jo Ann") but also
+      # the first part of a string split (so "E. B." is compared as "E." to "Eddie").
+      first_names = (to_ascii(name_info['first']), to_ascii(name_info.get('nickname', "")), to_ascii(name_info['first'])[0] + ".")
+      if len(name_parts) >= 2 and \
+        name_parts[1] not in first_names and \
+        name_parts[1].split(" ")[0] not in first_names: continue
+
+      break # match
+    else:
+      # no match
+      continue
 
     # This is a possible match.
     matches.append((moc, term))
