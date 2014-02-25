@@ -714,7 +714,7 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
     # Compare the role type, state, and party, except for people who we know changed party.
     if term['type'] != role_type: continue
     if term['state'] != state: continue
-    if term['party'][0] != party and name not in ("Laughlin", "Crenshaw", "Goode", "Martinez"): continue
+    if term['party'][0] != party and name not in ("Laughlin", "Crenshaw", "Goode", "Martinez", "Parker", "Emerson", "Tauzin", "Hayes", "Deal", "Forbes"): continue
 
     # When doing process-of-elimination matching, don't match on people we've already seen.
     if moc["id"].get(id_requested) in exclude: continue
