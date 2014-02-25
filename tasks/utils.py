@@ -514,8 +514,11 @@ def fetch_committee_names(congress, options):
           name = chamber + " " + name
 
         # Correct for some oddness on THOMAS (but not on Congress.gov): The House Committee
-        # on House Administration appears just as "House Administration".
+        # on House Administration appears just as "House Administration" and in the 105th
+        # Congress appears as "House Oversight" (likewise the full name is House Committee
+        # on House Oversight --- it's the House Administration committee still).
         if name == "House House Administration": name = "House Administration"
+        if name == "House House Oversight": name = "House Oversight"
 
         committee_names[name] = id[0:-2]
 
