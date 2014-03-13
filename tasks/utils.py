@@ -7,6 +7,7 @@ from lxml import html, etree
 import scrapelib
 import pprint
 import logging
+import subprocess
 
 import smtplib
 import email.utils
@@ -277,11 +278,13 @@ def download(url, destination=None, options={}):
         # bill text files like PDFs.
         #
         # Skip this fast path if wget is not present in its expected location.
-        wget_path = "/usr/bin/wget"
-        if not needs_content and os.path.exists(wget_path):
-          import subprocess
+
+        wget_exists = (subprocess.call(["which wget > /dev/null"], shell=True) == 0)
+
+        if not needs_content and wget_exists:
+
           mkdir_p(os.path.dirname(cache_path))
-          if subprocess.call([wget_path, "-q", "-O", cache_path, url]) == 0:
+          if subprocess.call(["wget", "-q", "-O", cache_path, url]) == 0:
             return True
           else:
             # wget failed. when that happens it leaves a zero-byte file on disk, which
@@ -865,7 +868,7 @@ def get_person_id(source_id_type, source_id, target_id_type):
   if source_id not in person_id_map[source_id_type]: raise KeyError("'%s' is not a valid '%s' ID." % ( source_id, source_id_type ))
   if target_id_type not in person_id_map[source_id_type][source_id]: raise KeyError("No corresponding '%s' ID for '%s' ID '%s'." % ( target_id_type, source_id_type, source_id ))
   return person_id_map[source_id_type][source_id][target_id_type]
-    
+
 
 
 # Generate a map from a person to the Congresses they served during.
