@@ -267,16 +267,28 @@ def download(url, destination=None, options={}):
       if postdata:
         response = scraper.urlopen(url, 'POST', postdata)
       else:
-        if not needs_content:
+
+        # If we're just downloading the file and the caller doesn't
+        # need the response data, then starting wget to download the
+        # file is much faster for large files. Don't know why. Something
+        # hopefully we can improve in scrapelib in the future.
+        #
+        # needs_content is currently only set to false when downloading
+        # bill text files like PDFs.
+        #
+        # Skip this fast path if wget is not present in its expected location.
+        wget_path = "/usr/bin/wget"
+        if not needs_content and os.path.exists(wget_path):
           import subprocess
           mkdir_p(os.path.dirname(cache_path))
-          if subprocess.call(["wget", "-q", "-O", cache_path, url]) == 0:
+          if subprocess.call([wget_path, "-q", "-O", cache_path, url]) == 0:
             return True
           else:
             # wget failed. when that happens it leaves a zero-byte file on disk, which
             # for us means we've created an invalid file, so delete it.
             os.unlink(cache_path)
             return None
+
         response = scraper.urlopen(url)
 
       if not is_binary:
