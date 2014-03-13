@@ -15,26 +15,52 @@ Read about the contents and schema in the [documentation](https://github.com/uni
 For background on how this repository came to be, see [Eric's blog post](http://sunlightfoundation.com/blog/2013/08/20/a-modern-approach-to-open-data/).
 
 
-Setting Up
-----------
+### Setting Up
 
-The scripts are tested with Python 2.7. On Ubuntu, you'll need these packages (the last three are required for the lxml python package):
+This project is tested using Python 2.7.
 
-    sudo apt-get install git python-virtualenv python-dev libxml2-dev libxslt1-dev libz-dev
+**System dependencies**
 
-It's recommended you first create and activate a virtualenv with:
+On Ubuntu, you'll need `wget`, `pip`, and some support packages:
 
-    virtualenv virt
-    source virt/bin/activate
+```bash
+sudo apt-get install git python-dev libxml2-dev libxslt1-dev libz-dev python-pip
+```
 
-You don't have to call it "virt", but the project's gitignore is set up to ignore it already if you do.
+On OS X, you'll need developer tools installed ([XCode](https://developer.apple.com/xcode/)), and `wget`.
 
-Whether or not you use virtualenv:
+```bash
+brew install wget
+```
 
-    pip install -r requirements.txt
+**Python dependencies**
 
-Collecting the data
--------------------
+It's recommended you use a `virtualenv` (virtual environment) for development. The easiest way is install `virtualenv` and `virtualenvwrapper`, using `sudo` if necessary:
+
+```bash
+sudo pip install virtualenv
+sudo pip install virtualenvwrapper
+```
+
+Create a virtualenv for this project:
+
+```bash
+mkvirtualenv congress
+```
+
+And activate it before any development session using:
+
+```bash
+workon congress
+```
+
+Finally, with your virtual environment activated, install Python packages:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Collecting the data
 
 The general form to start the scraping process is:
 
@@ -54,16 +80,19 @@ where data-type is one of:
 
 To scrape bills and resolutions from THOMAS, run:
 
-    ./run bills
+```bash
+./run bills
+```
 
 The bills script will output bulk data into a top-level `data` directory, then organized by Congress number, bill type, and bill number. Two data output files will be generated for each bill: a JSON version (data.json) and an XML version (data.xml).
 
-Common options
---------------
+### Common options
 
 The scripts will cache all downloaded pages, and it will not re-fetch them from the network unless a force flag is passed:
 
-    ./run bills --force
+```bash
+./run bills --force
+```
 
 The --force flag applies to all data types. Since the --force flag forces a download and parse of every object, the --fast flag for bills and votes will attempt to process only objects that are believed to have changed. Always use --fast with --force.
 
@@ -71,8 +100,7 @@ Debugging messages are hidden by default. To include them, run with --log=info o
 
 To get emailed with errors, copy config.yml.example to config.yml and fill in the SMTP options. The script will automatically use the details when a parsing or execution error occurs.
 
-Data Output
------------
+### Data Output
 
 The script will cache downloaded pages in a top-level `cache` directory, and output bulk data in a top-level `data` directory.
 
@@ -80,23 +108,22 @@ Two bulk data output files will be generated for each object: a JSON version (da
 
 See the [project wiki](https://github.com/unitedstates/congress/wiki) for documentation on the output format.
 
-Contributing
-------------
+### Contributing
 
 Pull requests with patches are awesome. Unit tests are strongly encouraged ([example tests](https://github.com/unitedstates/congress/blob/master/test/test_bill_actions.py)).
 
 The best way to file a bug is to [open a ticket](https://github.com/unitedstates/congress/issues).
 
 
-Running tests
--------------
+### Running tests
 
 To run this project's unit tests:
 
-    ./test/run
+```bash
+./test/run
+```
 
-Who's Using This Data
----------------------
+### Who's Using This Data
 
 The [Sunlight Foundation](http://sunlightfoundation.com) and [GovTrack.us](https://www.govtrack.us) are the two principal maintainers of this project.
 
