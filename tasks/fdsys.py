@@ -505,7 +505,7 @@ def update_bill_version_list(only_congress):
         utils.write(
           json.dumps(bill_versions[congress][bill_type][bill_number],
             sort_keys=True, indent=2, default=utils.format_datetime), 
-          output_for_bill(congress, bill_type, bill_number, "text-versions.json")
+          output_for_bill("%s%s-%s" % (bill_type, bill_number, congress), "text-versions.json", is_data_dot=False)
         )
 
 
