@@ -1,9 +1,10 @@
 # Cache FDSys sitemaps to get a list of available documents.
 #
-# ./run fdsys [--year=XXXX]
+# ./run fdsys [--year=XXXX] [--congress=XXX]
 # Caches the complete FDSys sitemap. Uses lastmod times in
 # sitemaps to only download new files. Use --year to only
-# update a particular year (for testing, I guess).
+# update a particular year, and --congress to only update
+# a particular Congress (with the BILLS collection).
 #
 # ./run fdsys --list-collections
 # Dumps a list of the names of GPO's collections.
@@ -13,11 +14,6 @@
 #
 # ./run fdsys --cached|--force
 # Always/never use the cache.
-#
-# ./run fdsys --collections=BILLS --congress=XXX
-# Updates the sitemaps for the years of the indicated Congress
-# and then outputs text-versions.json next to each bill data.json
-# file from the bills scraper.
 #
 # ./run fdsys ... --store mods,pdf,text,xml,premis,zip [--granules]
 # When downloading, also locally mirror the MODS, PDF, text, XML,
@@ -51,12 +47,6 @@ def run(options):
   # Locally store MODS, PDF, etc.
   if "store" in options:
     mirror_packages(fetch_collections, options)
-
-  # Create a JSON file listing all available bill text documents.
-  # Only if --collections is omitted or specifies BILLS, and if
-  # --congress is specified.
-  if (not fetch_collections or "BILLS" in fetch_collections) and options.get('congress', None):
-    update_bill_version_list(int(options.get('congress')))
 
 def update_sitemap_cache(fetch_collections, options):
   """Updates a local cache of the complete FDSys sitemap tree.
@@ -452,61 +442,6 @@ def unwrap_text_in_html(data):
   text_content = unicode(html.fromstring(data).text_content())
   return text_content.encode("utf8")
   
-def update_bill_version_list(only_congress):
-  bill_versions = { }
-  
-  # Which sitemap years should we look at?
-  if not only_congress:
-    sitemap_files = glob.glob(utils.cache_dir() + "/fdsys/sitemap/*/BILLS.xml")
-  else:
-    # If --congress=X is specified, only look at the relevant years.
-    sitemap_files = [utils.cache_dir() + "/fdsys/sitemap/" + str(year) + "/BILLS.xml" for year in utils.get_congress_years(only_congress)]
-    sitemap_files = [f for f in sitemap_files if os.path.exists(f)]
-  
-  # For each year-by-year BILLS sitemap...
-  for year_sitemap in sitemap_files:
-    dom = etree.parse(year_sitemap).getroot()
-    if dom.tag != "{http://www.sitemaps.org/schemas/sitemap/0.9}urlset": raise Exception("Mismatched sitemap type.")
-    
-    # Loop through each bill text version...
-    for file_node in dom.xpath("x:url", namespaces=ns):
-      # get URL and last modified date
-      url = str(file_node.xpath("string(x:loc)", namespaces=ns))
-      lastmod = str(file_node.xpath("string(x:lastmod)", namespaces=ns))
-      
-      # extract bill congress, type, number, and version from the URL
-      m = re.match(r"http://www.gpo.gov/fdsys/pkg/BILLS-(\d+)([a-z]+)(\d+)(\D.*)/content-detail.html", url)
-      if not m: raise Exception("Unmatched bill document URL: " + url)
-      congress, bill_type, bill_number, version_code = m.groups()
-      congress = int(congress)
-      if bill_type not in utils.thomas_types: raise Exception("Invalid bill type: " + url)
-      
-      # If --congress=XXX is specified, only look at those bills. 
-      if only_congress and congress != only_congress:
-        continue
-      
-      # Track the documents by congress, bill type, etc.
-      bill_versions\
-        .setdefault(congress, { })\
-        .setdefault(bill_type, { })\
-        .setdefault(bill_number, { })\
-        [version_code] = {
-          "url": url,
-          "lastmod": lastmod,
-        }
-        
-  # Output the bill version info. We can't do this until the end because we need to get
-  # the complete list of versions for a bill before we write the file, and the versions
-  # may be split across multiple sitemap files.
-  
-  for congress in bill_versions:
-    for bill_type in bill_versions[congress]:
-      for bill_number in bill_versions[congress][bill_type]:
-        utils.write(
-          json.dumps(bill_versions[congress][bill_type][bill_number],
-            sort_keys=True, indent=2, default=utils.format_datetime), 
-          output_for_bill("%s%s-%s" % (bill_type, bill_number, congress), "text-versions.json", is_data_dot=False)
-        )
 
 
 
