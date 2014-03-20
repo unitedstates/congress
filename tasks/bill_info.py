@@ -1324,6 +1324,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
   m = re.search("Signed by President", line, re.I)
   if m != None:
     action["type"] = "signed"
+    status = "ENACTED:SIGNED"
 
   m = re.search("Pocket Vetoed by President", line, re.I)
   if m != None:
@@ -1345,10 +1346,14 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
     action["congress"] = pieces[0]
     action["number"] = pieces[1]
     action["type"] = "enacted"
-    if prev_status != "PROV_KILL:VETO" and not prev_status.startswith("VETOED:"):
-      status = "ENACTED:SIGNED"
-    else:
+    if prev_status == "ENACTED:SIGNED":
+      pass # this is a final administrative step
+    elif prev_status == "PROV_KILL:VETO" or prev_status.startswith("VETOED:"):
       status = "ENACTED:VETO_OVERRIDE"
+    elif bill_id in ("hr1589-94", "s2527-100", "hr1677-101", "hr2978-101", "hr2126-104", "s1322-104"):
+      status = "ENACTED:TENDAYRULE"
+    else:
+      raise Exception("Missing Signed by President action? If this is a case of the 10-day rule, hard code the bill number here.")
 
   # Check for referral type
   m = re.search(r"Referred to (?:the )?(House|Senate)?\s?(?:Committee|Subcommittee)?", line, re.I)
