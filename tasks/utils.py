@@ -198,6 +198,10 @@ def download(url, destination=None, options={}):
   # if need a POST request with data
   postdata = options.get('postdata', False)
 
+  urlopen_kwargs = slice_map(options, 'timeout')
+  if 'timeout' in urlopen_kwargs:
+      urlopen_kwargs['timeout'] = float(urlopen_kwargs['timeout']) # The low level socket api requires a float
+
   # caller cares about actually bytes or only success/fail
   needs_content = options.get('needs_content', True) or not is_binary or postdata
 
@@ -266,7 +270,7 @@ def download(url, destination=None, options={}):
       logging.info("Downloading: %s" % url)
 
       if postdata:
-        response = scraper.urlopen(url, 'POST', postdata)
+        response = scraper.urlopen(url, 'POST', postdata, **urlopen_kwargs)
       else:
 
         # If we're just downloading the file and the caller doesn't
@@ -292,7 +296,7 @@ def download(url, destination=None, options={}):
             os.unlink(cache_path)
             return None
 
-        response = scraper.urlopen(url)
+        response = scraper.urlopen(url, **urlopen_kwargs)
 
       if not is_binary:
         body = response # a subclass of a 'unicode' instance
@@ -585,6 +589,14 @@ def thomas_corrections(thomas_id):
   if thomas_id == "01594": thomas_id = "02085"
 
   return thomas_id
+
+# Return a subset of a mapping type
+def slice_map(m, *args):
+    n = {}
+    for arg in args:
+        if arg in m:
+            n[arg] = m[arg]
+    return n
 
 # Load a YAML file directly.
 def direct_yaml_load(filename):
