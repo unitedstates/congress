@@ -1,11 +1,13 @@
 import utils
 import logging
-import sys
+import sys, os
 from datetime import date, datetime
 import time
 from dateutil.relativedelta import relativedelta
 from dateutil.relativedelta import MO
 import lxml, json
+
+from bs4 import BeautifulSoup
 
 # Parsing data from the House' upcoming floor feed, at
 # http://docs.house.gov/floor/
@@ -26,7 +28,11 @@ import lxml, json
 
 def run(options):
   # accepts yyyymmdd format
-  for_the_week = get_monday_of_week(options.get('week_of', None))
+  given_week = options.get('week_of', None)
+  if given_week is None:
+    for_the_week = get_latest_monday(options)
+  else:
+    for_the_week = get_monday_of_week(given_week)
 
   logging.warn('Scraping upcoming bills from docs.house.gov/floor for the week of %s.\n' % for_the_week)
   house_floor = fetch_floor_week(for_the_week, options)
@@ -35,7 +41,9 @@ def run(options):
   output = json.dumps(house_floor, sort_keys=True, indent=2, default=utils.format_datetime)
   utils.write(output, output_file)
 
-  logging.warn("\nFound %i bills for the week of %s, written to %s" % (len(house_floor['upcoming_bills']), for_the_week, output_file))
+  logging.warn("\nFound %i bills for the week of %s, written to %s" % (len(house_floor['upcoming']), for_the_week, output_file))
+
+
 
 # For any week, e.g. http://docs.house.gov/floor/Download.aspx?file=/billsthisweek/20131021/20131021.xml
 def fetch_floor_week(for_the_week, options):
@@ -46,6 +54,9 @@ def fetch_floor_week(for_the_week, options):
   dom = lxml.etree.fromstring(body)
 
 
+  # can download the actual attached files to disk, if asked
+  download = options.get("download", False)
+
   # always present at the feed level
   congress = int(dom.xpath('//floorschedule')[0].get('congress-num'))
 
@@ -53,10 +64,16 @@ def fetch_floor_week(for_the_week, options):
   legislative_day = for_the_week[0:4] + '-' + for_the_week[4:6] + '-' + for_the_week[6:]
 
 
-  upcoming_bills = []
+  upcoming = []
 
   for node in dom.xpath('//floorschedule/category/floor-items/floor-item'):
     bill_number = node.xpath('legis-num//text()')[0]
+
+    # TODO: fetch non-bills too
+    if not bill_number:
+      logging.warn("Skipping item, not a bill: %s" % description)
+      continue
+
     description  = node.xpath('floor-text//text()')[0]
 
     # how is this bill being considered?
@@ -68,9 +85,7 @@ def fetch_floor_week(for_the_week, options):
     else:
       consideration = "unknown"
 
-    if not bill_number:
-      logging.warn("Skipping item, not a bill: %s" % description)
-      continue
+
 
     logging.warn("[%s]" % bill_number)
 
@@ -122,25 +137,38 @@ def fetch_floor_week(for_the_week, options):
 
       bill['files'].append(file_field)
 
-    upcoming_bills.append(bill)
+    upcoming.append(bill)
 
 
 
   house_floor = {
     'congress': congress,
     'week_of': legislative_day,
-    'upcoming_bills': upcoming_bills
+    'upcoming': upcoming
   }
   return house_floor
 
 
 def get_monday_of_week(day_to_get_bills):
-  if day_to_get_bills is None:
-    formatted_day  = date.today()
-  else:
-    formatted_day = datetime.datetime.strptime(day_to_get_bills, '%Y%m%d').date()
-
+  formatted_day = datetime.datetime.strptime(day_to_get_bills, '%Y%m%d').date()
   return (formatted_day + relativedelta(weekday=MO(-1))).strftime('%Y%m%d')
+
+# actually go fetch docs.house.gov/floor/ and scrape the download link out of it
+def get_latest_monday(options):
+  url = "http://docs.house.gov/floor/"
+  html = utils.download(url, None, options)
+  doc = BeautifulSoup(html)
+
+  links = doc.select("a.downloadXML")
+  if len(links) != 1:
+    utils.admin("Error finding download link for this week!")
+    return None
+
+  link = links[0]
+  week = os.path.split(link['href'])[-1].split(".")[0]
+
+  return week
+
 
 def bill_id_for(bill_number, congress):
   number = bill_number.replace('.', '').replace(' ' , '').lower()

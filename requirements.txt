@@ -7,3 +7,4 @@ pytz
 cssselect
 scrapelib
 mechanize
+BeautifulSoup4
