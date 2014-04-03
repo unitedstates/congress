@@ -198,6 +198,9 @@ def download(url, destination=None, options={}):
   # if need a POST request with data
   postdata = options.get('postdata', False)
 
+  timeout = float(options.get('timeout', 30)) # The low level socket api requires a float
+  urlopen_kwargs = {'timeout': timeout}
+
   # caller cares about actually bytes or only success/fail
   needs_content = options.get('needs_content', True) or not is_binary or postdata
 
@@ -266,7 +269,7 @@ def download(url, destination=None, options={}):
       logging.info("Downloading: %s" % url)
 
       if postdata:
-        response = scraper.urlopen(url, 'POST', postdata)
+        response = scraper.urlopen(url, 'POST', postdata, **urlopen_kwargs)
       else:
 
         # If we're just downloading the file and the caller doesn't
@@ -292,7 +295,7 @@ def download(url, destination=None, options={}):
             os.unlink(cache_path)
             return None
 
-        response = scraper.urlopen(url)
+        response = scraper.urlopen(url, **urlopen_kwargs)
 
       if not is_binary:
         body = response # a subclass of a 'unicode' instance
@@ -529,8 +532,8 @@ def fetch_committee_names(congress, options):
           name = chamber + " " + name
 
         # Correct for some oddness on THOMAS (but not on Congress.gov): The House Committee
-        # on House Administration appears just as "House Administration" and in the 105th
-        # Congress appears as "House Oversight" (likewise the full name is House Committee
+        # on House Administration appears just as "House Administration" and in the 104th/105th
+        # Congresses appears as "House Oversight" (likewise the full name is House Committee
         # on House Oversight --- it's the House Administration committee still).
         if name == "House House Administration": name = "House Administration"
         if name == "House House Oversight": name = "House Oversight"
@@ -555,8 +558,6 @@ def fetch_committee_names(congress, options):
     committee_names["HSPO|Hoc Task Force on Presidential Pay Recommendation"] = committee_names["HSPO|Ad Hoc Task Force on Presidential Pay Recommendation"]
   if congress == 103:
     committee_names["Senate Indian Affairs (Permanent Select)"] = committee_names["Senate Indian Affairs"]
-  if congress == 104:
-    committee_names["House Oversight"] = committee_names["House House Oversight"]
   if congress == 108:
     # This appears to be a mistake, a subcommittee appearing as a full committee. Map it to
     # the full committee for now.
@@ -587,6 +588,14 @@ def thomas_corrections(thomas_id):
   if thomas_id == "01594": thomas_id = "02085"
 
   return thomas_id
+
+# Return a subset of a mapping type
+def slice_map(m, *args):
+    n = {}
+    for arg in args:
+        if arg in m:
+            n[arg] = m[arg]
+    return n
 
 # Load a YAML file directly.
 def direct_yaml_load(filename):

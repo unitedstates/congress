@@ -58,7 +58,7 @@ class BillActions(unittest.TestCase):
   def test_enacted_as_public_law(self):
     bill_id = "hr3590-111"
     title = "An act entitled The Patient Protection and Affordable Care Act."
-    state = "PASSED:BILL"
+    state = "ENACTED:SIGNED"
     line = "Became Public Law No: 111-148."
 
     new_action, new_state = parse_bill_action(line, state, bill_id, title)
