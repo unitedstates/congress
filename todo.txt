@@ -1,0 +1,9 @@
+Python 3 conversion
+
+* test runner is broken
+* unicode stuff is busted in utils
+* tasks besides bills/bill_info
+
+before being done
+* readme instructions needed for python3
+* ensure everything works on Python 2.7 as well

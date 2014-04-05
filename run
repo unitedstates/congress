@@ -7,6 +7,7 @@ import importlib
 
 # set global HTTP timeouts to 10 seconds
 import socket
+import collections
 socket.setdefaulttimeout(10)
 
 # name of the task comes first
@@ -35,7 +36,7 @@ else:
   log_level = options.get("log", "warn")
 
 if log_level not in ["debug", "info", "warn", "error"]:
-  print "Invalid log level (specify: debug, info, warn, error)."
+  print("Invalid log level (specify: debug, info, warn, error).")
   sys.exit(1)
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=log_level.upper())
@@ -54,7 +55,7 @@ try:
     if patch_func is None:
       logging.error("You specified a --patch argument but the {} module does not contain a 'patch' function.".format(options['patch']))
       sys.exit(1)
-    elif not callable(patch_func):
+    elif not isinstance(patch_func, collections.Callable):
       logging.error("You specified a --patch argument but {}.patch is not callable".format(options['patch']))
       sys.exit(1)
     else:
