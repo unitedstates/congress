@@ -267,7 +267,7 @@ def output_bill(bill, options):
     if options.get("govtrack", False):
       # Rewrite thomas_id attributes as just id with GovTrack person IDs.
       attrs2 = { }
-      for k, v in attrs.items():
+      for k, v in list(attrs.items()):
         if v:
           if k == "thomas_id":
             # remap "thomas_id" attributes to govtrack "id"
@@ -287,7 +287,7 @@ def output_bill(bill, options):
       elif k == "source_url":
         n.set("url", v)
       else:
-        n.set(k, unicode(v))
+        n.set(k, str(v))
   if "original_bill_number" in bill:
     make_node(root, "bill-number", bill["original_bill_number"])
 
@@ -442,7 +442,7 @@ def summary_for(body):
   text = re.sub("\s*<p><b>\(This measure.*?</b></p>\s*", "", text)
 
   # strip out the intro date thing
-  sumdate = u"(\d+/\d+/\d+)--([^\s].*?)(\u00a0\u00a0\u00a0\u00a0\(There (is|are) \d+ <a href=\"[^>]+\">other (summary|summaries)</a>\))?(\n|<p>)"
+  sumdate = "(\d+/\d+/\d+)--([^\s].*?)(\u00a0\u00a0\u00a0\u00a0\(There (is|are) \d+ <a href=\"[^>]+\">other (summary|summaries)</a>\))?(\n|<p>)"
   m = re.search(sumdate, text)
   if m:
     d = m.group(1)
@@ -596,7 +596,7 @@ def titles_for(body):
       # Strip, remove tabs, and replace whitespace and nonbreaking spaces with spaces,
       # since occasionally (e.g. s649-113) random \r's etc. appear instead of spaces.
       title = re.sub("<[^>]+>", "", title) # strip tags
-      title = re.sub(ur"[\s\u00a0]+", " ", title.strip()) # strip space and normalize spaces
+      title = re.sub(r"[\s\u00a0]+", " ", title.strip()) # strip space and normalize spaces
       if title == "":
         continue
 
@@ -1367,7 +1367,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
   # excluding subcommittee names (they have pipes),
   # and make chamber prefix optional
   cmte_names = []
-  for name in utils.committee_names.keys():
+  for name in list(utils.committee_names.keys()):
     if name.find('|') == -1:
       # name = re.sub(r"\(.*\)", '', name).strip()
       name = re.sub(r"^(House|Senate) ", "(?:\\1 )?", name)
@@ -1428,7 +1428,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
 
   # no matter what it is, sweep the action line for bill IDs of related bills
   bill_ids = utils.extract_bills(line, congress)
-  bill_ids = filter(lambda b: b != bill_id, bill_ids)
+  bill_ids = [b for b in bill_ids if b != bill_id]
   if bill_ids and (len(bill_ids) > 0):
     action['bill_ids'] = bill_ids
 

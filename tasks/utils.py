@@ -1,5 +1,5 @@
 import os, os.path, errno, sys, traceback, zipfile
-import re, htmlentitydefs
+import re, html.entities
 import json
 from pytz import timezone
 import datetime, time
@@ -37,7 +37,7 @@ def format_datetime(obj):
     return eastern_time_zone.localize(obj.replace(microsecond=0)).isoformat()
   elif isinstance(obj, datetime.date):
     return obj.isoformat()
-  elif isinstance(obj, (str, unicode)):
+  elif isinstance(obj, str):
     return obj
   else:
     return None
@@ -130,7 +130,7 @@ def split_vote_id(vote_id):
 def split_nomination_id(nomination_id):
   try:
     return re.match("^([A-z]{2})([\d-]+)-(\d+)$", nomination_id).groups()
-  except Exception, e:
+  except Exception as e:
     logging.error("Unabled to parse %s" % nomination_id)
     return (None, None, None)
 
@@ -142,7 +142,7 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
   for id in to_fetch:
     try:
       results = fetch_func(id, options, *extra_args)
-    except Exception, e:
+    except Exception as e:
       if options.get('raise', False):
         raise
       else:
@@ -225,7 +225,7 @@ def download(url, destination=None, options={}):
   # archive.
   if destination and to_cache:
     dparts = destination.split(os.sep)
-    for i in xrange(len(dparts)-1):
+    for i in range(len(dparts)-1):
       # form the ZIP file name and test if it exists...
       zfn = os.path.join(cache, *dparts[:i+1]) + ".zip"
       if not os.path.exists(zfn): continue
@@ -299,10 +299,10 @@ def download(url, destination=None, options={}):
 
       if not is_binary:
         body = response # a subclass of a 'unicode' instance
-        if not isinstance(body, unicode): raise ValueError("Content not decoded.")
+        if not isinstance(body, str): raise ValueError("Content not decoded.")
       else:
         body = response.bytes # a 'str' instance
-        if isinstance(body, unicode): raise ValueError("Binary content improperly decoded.")
+        if isinstance(body, str): raise ValueError("Binary content improperly decoded.")
     except scrapelib.HTTPError as e:
       logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
       return None
@@ -333,7 +333,7 @@ def read(destination):
 
 # dict1 gets overwritten with anything in dict2
 def merge(dict1, dict2):
-  return dict(dict1.items() + dict2.items())
+  return dict(list(dict1.items()) + list(dict2.items()))
 
 # de-dupe a list, taken from:
 # http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
@@ -364,7 +364,7 @@ def xpath_regex(doc, element, pattern):
 def unescape(text):
 
   def remove_unicode_control(str):
-    remove_re = re.compile(u'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]')
+    remove_re = re.compile('[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]')
     return remove_re.sub('', str)
 
   def fixup(m):
@@ -373,15 +373,15 @@ def unescape(text):
       # character reference
       try:
         if text[:3] == "&#x":
-          return unichr(int(text[3:-1], 16))
+          return chr(int(text[3:-1], 16))
         else:
-          return unichr(int(text[2:-1]))
+          return chr(int(text[2:-1]))
       except ValueError:
         pass
     else:
       # named entity
       try:
-        text = unichr(htmlentitydefs.name2codepoint[text[1:-1]])
+        text = chr(html.entities.name2codepoint[text[1:-1]])
       except KeyError:
         pass
     return text # leave as is
@@ -449,8 +449,8 @@ def admin(body):
         send_email(body)
 
   except Exception as exception:
-    print "Exception logging message to admin, halting as to avoid loop"
-    print format_exception(exception)
+    print("Exception logging message to admin, halting as to avoid loop")
+    print(format_exception(exception))
 
 def format_exception(exception):
   exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -495,7 +495,7 @@ thomas_types = {
   'samdt': ('SP', 'S.AMDT.'),
   'supamdt': ('SU', 'S.UP.AMDT.'),
 }
-thomas_types_2 = dict( (v[0], k) for (k, v) in thomas_types.items() )  # map e.g. { SE: sres, ...}
+thomas_types_2 = dict( (v[0], k) for (k, v) in list(thomas_types.items()) )  # map e.g. { SE: sres, ...}
 
 # cached committee map to map names to IDs
 committee_names = {}
@@ -513,7 +513,7 @@ def fetch_committee_names(congress, options):
   if not options.get('test', False): logging.info("[%d] Fetching committee names..." % congress)
 
   # allow body to be passed in from fixtures
-  if options.has_key('body'):
+  if 'body' in options:
     body = options['body']
   else:
     body = download(
@@ -571,7 +571,7 @@ def make_node(parent, tag, text, **attrs):
   n = etree.Element(tag)
   parent.append(n)
   n.text = text
-  for k, v in attrs.items():
+  for k, v in list(attrs.items()):
     if v is None: continue
     if isinstance(v, datetime.datetime):
       v = format_datetime(v)
@@ -715,15 +715,15 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
     for filename in ("legislators-historical", "legislators-current"):
       for moc in yaml_load("congress-legislators/%s.yaml" % ( filename )):
         for term in moc["terms"]:
-          for c in xrange(congress_from_legislative_year(int(term['start'][0:4]))-1,
+          for c in range(congress_from_legislative_year(int(term['start'][0:4]))-1,
             congress_from_legislative_year(int(term['end'][0:4]))+1+1):
             lookup_legislator_cache.setdefault(c, []).append( (moc, term) )
 
   def to_ascii(name):
     name = name.replace("-", " ")
-    if not isinstance(name, unicode): return name
+    if not isinstance(name, str): return name
     import unicodedata
-    return u"".join(c for c in unicodedata.normalize('NFKD', name) if not unicodedata.combining(c))
+    return "".join(c for c in unicodedata.normalize('NFKD', name) if not unicodedata.combining(c))
 
   # Scan all of the terms that cover 'when' for a match.
   if isinstance(when, datetime.datetime): when = when.date()
@@ -831,7 +831,7 @@ def create_combined_legislators_map(map_from, map_to, map_function, filenames=[ 
 person_id_map = {}
 def generate_person_id_map():
   def map_function(person_id_map, person):
-    for source_id_type, source_id in person["id"].items():
+    for source_id_type, source_id in list(person["id"].items()):
       # Instantiate this ID type.
       if source_id_type not in person_id_map:
         person_id_map[source_id_type] = {}
@@ -845,7 +845,7 @@ def generate_person_id_map():
           person_id_map[source_id_type][source_id] = {}
 
         # Loop through all the ID types and values and map them to this ID type.
-        for target_id_type, target_id in person["id"].items():
+        for target_id_type, target_id in list(person["id"].items()):
           # Don't map an ID type to itself.
           if target_id_type != source_id_type:
             person_id_map[source_id_type][source_id][target_id_type] = target_id
