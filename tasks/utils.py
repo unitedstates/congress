@@ -282,12 +282,6 @@ def download(url, destination=None, options={}):
         # bill text files like PDFs.
         #
         # Skip this fast path if wget is not present in its expected location.
-
-        # if platform.system() == 'Windows':
-        #   wget_exists = (subprocess.call(["where wget > \\dev\\null"], shell=True) == 0)
-        # else:
-        #   wget_exists = (subprocess.call(["which wget > /dev/null"], shell=True) == 0)
-
         with open(os.devnull, 'w') as tempf:
           if platform.system() == 'Windows':
             wget_exists = (subprocess.call("where wget", stdout=tempf, stderr=tempf, shell=True) == 0)
