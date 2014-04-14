@@ -1,4 +1,5 @@
 import os, os.path, errno, sys, traceback, zipfile
+import platform
 import re, htmlentitydefs
 import json
 from pytz import timezone
@@ -282,7 +283,16 @@ def download(url, destination=None, options={}):
         #
         # Skip this fast path if wget is not present in its expected location.
 
-        wget_exists = (subprocess.call(["which wget > /dev/null"], shell=True) == 0)
+        # if platform.system() == 'Windows':
+        #   wget_exists = (subprocess.call(["where wget > \\dev\\null"], shell=True) == 0)
+        # else:
+        #   wget_exists = (subprocess.call(["which wget > /dev/null"], shell=True) == 0)
+
+        with open(os.devnull, 'w') as tempf:
+          if platform.system() == 'Windows':
+            wget_exists = (subprocess.call("where wget", stdout=tempf, stderr=tempf, shell=True) == 0)
+          else:
+            wget_exists = (subprocess.call("which wget", stdout=tempf, stderr=tempf, shell=True) == 0)
 
         if not needs_content and wget_exists:
 
