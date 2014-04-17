@@ -47,7 +47,7 @@ def bill_ids_for(congress, options, bill_states={}):
   if bill_type:
     bill_types = [bill_type]
   else:
-    bill_types = utils.thomas_types.keys()
+    bill_types = list(utils.thomas_types.keys())
 
   for bill_type in bill_types:
 
