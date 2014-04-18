@@ -39,6 +39,7 @@ def get_congress_dates(options):
 def vote_list_source_urls_for(congress, chamber, options):
 	url = "http://www.voteview.com/%s%02d.htm" % (("house" if chamber == "h" else "senate"), congress)
 	index_page = utils.download(url, cache_file_for(congress, chamber, "html"), options)
+	if index_page == None: raise Exception("No data.") # should only happen on a 404
 
 	def match(pattern):
 		matches = re.findall(pattern, index_page, re.I)
@@ -49,7 +50,7 @@ def vote_list_source_urls_for(congress, chamber, options):
 	return match("ftp://voteview.com/[^\.\s]+\.ord"), match("ftp://voteview.com/dtl/[^\.\s]+\.dtl")
 
 def cache_file_for(congress, chamber, file_type):
-	return "%s/votes/voteview/%s.%s" % (congress, chamber, file_type)
+	return "voteview/%s-%s.%s" % (congress, chamber, file_type)
 
 def get_state_from_icpsr_state_code(icpsr_state_code):
 	icpsr_state_code_map = {
@@ -107,7 +108,7 @@ def get_state_from_icpsr_state_code(icpsr_state_code):
 		99: None, # Used by presidents
 	}
 
-	return icpsr_state_code_map[icpsr_state_code] if icpsr_state_code in icpsr_state_code_map else None
+	return icpsr_state_code_map[icpsr_state_code]
 
 def get_party_from_icpsr_party_code(icpsr_party_code):
 	icpsr_party_code_map = {
@@ -198,48 +199,28 @@ def get_party_from_icpsr_party_code(icpsr_party_code):
 		9999: "Unknown",
 	}
 
-	return icpsr_party_code_map[icpsr_party_code] if icpsr_party_code in icpsr_party_code_map else None
-
-def party_abbreviation_for(party_name):
-	party_abbreviation_map = {
-		"Conservative": "C",
-		"Democrat-Republican": "DR",
-		"Democrat": "D",
-		"Federalist": "F",
-		"Ind. Democrat": "ID",
-		"Ind. Republican": "IR",
-		"Ind. Whig": "IW",
-		"Independent": "I",
-		"Liberal": "L",
-		"Republican": "R",
-		"Whig": "W",
-	}
-
-	return party_abbreviation_map[party_name] if party_name in party_abbreviation_map else party_name
-
-def get_vote_type_from_icpsr_vote_code(icpsr_vote_code):
-	icpsr_vote_code_map = {
-		0: None, # Not a member
-		1: "Yea",
-		2: "Yea", # Paired yea
-		3: "Yea", # Announced yea
-		4: "Nay", # Announced nay
-		5: "Nay", # Paired nay
-		6: "Nay",
-		7: "Present", # (type 1)
-		8: "Present", # (type 2)
-		9: "Not Voting",
-	}
-
-	return icpsr_vote_code_map[icpsr_vote_code] if icpsr_vote_code in icpsr_vote_code_map else None
+	return icpsr_party_code_map.get(icpsr_party_code)
 
 def parse_icpsr_vote_string(icpsr_vote_string):
-	votes = []
-
-	for icpsr_vote_code in icpsr_vote_string:
-		votes.append(get_vote_type_from_icpsr_vote_code(int(icpsr_vote_code)))
-
-	return votes
+	# Convert the integer codes into a tuple containing:
+	#    standard vote options "Yea", "Nay", "Not Voting", "Present"
+	#    an additional string so that we don't lose any information provided by voteview
+	# Probably the House used Aye and No in some votes, but we don't
+	# know which. "Yea" and "Nay" are always used by the Senate, and always
+	# in the House on the passage of bills.
+	icpsr_vote_code_map = {
+		0: None, # not a member
+		1: ("Yea", None),
+		2: ("Yea", "paired"),
+		3: ("Not Voting", "announced-yea"),
+		4: ("Not Voting", "announced-nay"),
+		5: ("Nay", "paired"),
+		6: ("Nay", None),
+		7: ("Present", "type-seven"),
+		8: ("Present", "type-eight"),
+		9: ("Not Voting", None),
+	}
+	return [icpsr_vote_code_map[int(icpsr_vote_code)] for icpsr_vote_code in icpsr_vote_string]
 
 def parse_vote_list_line(vote_list_line):
 	return re.match(r"^([\s\d]{2}\d)([\s\d]{4}\d)([\s\d]\d)([\s\d]{2})([^\d]+?)([\s\d]{3}\d)([\s\d])([\s\d])([^\s\d][^\d]+?(?:\d\s+)?)(\d+)$", vote_list_line).groups()
@@ -254,19 +235,21 @@ def parse_rollcall_dtl_date(rollcall_dtl_date):
 	from datetime import datetime
 
 	potential_date_formats = [
-		"%b. %d, %Y", # JAN. 1, 1900
-		"%B %d, %Y", # JANUARY 1, 1900
 		"%b %d, %Y", # JAN 1, 1900
-		"%b. %d,%Y", # JAN. 1,1900
-		"%B %d,%Y", # JANUARY 1,1900
-		"%B. %d, %Y", # JANUARY. 1, 1900
+		"%B %d, %Y", # JANUARY 1, 1900
 		"%b, %d, %Y", # JAN, 1, 1900
 		"%B, %d, %Y", # JANUARY, 1, 1900
 		"%b.%d, %Y", # JAN.1, 1900
 	]
 
+	# Make things easier by removing periods after month abbreviations.
+	rollcall_dtl_date = rollcall_dtl_date.replace(". ", " ")
+
+	# Make things easier by inserting spaces after commas where they are missing.
+	rollcall_dtl_date = rollcall_dtl_date.replace(",1", ", 1")
+
 	# Python doesn't consider "SEPT" a valid abbreviation for September.
-	rollcall_dtl_date = rollcall_dtl_date.replace("SEPT.", "SEP.").replace("SEPT ", "SEP ")
+	rollcall_dtl_date = rollcall_dtl_date.replace("SEPT ", "SEP ")
 
 	parsed_date = None
 
@@ -381,42 +364,30 @@ def build_votes(vote_list):
 	votes = {}
 	presidents_position = {}
 
-	for vote_info in vote_list:
-		for i in range(len(vote_info["votes"])):
-			vote_type = vote_info["votes"][i]
-
-			# XXX: When does this ever happen?
-			if vote_type is None:
-				continue
-
-			# The vote data is useless if we don't know whose it is.
-			if vote_info["bioguide_id"] is None:
+	for voter in vote_list:
+		for i, choice in enumerate(voter["votes"]):
+			# Not all people were present for all votes.
+			if choice == None:
 				continue
 
 			# Separate the president's position from Member votes.
-			if vote_info["is_president"]:
-				presidents_position[i] = vote_type
+			if voter["is_president"]:
+				presidents_position[i] = { "option": choice[0], "voteview_votecode_extra": choice[1] }
 				continue
 
-			if i not in votes:
-				votes[i] = {}
+			# Make a record for this vote, grouped by vote option (Aye, etc).
+			votes.setdefault(i, {}).setdefault(choice[0], []).append({
+				"id": voter["bioguide_id"],
+				"display_name": voter["member_name"],
+				"party": voter["party"],
+				"state": voter["state"],
+				"voteview_votecode_extra": choice[1],
+			})
 
-			if vote_type not in votes[i]:
-				votes[i][vote_type] = []
-
-			vote = {
-				"id": vote_info["bioguide_id"],
-				"display_name": vote_info["member_name"],
-				"party": party_abbreviation_for(vote_info["party"]),
-				"state": vote_info["state"],
-			}
-
-			votes[i][vote_type].append(vote)
-
-	# Sort votes by member name.
-	for vote_number in votes:
-		for vote_type in votes[vote_number]:
-			votes[vote_number][vote_type].sort(key = lambda vote : vote["display_name"])
+	# sort for output
+	for vote in votes.values():
+		for voters in vote.values():
+			voters.sort(key = lambda v : v['display_name'])
 
 	return (votes, presidents_position)
 
@@ -435,7 +406,7 @@ def get_votes(chamber, congress, options, congress_dates):
 	vote_list = parse_vote_list_file(vote_list_file)
 	votes, presidents_position = build_votes(vote_list)
 
-	# Load the DTL file which lists each roll call vote.
+	# Load the DTL file which lists each roll call vote with textual metadata.
 
 	rollcall_list_file = utils.download(rollcall_list_url, cache_file_for(congress, chamber, "dtl"), options).encode("utf-8")
 	if not rollcall_list_file:
@@ -469,7 +440,7 @@ def get_votes(chamber, congress, options, congress_dates):
 			"chamber": chamber,
 			"number": rollcall_number, # XXX: This is not the right number.
 			"question": rollcall["description"] if "description" in rollcall else None, # Sometimes there isn't a description.
-			"type": rollcall["description"] if "description" in rollcall else None, # TODO: normalized to a type
+			"type": normalize_vote_type(rollcall["description"]) if "description" in rollcall else None,
 			"date": datetime.date(*[int(dd) for dd in rollcall["date"].split("-")]), # turn YYYY-MM-DD into datetime.date() instance
 			"date_unparsed": rollcall["date_unparsed"],
 			"votes": vote_results,
@@ -487,3 +458,12 @@ def get_votes(chamber, congress, options, congress_dates):
 def put_vote(vote, options):
 	output_vote(vote, options, id_type="bioguide")
 	return { "ok": True, "saved": True }
+
+def normalize_vote_type(descr):
+	if descr.startswith("TO PASS "): return "On Passage"
+	if descr.startswith("TO AMEND "): return "On the Amendment"
+	if descr.startswith("TO CONCUR IN THE SENATE AMENDMENT "): return "Concurring in the Senate Amendment"
+	if descr.startswith("TO READ THE SECOND TIME "): return "Reading the Second Time"
+	if descr.startswith("TO ADVISE AND CONSENT TO THE RATIFICATION OF THE TREATY"): return "On the Treaty"
+	#logging.error("Unknown vote type: " + descr)
+	return descr
