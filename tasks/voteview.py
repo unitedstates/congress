@@ -15,32 +15,16 @@ def run(options):
 
     chamber = options.get('chamber', None)
 
-    congress_dates = get_congress_dates(options)
+    # we're going to need to map votes to sessions because in modern history the numbering resets by session
+    session_dates = list(csv.DictReader(StringIO.StringIO(utils.download("http://www.govtrack.us/data/us/sessions.tsv").encode("utf8")), delimiter="\t"))
 
     # download the vote data now
-    if chamber and chamber in ["h", "s"]:
-        votes = get_votes(chamber, congress, options, congress_dates)
+    if chamber and chamber in [ "h", "s" ]:
+        votes = get_votes(chamber, congress, options, session_dates)
     else:
-        votes = get_votes("h", congress, options, congress_dates) + get_votes("s", congress, options, congress_dates)
+        votes = get_votes("h", congress, options, session_dates) + get_votes("s", congress, options, session_dates)
 
     utils.process_set(votes, put_vote, options)
-
-
-def get_congress_dates(options):
-    # To sanity check vote dates against the Congress in which it ocurred,
-    # grab the sessions file from GovTrack and find the start/end date of
-    # each Congress.
-    congress_dates = {}
-    session_dates = list(csv.DictReader(StringIO.StringIO(utils.download("http://www.govtrack.us/data/us/sessions.tsv", "sessions.tsv", options).encode("utf8")), delimiter="\t"))
-    for sess in session_dates:
-        congress = int(sess["congress"])
-        if congress not in congress_dates:
-            # the first time we see a session, set the Congress's start and end according to the session
-            congress_dates[congress] = [sess["start"], sess["end"]]
-        else:
-            # as we encounter later sessions, update the Congress's end date
-            congress_dates[congress][1] = sess["end"]
-    return congress_dates
 
 
 def vote_list_source_urls_for(congress, chamber, options):
@@ -413,7 +397,14 @@ def build_votes(vote_list):
     return (votes, presidents_position)
 
 
-def get_votes(chamber, congress, options, congress_dates):
+def session_from_date(date, session_dates):
+    for sess in session_dates:
+        if sess["start"] <= date <= sess["end"]:
+            return int(sess["congress"]), sess["session"]
+    return None, None
+
+
+def get_votes(chamber, congress, options, session_dates):
     logging.warn("Getting votes for %d-%s..." % (congress, chamber))
 
     vote_list_url, rollcall_list_url = vote_list_source_urls_for(congress, chamber, options)
@@ -465,21 +456,28 @@ def get_votes(chamber, congress, options, congress_dates):
         vote_results = votes[rollcall_number - 1]
         rollcall = rollcall_list[rollcall_number]
 
-        # Sanity check the date.
+        # Which session is this in? Compare the vote's date to the sessions.tsv file.
         if not rollcall["date"]:
-            logging.error("Vote on %s was an invalid date. | %s" % (rollcall["date_unparsed"], rollcall["description"]))
+            logging.error("Vote on %s was an invalid date, so we can't determine the session to save the file.. | %s" % (rollcall["date_unparsed"], rollcall["description"]))
             continue
-        elif not (congress_dates[congress][0] <= rollcall["date"] <= congress_dates[congress][1]):
+
+        s_congress, session = session_from_date(rollcall["date"], session_dates)
+        if s_congress != congress:
             logging.error("Vote on %s disagrees about which Congress it is in." % rollcall["date"])
+            continue
+        if session is None:
+            # This vote did not occur durring a session of Congress. Some sort of data error.
+            logging.error("Vote on %s is not within a session of Congress." % rollcall["date"])
             continue
 
         # Form the vote dict.
         vote_output = {
-            "vote_id": "%s%s-%d.X" % (chamber, rollcall_number, congress),
+            "vote_id": "%s%s-%d.%s" % (chamber, rollcall_number, congress, session),
             "source_url": "http://www.voteview.com",
             "updated_at": datetime.datetime.fromtimestamp(time.time()),
 
             "congress": congress,
+            "session": session,
             "chamber": chamber,
             "number": rollcall_number,  # XXX: This is not the right number.
             "question": rollcall["description"] if "description" in rollcall else None,  # Sometimes there isn't a description.
