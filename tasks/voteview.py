@@ -414,6 +414,25 @@ def get_votes(chamber, congress, options, congress_dates):
 		return None
 	rollcall_list = parse_rollcall_dtl_list_file(rollcall_list_file)
 
+	# The dates listed in the DTL file were originally OCRd and have tons
+	# of errors. Many strings could not be parsed. There are occasional
+	# invalid dates (like Feb 29 on a non-leap year --- the 9s are probably
+	# incorrectly OCR'd 5's). Try to resolve these quickly without resorting
+	# to manual fact-checking...
+	for i in range(1, max(rollcall_list)-1):
+		if rollcall_list[i]["date"]: continue # was OK
+		if not rollcall_list[i-1]["date"]: continue # preceding date not OK
+
+		# If the vote is surrounded by votes on the same day, set the date to that day.
+		if rollcall_list[i-1]["date"] == rollcall_list[i+1]["date"]:
+			rollcall_list[i]["date"] = rollcall_list[i-1]["date"]
+			logging.error("Replacing %s with %s." % (rollcall_list[i]["date_unparsed"], rollcall_list[i-1]["date"]))
+
+		# Lump the vote with the previous date. 
+		else:
+			rollcall_list[i]["date"] = rollcall_list[i-1]["date"]
+			logging.error("Replacing %s with %s (but might be as late as %s)." % (rollcall_list[i]["date_unparsed"], rollcall_list[i-1]["date"], rollcall_list[i+1]["date"]))
+
 	# Form the output data.
 
 	vote_output_list = []
@@ -424,7 +443,7 @@ def get_votes(chamber, congress, options, congress_dates):
 
 		# Sanity check the date.
 		if not rollcall["date"]:
-			logging.error("Vote on %s was an invalid date." % rollcall["date_unparsed"])
+			logging.error("Vote on %s was an invalid date. | %s" % (rollcall["date_unparsed"], rollcall["description"]))
 			continue
 		elif not (congress_dates[congress][0] <= rollcall["date"] <= congress_dates[congress][1]):
 			logging.error("Vote on %s disagrees about which Congress it is in." % rollcall["date"])
