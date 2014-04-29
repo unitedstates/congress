@@ -1,488 +1,519 @@
-import re, StringIO, csv, datetime, time
+import re
+import StringIO
+import csv
+import datetime
+import time
 import logging
 
 import utils
 from vote_info import output_vote
 
+
 def run(options):
-	congress = options.get("congress", None)
-	congress = int(congress) if congress else utils.current_congress()
+    congress = options.get("congress", None)
+    congress = int(congress) if congress else utils.current_congress()
 
-	chamber = options.get('chamber', None)
+    chamber = options.get('chamber', None)
 
-	congress_dates = get_congress_dates(options)
+    congress_dates = get_congress_dates(options)
 
-	# download the vote data now
-	if chamber and chamber in [ "h", "s" ]:
-		votes = get_votes(chamber, congress, options, congress_dates)
-	else:
-		votes = get_votes("h", congress, options, congress_dates) + get_votes("s", congress, options, congress_dates)
+    # download the vote data now
+    if chamber and chamber in ["h", "s"]:
+        votes = get_votes(chamber, congress, options, congress_dates)
+    else:
+        votes = get_votes("h", congress, options, congress_dates) + get_votes("s", congress, options, congress_dates)
 
-	utils.process_set(votes, put_vote, options)
+    utils.process_set(votes, put_vote, options)
+
 
 def get_congress_dates(options):
-	# To sanity check vote dates against the Congress in which it ocurred,
-	# grab the sessions file from GovTrack and find the start/end date of
-	# each Congress.
-	congress_dates = { }
-	session_dates = list(csv.DictReader(StringIO.StringIO(utils.download("http://www.govtrack.us/data/us/sessions.tsv", "sessions.tsv", options).encode("utf8")), delimiter="\t"))
-	for sess in session_dates:
-		congress = int(sess["congress"])
-		if congress not in congress_dates:
-			# the first time we see a session, set the Congress's start and end according to the session
-			congress_dates[congress] = [sess["start"], sess["end"]]
-		else:
-			# as we encounter later sessions, update the Congress's end date
-			congress_dates[congress][1] = sess["end"]
-	return congress_dates
+    # To sanity check vote dates against the Congress in which it ocurred,
+    # grab the sessions file from GovTrack and find the start/end date of
+    # each Congress.
+    congress_dates = {}
+    session_dates = list(csv.DictReader(StringIO.StringIO(utils.download("http://www.govtrack.us/data/us/sessions.tsv", "sessions.tsv", options).encode("utf8")), delimiter="\t"))
+    for sess in session_dates:
+        congress = int(sess["congress"])
+        if congress not in congress_dates:
+            # the first time we see a session, set the Congress's start and end according to the session
+            congress_dates[congress] = [sess["start"], sess["end"]]
+        else:
+            # as we encounter later sessions, update the Congress's end date
+            congress_dates[congress][1] = sess["end"]
+    return congress_dates
+
 
 def vote_list_source_urls_for(congress, chamber, options):
-	url = "http://www.voteview.com/%s%02d.htm" % (("house" if chamber == "h" else "senate"), congress)
-	index_page = utils.download(url, cache_file_for(congress, chamber, "html"), options)
-	if index_page == None: raise Exception("No data.") # should only happen on a 404
+    url = "http://www.voteview.com/%s%02d.htm" % (("house" if chamber == "h" else "senate"), congress)
+    index_page = utils.download(url, cache_file_for(congress, chamber, "html"), options)
+    if index_page == None:
+        raise Exception("No data.")  # should only happen on a 404
 
-	def match(pattern):
-		matches = re.findall(pattern, index_page, re.I)
-		if len(matches) != 1:
-			raise ValueError("Index page %s did not match one value for pattern %s." % (url, pattern))
-		return matches[0]
+    def match(pattern):
+        matches = re.findall(pattern, index_page, re.I)
+        if len(matches) != 1:
+            raise ValueError("Index page %s did not match one value for pattern %s." % (url, pattern))
+        return matches[0]
 
-	return match("ftp://voteview.com/[^\.\s]+\.ord"), match("ftp://voteview.com/dtl/[^\.\s]+\.dtl")
+    return match("ftp://voteview.com/[^\.\s]+\.ord"), match("ftp://voteview.com/dtl/[^\.\s]+\.dtl")
+
 
 def cache_file_for(congress, chamber, file_type):
-	return "voteview/%s-%s.%s" % (congress, chamber, file_type)
+    return "voteview/%s-%s.%s" % (congress, chamber, file_type)
+
 
 def get_state_from_icpsr_state_code(icpsr_state_code):
-	icpsr_state_code_map = {
-		 1: "CT",
-		 2: "ME",
-		 3: "MA",
-		 4: "NH",
-		 5: "RI",
-		 6: "VT",
-		11: "DE",
-		12: "NJ",
-		13: "NY",
-		14: "PA",
-		21: "IL",
-		22: "IN",
-		23: "MI",
-		24: "OH",
-		25: "WI",
-		31: "IA",
-		32: "KS",
-		33: "MN",
-		34: "MO",
-		35: "NE",
-		36: "ND",
-		37: "SD",
-		40: "VA",
-		41: "AL",
-		42: "AR",
-		43: "FL",
-		44: "GA",
-		45: "LA",
-		46: "MS",
-		47: "NC",
-		48: "SC",
-		49: "TX",
-		51: "KY",
-		52: "MD",
-		53: "OK",
-		54: "TN",
-		55: "DC",
-		56: "WV",
-		61: "AZ",
-		62: "CO",
-		63: "ID",
-		64: "MT",
-		65: "NV",
-		66: "NM",
-		67: "UT",
-		68: "WY",
-		71: "CA",
-		72: "OR",
-		73: "WA",
-		81: "AK",
-		82: "HI",
-		99: None, # Used by presidents
-	}
+    icpsr_state_code_map = {
+        1: "CT",
+        2: "ME",
+        3: "MA",
+        4: "NH",
+        5: "RI",
+        6: "VT",
+        11: "DE",
+        12: "NJ",
+        13: "NY",
+        14: "PA",
+        21: "IL",
+        22: "IN",
+        23: "MI",
+        24: "OH",
+        25: "WI",
+        31: "IA",
+        32: "KS",
+        33: "MN",
+        34: "MO",
+        35: "NE",
+        36: "ND",
+        37: "SD",
+        40: "VA",
+        41: "AL",
+        42: "AR",
+        43: "FL",
+        44: "GA",
+        45: "LA",
+        46: "MS",
+        47: "NC",
+        48: "SC",
+        49: "TX",
+        51: "KY",
+        52: "MD",
+        53: "OK",
+        54: "TN",
+        55: "DC",
+        56: "WV",
+        61: "AZ",
+        62: "CO",
+        63: "ID",
+        64: "MT",
+        65: "NV",
+        66: "NM",
+        67: "UT",
+        68: "WY",
+        71: "CA",
+        72: "OR",
+        73: "WA",
+        81: "AK",
+        82: "HI",
+        99: None,  # Used by presidents
+    }
 
-	return icpsr_state_code_map[icpsr_state_code]
+    return icpsr_state_code_map[icpsr_state_code]
+
 
 def get_party_from_icpsr_party_code(icpsr_party_code):
-	icpsr_party_code_map = {
-		   1: "Federalist",
-		   9: "Jefferson Republican",
-		  10: "Anti-Federalist",
-		  11: "Jefferson Democrat",
-		  13: "Democrat-Republican",
-		  22: "Adams",
-		  25: "National Republican",
-		  26: "Anti Masonic",
-		  29: "Whig",
-		  34: "Whig and Democrat",
-		  37: "Constitutional Unionist",
-		  40: "Anti-Democrat and States Rights",
-		  41: "Anti-Jackson Democrat",
-		  43: "Calhoun Nullifier",
-		  44: "Nullifier",
-		  46: "States Rights",
-		  48: "States Rights Whig",
-		 100: "Democrat",
-		 101: "Jackson Democrat",
-		 103: "Democrat and Anti-Mason",
-		 104: "Van Buren Democrat",
-		 105: "Conservative Democrat",
-		 108: "Anti-Lecompton Democrat",
-		 110: "Popular Sovereignty Democrat",
-		 112: "Conservative",
-		 114: "Readjuster",
-		 117: "Readjuster Democrat",
-		 118: "Tariff for Revenue Democrat",
-		 119: "United Democrat",
-		 200: "Republican",
-		 202: "Union Conservative",
-		 203: "Unconditional Unionist",
-		 206: "Unionist",
-		 208: "Liberal Republican",
-		 212: "United Republican",
-		 213: "Progressive Republican",
-		 214: "Non-Partisan and Republican",
-		 215: "War Democrat",
-		 300: "Free Soil",
-		 301: "Free Soil Democrat",
-		 302: "Free Soil Whig",
-		 304: "Anti-Slavery",
-		 308: "Free Soil American and Democrat",
-		 310: "American",
-		 326: "National Greenbacker",
-		 328: "Independent",
-		 329: "Ind. Democrat",
-		 331: "Ind. Republican",
-		 333: "Ind. Republican-Democrat",
-		 336: "Anti-Monopolist",
-		 337: "Anti-Monopoly Democrat",
-		 340: "Populist",
-		 341: "People's",
-		 347: "Prohibitionist",
-		 353: "Ind. Silver Republican",
-		 354: "Silver Republican",
-		 355: "Union",
-		 356: "Union Labor",
-		 370: "Progressive",
-		 380: "Socialist",
-		 401: "Fusionist",
-		 402: "Liberal",
-		 403: "Law and Order",
-		 522: "American Labor",
-		 537: "Farmer-Labor",
-		 555: "Jackson",
-		 603: "Ind. Whig",
-		1060: "Silver",
-		1061: "Emancipationist",
-		1111: "Liberty",
-		1116: "Conservative Republican",
-		1275: "Anti-Jackson",
-		1346: "Jackson Republican",
-		3333: "Opposition",
-		4000: "Anti-Administration",
-		4444: "Union",
-		5000: "Pro-Administration",
-		6000: "Crawford Federalist",
-		6666: "Crawford Republican",
-		7000: "Jackson Federalist",
-		7777: "Crawford Republican",
-		8000: "Adams-Clay Federalist",
-		8888: "Adams-Clay Republican",
-		9000: "Unknown",
-		9999: "Unknown",
-	}
+    icpsr_party_code_map = {
+        1: "Federalist",
+        9: "Jefferson Republican",
+        10: "Anti-Federalist",
+        11: "Jefferson Democrat",
+        13: "Democrat-Republican",
+        22: "Adams",
+        25: "National Republican",
+        26: "Anti Masonic",
+        29: "Whig",
+        34: "Whig and Democrat",
+        37: "Constitutional Unionist",
+        40: "Anti-Democrat and States Rights",
+        41: "Anti-Jackson Democrat",
+        43: "Calhoun Nullifier",
+        44: "Nullifier",
+        46: "States Rights",
+        48: "States Rights Whig",
+        100: "Democrat",
+        101: "Jackson Democrat",
+        103: "Democrat and Anti-Mason",
+        104: "Van Buren Democrat",
+        105: "Conservative Democrat",
+        108: "Anti-Lecompton Democrat",
+        110: "Popular Sovereignty Democrat",
+        112: "Conservative",
+        114: "Readjuster",
+        117: "Readjuster Democrat",
+        118: "Tariff for Revenue Democrat",
+        119: "United Democrat",
+        200: "Republican",
+        202: "Union Conservative",
+        203: "Unconditional Unionist",
+        206: "Unionist",
+        208: "Liberal Republican",
+        212: "United Republican",
+        213: "Progressive Republican",
+        214: "Non-Partisan and Republican",
+        215: "War Democrat",
+        300: "Free Soil",
+        301: "Free Soil Democrat",
+        302: "Free Soil Whig",
+        304: "Anti-Slavery",
+        308: "Free Soil American and Democrat",
+        310: "American",
+        326: "National Greenbacker",
+        328: "Independent",
+        329: "Ind. Democrat",
+        331: "Ind. Republican",
+        333: "Ind. Republican-Democrat",
+        336: "Anti-Monopolist",
+        337: "Anti-Monopoly Democrat",
+        340: "Populist",
+        341: "People's",
+        347: "Prohibitionist",
+        353: "Ind. Silver Republican",
+        354: "Silver Republican",
+        355: "Union",
+        356: "Union Labor",
+        370: "Progressive",
+        380: "Socialist",
+        401: "Fusionist",
+        402: "Liberal",
+        403: "Law and Order",
+        522: "American Labor",
+        537: "Farmer-Labor",
+        555: "Jackson",
+        603: "Ind. Whig",
+        1060: "Silver",
+        1061: "Emancipationist",
+        1111: "Liberty",
+        1116: "Conservative Republican",
+        1275: "Anti-Jackson",
+        1346: "Jackson Republican",
+        3333: "Opposition",
+        4000: "Anti-Administration",
+        4444: "Union",
+        5000: "Pro-Administration",
+        6000: "Crawford Federalist",
+        6666: "Crawford Republican",
+        7000: "Jackson Federalist",
+        7777: "Crawford Republican",
+        8000: "Adams-Clay Federalist",
+        8888: "Adams-Clay Republican",
+        9000: "Unknown",
+        9999: "Unknown",
+    }
 
-	return icpsr_party_code_map.get(icpsr_party_code)
+    return icpsr_party_code_map.get(icpsr_party_code)
+
 
 def parse_icpsr_vote_string(icpsr_vote_string):
-	# Convert the integer codes into a tuple containing:
-	#    standard vote options "Yea", "Nay", "Not Voting", "Present"
-	#    an additional string so that we don't lose any information provided by voteview
-	# Probably the House used Aye and No in some votes, but we don't
-	# know which. "Yea" and "Nay" are always used by the Senate, and always
-	# in the House on the passage of bills.
-	icpsr_vote_code_map = {
-		0: None, # not a member
-		1: ("Yea", None),
-		2: ("Yea", "paired"),
-		3: ("Not Voting", "announced-yea"),
-		4: ("Not Voting", "announced-nay"),
-		5: ("Nay", "paired"),
-		6: ("Nay", None),
-		7: ("Present", "type-seven"),
-		8: ("Present", "type-eight"),
-		9: ("Not Voting", None),
-	}
-	return [icpsr_vote_code_map[int(icpsr_vote_code)] for icpsr_vote_code in icpsr_vote_string]
+    # Convert the integer codes into a tuple containing:
+    #    standard vote options "Yea", "Nay", "Not Voting", "Present"
+    #    an additional string so that we don't lose any information provided by voteview
+    # Probably the House used Aye and No in some votes, but we don't
+    # know which. "Yea" and "Nay" are always used by the Senate, and always
+    # in the House on the passage of bills.
+    icpsr_vote_code_map = {
+        0: None,  # not a member
+        1: ("Yea", None),
+        2: ("Yea", "paired"),
+        3: ("Not Voting", "announced-yea"),
+        4: ("Not Voting", "announced-nay"),
+        5: ("Nay", "paired"),
+        6: ("Nay", None),
+        7: ("Present", "type-seven"),
+        8: ("Present", "type-eight"),
+        9: ("Not Voting", None),
+    }
+    return [icpsr_vote_code_map[int(icpsr_vote_code)] for icpsr_vote_code in icpsr_vote_string]
+
 
 def parse_vote_list_line(vote_list_line):
-	return re.match(r"^([\s\d]{2}\d)([\s\d]{4}\d)([\s\d]\d)([\s\d]{2})([^\d]+?)([\s\d]{3}\d)([\s\d])([\s\d])([^\s\d][^\d]+?(?:\d\s+)?)(\d+)$", vote_list_line).groups()
+    return re.match(r"^([\s\d]{2}\d)([\s\d]{4}\d)([\s\d]\d)([\s\d]{2})([^\d]+?)([\s\d]{3}\d)([\s\d])([\s\d])([^\s\d][^\d]+?(?:\d\s+)?)(\d+)$", vote_list_line).groups()
+
 
 def parse_rollcall_dtl_list_line(rollcall_list_line):
-	return re.match(r"^([\s\d]{3}\d)([\s\d]{4}\d)?([\s\d]\d)\s(.*?)\s*$", rollcall_list_line).groups()
+    return re.match(r"^([\s\d]{3}\d)([\s\d]{4}\d)?([\s\d]\d)\s(.*?)\s*$", rollcall_list_line).groups()
+
 
 def parse_rollcall_dtl_list_first_line(rollcall_dtl_first_line):
-	return re.match(r"^(.{14})(.{15})(.{10})?(.+?)(?:\s{3,}\d{2,3})?$", rollcall_dtl_first_line).groups()
+    return re.match(r"^(.{14})(.{15})(.{10})?(.+?)(?:\s{3,}\d{2,3})?$", rollcall_dtl_first_line).groups()
+
 
 def parse_rollcall_dtl_date(rollcall_dtl_date):
-	from datetime import datetime
+    from datetime import datetime
 
-	potential_date_formats = [
-		"%b %d, %Y", # JAN 1, 1900
-		"%B %d, %Y", # JANUARY 1, 1900
-		"%b, %d, %Y", # JAN, 1, 1900
-		"%B, %d, %Y", # JANUARY, 1, 1900
-		"%b.%d, %Y", # JAN.1, 1900
-	]
+    potential_date_formats = [
+        "%b %d, %Y",  # JAN 1, 1900
+        "%B %d, %Y",  # JANUARY 1, 1900
+        "%b, %d, %Y",  # JAN, 1, 1900
+        "%B, %d, %Y",  # JANUARY, 1, 1900
+        "%b.%d, %Y",  # JAN.1, 1900
+    ]
 
-	# Make things easier by removing periods after month abbreviations.
-	rollcall_dtl_date = rollcall_dtl_date.replace(". ", " ")
+    # Make things easier by removing periods after month abbreviations.
+    rollcall_dtl_date = rollcall_dtl_date.replace(". ", " ")
 
-	# Make things easier by inserting spaces after commas where they are missing.
-	rollcall_dtl_date = rollcall_dtl_date.replace(",1", ", 1")
+    # Make things easier by inserting spaces after commas where they are missing.
+    rollcall_dtl_date = rollcall_dtl_date.replace(",1", ", 1")
 
-	# Python doesn't consider "SEPT" a valid abbreviation for September.
-	rollcall_dtl_date = rollcall_dtl_date.replace("SEPT ", "SEP ")
+    # Python doesn't consider "SEPT" a valid abbreviation for September.
+    rollcall_dtl_date = rollcall_dtl_date.replace("SEPT ", "SEP ")
 
-	parsed_date = None
+    parsed_date = None
 
-	for potential_date_format in potential_date_formats:
-		try:
-			parsed_date = datetime.strptime(rollcall_dtl_date, potential_date_format)
-		except ValueError:
-			pass
-		else:
-			break
+    for potential_date_format in potential_date_formats:
+        try:
+            parsed_date = datetime.strptime(rollcall_dtl_date, potential_date_format)
+        except ValueError:
+            pass
+        else:
+            break
 
-	formatted_date = utils.format_datetime(parsed_date)
+    formatted_date = utils.format_datetime(parsed_date)
 
-	return formatted_date[:10] if formatted_date is not None else formatted_date
+    return formatted_date[:10] if formatted_date is not None else formatted_date
+
 
 def extract_vote_info_from_parsed_vote_list_line(parsed_vote_list_line):
-	vote_info = {
-		"congress": int(parsed_vote_list_line[0]) if parsed_vote_list_line[0].strip() else None,
-		"icpsr_id": int(parsed_vote_list_line[1]) if parsed_vote_list_line[1].strip() else None,
-		"icpsr_state": int(parsed_vote_list_line[2]) if parsed_vote_list_line[2].strip() else None,
-		"district": int(parsed_vote_list_line[3]) if parsed_vote_list_line[3].strip() else None,
-		# parsed_vote_list_line[4] is partial state name
-		"state_name": parsed_vote_list_line[4].strip(),
-		"icpsr_party": int(parsed_vote_list_line[5]) if parsed_vote_list_line[5].strip() else None,
-		"occupancy": int(parsed_vote_list_line[6]) if parsed_vote_list_line[6].strip() else None,
-		"means": int(parsed_vote_list_line[7]) if parsed_vote_list_line[7].strip() else None,
-		# parsed_vote_list_line[8] is partial member name
-		"member_name": parsed_vote_list_line[8].strip(),
-		"votes": parse_icpsr_vote_string(parsed_vote_list_line[9]),
-	}
+    vote_info = {
+        "congress": int(parsed_vote_list_line[0]) if parsed_vote_list_line[0].strip() else None,
+        "icpsr_id": int(parsed_vote_list_line[1]) if parsed_vote_list_line[1].strip() else None,
+        "icpsr_state": int(parsed_vote_list_line[2]) if parsed_vote_list_line[2].strip() else None,
+        "district": int(parsed_vote_list_line[3]) if parsed_vote_list_line[3].strip() else None,
+        # parsed_vote_list_line[4] is partial state name
+        "state_name": parsed_vote_list_line[4].strip(),
+        "icpsr_party": int(parsed_vote_list_line[5]) if parsed_vote_list_line[5].strip() else None,
+        "occupancy": int(parsed_vote_list_line[6]) if parsed_vote_list_line[6].strip() else None,
+        "means": int(parsed_vote_list_line[7]) if parsed_vote_list_line[7].strip() else None,
+        # parsed_vote_list_line[8] is partial member name
+        "member_name": parsed_vote_list_line[8].strip(),
+        "votes": parse_icpsr_vote_string(parsed_vote_list_line[9]),
+    }
 
-	return vote_info
+    return vote_info
+
 
 def extract_rollcall_info_from_parsed_rollcall_dtl_list_line(parsed_rollcall_dtl_list_line):
-	rollcall_info = {
-		"vote": int(parsed_rollcall_dtl_list_line[0]),
-		"line": int(parsed_rollcall_dtl_list_line[2]),
-		"text": parsed_rollcall_dtl_list_line[3],
-	}
+    rollcall_info = {
+        "vote": int(parsed_rollcall_dtl_list_line[0]),
+        "line": int(parsed_rollcall_dtl_list_line[2]),
+        "text": parsed_rollcall_dtl_list_line[3],
+    }
 
-	return rollcall_info
+    return rollcall_info
+
 
 def parse_vote_list_file(vote_list_file):
-	logging.info("Parsing vote list file...")
+    logging.info("Parsing vote list file...")
 
-	vote_list_info = []
+    vote_list_info = []
 
-	for vote_list_line in vote_list_file.split("\r\n"):
-		if not vote_list_line.strip():
-			continue
+    for vote_list_line in vote_list_file.split("\r\n"):
+        if not vote_list_line.strip():
+            continue
 
-		vote_info = extract_vote_info_from_parsed_vote_list_line(parse_vote_list_line(vote_list_line))
+        vote_info = extract_vote_info_from_parsed_vote_list_line(parse_vote_list_line(vote_list_line))
 
-		vote_info["state"] = get_state_from_icpsr_state_code(vote_info["icpsr_state"]) if vote_info["icpsr_state"] is not None else None
-		vote_info["party"] = get_party_from_icpsr_party_code(vote_info["icpsr_party"]) if vote_info["icpsr_party"] is not None else None
+        vote_info["state"] = get_state_from_icpsr_state_code(vote_info["icpsr_state"]) if vote_info["icpsr_state"] is not None else None
+        vote_info["party"] = get_party_from_icpsr_party_code(vote_info["icpsr_party"]) if vote_info["icpsr_party"] is not None else None
 
-		icpsr_id = vote_info["icpsr_id"]
+        icpsr_id = vote_info["icpsr_id"]
 
-		try:
-			bioguide_id = utils.get_person_id("icpsr" if vote_info["state_name"] != "USA" else "icpsr_prez", icpsr_id, "bioguide")
-		except KeyError as e:
-			logging.error("Problem with member %s ([%d] %s) of %s %s: %s" % ( vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
-				vote_info["state_name"], vote_info["district"], e.message ))
-			bioguide_id = None
-		else:
-			logging.debug("Parsed member %s ([%d] %s) of %s %s..." % ( vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
-						vote_info["state_name"], vote_info["district"] ))
+        try:
+            bioguide_id = utils.get_person_id("icpsr" if vote_info["state_name"] != "USA" else "icpsr_prez", icpsr_id, "bioguide")
+        except KeyError as e:
+            logging.error("Problem with member %s ([%d] %s) of %s %s: %s" % (vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
+                                                                             vote_info["state_name"], vote_info["district"], e.message))
+            bioguide_id = None
+        else:
+            logging.debug("Parsed member %s ([%d] %s) of %s %s..." % (vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
+                                                                      vote_info["state_name"], vote_info["district"]))
 
-		vote_info["bioguide_id"] = bioguide_id
+        vote_info["bioguide_id"] = bioguide_id
 
-		# This is used to record the President's position, or something.
-		# Mark this record so build_votes can separated it out from Member votes.
-		vote_info["is_president"] = True if vote_info["icpsr_state"] == 99 else False
+        # This is used to record the President's position, or something.
+        # Mark this record so build_votes can separated it out from Member votes.
+        vote_info["is_president"] = True if vote_info["icpsr_state"] == 99 else False
 
-		vote_list_info.append(vote_info)
+        vote_list_info.append(vote_info)
 
-	return vote_list_info
+    return vote_list_info
+
 
 def parse_rollcall_dtl_list_file(rollcall_dtl_list_file):
-	rollcall_dtl_list_info = {}
+    rollcall_dtl_list_info = {}
 
-	for rollcall_dtl_list_line in rollcall_dtl_list_file.split("\r\n"):
-		if not rollcall_dtl_list_line.strip():
-			continue
+    for rollcall_dtl_list_line in rollcall_dtl_list_file.split("\r\n"):
+        if not rollcall_dtl_list_line.strip():
+            continue
 
-		rollcall_dtl_list_line_info = extract_rollcall_info_from_parsed_rollcall_dtl_list_line(parse_rollcall_dtl_list_line(rollcall_dtl_list_line))
+        rollcall_dtl_list_line_info = extract_rollcall_info_from_parsed_rollcall_dtl_list_line(parse_rollcall_dtl_list_line(rollcall_dtl_list_line))
 
-		if rollcall_dtl_list_line_info["line"] == 1:
-			rollcall_info = {}
+        if rollcall_dtl_list_line_info["line"] == 1:
+            rollcall_info = {}
 
-			rollcall_dtl_list_first_line_parts = parse_rollcall_dtl_list_first_line(rollcall_dtl_list_line_info["text"])
+            rollcall_dtl_list_first_line_parts = parse_rollcall_dtl_list_first_line(rollcall_dtl_list_line_info["text"])
 
-			rollcall_info["record_id"] = rollcall_dtl_list_first_line_parts[0].strip()
-			rollcall_info["journal_id"] = rollcall_dtl_list_first_line_parts[1].strip()
-			rollcall_info["bill"] = rollcall_dtl_list_first_line_parts[2].strip()
-			rollcall_info["date_unparsed"] = rollcall_dtl_list_first_line_parts[3].strip()
-			rollcall_info["date"] = parse_rollcall_dtl_date(rollcall_info["date_unparsed"])
-		elif rollcall_dtl_list_line_info["line"] == 2:
-			pass
-		elif rollcall_dtl_list_line_info["line"] == 3:
-			rollcall_info["description"] = rollcall_dtl_list_line_info["text"]
-		else:
-			rollcall_info["description"] += " " + rollcall_dtl_list_line_info["text"]
+            rollcall_info["record_id"] = rollcall_dtl_list_first_line_parts[0].strip()
+            rollcall_info["journal_id"] = rollcall_dtl_list_first_line_parts[1].strip()
+            rollcall_info["bill"] = rollcall_dtl_list_first_line_parts[2].strip()
+            rollcall_info["date_unparsed"] = rollcall_dtl_list_first_line_parts[3].strip()
+            rollcall_info["date"] = parse_rollcall_dtl_date(rollcall_info["date_unparsed"])
+        elif rollcall_dtl_list_line_info["line"] == 2:
+            pass
+        elif rollcall_dtl_list_line_info["line"] == 3:
+            rollcall_info["description"] = rollcall_dtl_list_line_info["text"]
+        else:
+            rollcall_info["description"] += " " + rollcall_dtl_list_line_info["text"]
 
-		rollcall_dtl_list_info[rollcall_dtl_list_line_info["vote"]] = rollcall_info
+        rollcall_dtl_list_info[rollcall_dtl_list_line_info["vote"]] = rollcall_info
 
-	return rollcall_dtl_list_info
+    return rollcall_dtl_list_info
+
 
 def build_votes(vote_list):
-	logging.info("Building votes...")
+    logging.info("Building votes...")
 
-	votes = {}
-	presidents_position = {}
+    votes = {}
+    presidents_position = {}
 
-	for voter in vote_list:
-		for i, choice in enumerate(voter["votes"]):
-			# Not all people were present for all votes.
-			if choice == None:
-				continue
+    for voter in vote_list:
+        for i, choice in enumerate(voter["votes"]):
+            # Not all people were present for all votes.
+            if choice == None:
+                continue
 
-			# Separate the president's position from Member votes.
-			if voter["is_president"]:
-				presidents_position[i] = { "option": choice[0], "voteview_votecode_extra": choice[1] }
-				continue
+            # Separate the president's position from Member votes.
+            if voter["is_president"]:
+                presidents_position[i] = {"option": choice[0], "voteview_votecode_extra": choice[1]}
+                continue
 
-			# Make a record for this vote, grouped by vote option (Aye, etc).
-			votes.setdefault(i, {}).setdefault(choice[0], []).append({
-				"id": voter["bioguide_id"],
-				"display_name": voter["member_name"],
-				"party": voter["party"],
-				"state": voter["state"],
-				"voteview_votecode_extra": choice[1],
-			})
+            # Make a record for this vote, grouped by vote option (Aye, etc).
+            votes.setdefault(i, {}).setdefault(choice[0], []).append({
+                "id": voter["bioguide_id"],
+                "display_name": voter["member_name"],
+                "party": voter["party"],
+                "state": voter["state"],
+                "voteview_votecode_extra": choice[1],
+            })
 
-	# sort for output
-	for vote in votes.values():
-		for voters in vote.values():
-			voters.sort(key = lambda v : v['display_name'])
+    # sort for output
+    for vote in votes.values():
+        for voters in vote.values():
+            voters.sort(key=lambda v: v['display_name'])
 
-	return (votes, presidents_position)
+    return (votes, presidents_position)
+
 
 def get_votes(chamber, congress, options, congress_dates):
-	logging.warn("Getting votes for %d-%s..." % ( congress, chamber ))
+    logging.warn("Getting votes for %d-%s..." % (congress, chamber))
 
-	vote_list_url, rollcall_list_url = vote_list_source_urls_for(congress, chamber, options)
+    vote_list_url, rollcall_list_url = vote_list_source_urls_for(congress, chamber, options)
 
-	# Load the ORD file which contains the matrix of how people voted.
+    # Load the ORD file which contains the matrix of how people voted.
 
-	vote_list_file = utils.download(vote_list_url, cache_file_for(congress, chamber, "ord"), options).encode("utf-8")
-	if not vote_list_file:
-		logging.error("Couldn't download vote list file.")
-		return None
+    vote_list_file = utils.download(vote_list_url, cache_file_for(congress, chamber, "ord"), options).encode("utf-8")
+    if not vote_list_file:
+        logging.error("Couldn't download vote list file.")
+        return None
 
-	vote_list = parse_vote_list_file(vote_list_file)
-	votes, presidents_position = build_votes(vote_list)
+    vote_list = parse_vote_list_file(vote_list_file)
+    votes, presidents_position = build_votes(vote_list)
 
-	# Load the DTL file which lists each roll call vote with textual metadata.
+    # Load the DTL file which lists each roll call vote with textual metadata.
 
-	rollcall_list_file = utils.download(rollcall_list_url, cache_file_for(congress, chamber, "dtl"), options).encode("utf-8")
-	if not rollcall_list_file:
-		logging.error("Couldn't download rollcall list file.")
-		return None
-	rollcall_list = parse_rollcall_dtl_list_file(rollcall_list_file)
+    rollcall_list_file = utils.download(rollcall_list_url, cache_file_for(congress, chamber, "dtl"), options).encode("utf-8")
+    if not rollcall_list_file:
+        logging.error("Couldn't download rollcall list file.")
+        return None
+    rollcall_list = parse_rollcall_dtl_list_file(rollcall_list_file)
 
-	# The dates listed in the DTL file were originally OCRd and have tons
-	# of errors. Many strings could not be parsed. There are occasional
-	# invalid dates (like Feb 29 on a non-leap year --- the 9s are probably
-	# incorrectly OCR'd 5's). Try to resolve these quickly without resorting
-	# to manual fact-checking...
-	for i in range(1, max(rollcall_list)-1):
-		if rollcall_list[i]["date"]: continue # was OK
-		if not rollcall_list[i-1]["date"]: continue # preceding date not OK
+    # The dates listed in the DTL file were originally OCRd and have tons
+    # of errors. Many strings could not be parsed. There are occasional
+    # invalid dates (like Feb 29 on a non-leap year --- the 9s are probably
+    # incorrectly OCR'd 5's). Try to resolve these quickly without resorting
+    # to manual fact-checking...
+    for i in range(1, max(rollcall_list) - 1):
+        if rollcall_list[i]["date"]:
+            continue  # was OK
+        if not rollcall_list[i - 1]["date"]:
+            continue  # preceding date not OK
 
-		# If the vote is surrounded by votes on the same day, set the date to that day.
-		if rollcall_list[i-1]["date"] == rollcall_list[i+1]["date"]:
-			rollcall_list[i]["date"] = rollcall_list[i-1]["date"]
-			logging.error("Replacing %s with %s." % (rollcall_list[i]["date_unparsed"], rollcall_list[i-1]["date"]))
+        # If the vote is surrounded by votes on the same day, set the date to that day.
+        if rollcall_list[i - 1]["date"] == rollcall_list[i + 1]["date"]:
+            rollcall_list[i]["date"] = rollcall_list[i - 1]["date"]
+            logging.error("Replacing %s with %s." % (rollcall_list[i]["date_unparsed"], rollcall_list[i - 1]["date"]))
 
-		# Lump the vote with the previous date. 
-		else:
-			rollcall_list[i]["date"] = rollcall_list[i-1]["date"]
-			logging.error("Replacing %s with %s (but might be as late as %s)." % (rollcall_list[i]["date_unparsed"], rollcall_list[i-1]["date"], rollcall_list[i+1]["date"]))
+        # Lump the vote with the previous date.
+        else:
+            rollcall_list[i]["date"] = rollcall_list[i - 1]["date"]
+            logging.error("Replacing %s with %s (but might be as late as %s)." % (rollcall_list[i]["date_unparsed"], rollcall_list[i - 1]["date"], rollcall_list[i + 1]["date"]))
 
-	# Form the output data.
+    # Form the output data.
 
-	vote_output_list = []
+    vote_output_list = []
 
-	for rollcall_number in rollcall_list:
-		vote_results = votes[rollcall_number - 1]
-		rollcall = rollcall_list[rollcall_number]
+    for rollcall_number in rollcall_list:
+        vote_results = votes[rollcall_number - 1]
+        rollcall = rollcall_list[rollcall_number]
 
-		# Sanity check the date.
-		if not rollcall["date"]:
-			logging.error("Vote on %s was an invalid date. | %s" % (rollcall["date_unparsed"], rollcall["description"]))
-			continue
-		elif not (congress_dates[congress][0] <= rollcall["date"] <= congress_dates[congress][1]):
-			logging.error("Vote on %s disagrees about which Congress it is in." % rollcall["date"])
-			continue
+        # Sanity check the date.
+        if not rollcall["date"]:
+            logging.error("Vote on %s was an invalid date. | %s" % (rollcall["date_unparsed"], rollcall["description"]))
+            continue
+        elif not (congress_dates[congress][0] <= rollcall["date"] <= congress_dates[congress][1]):
+            logging.error("Vote on %s disagrees about which Congress it is in." % rollcall["date"])
+            continue
 
-		# Form the vote dict.
-		vote_output = {
-			"vote_id": "%s%s-%d.X" % (chamber, rollcall_number, congress),
-			"source_url": "http://www.voteview.com",
-		    "updated_at": datetime.datetime.fromtimestamp(time.time()),
+        # Form the vote dict.
+        vote_output = {
+            "vote_id": "%s%s-%d.X" % (chamber, rollcall_number, congress),
+            "source_url": "http://www.voteview.com",
+            "updated_at": datetime.datetime.fromtimestamp(time.time()),
 
-			"congress": congress,
-			"chamber": chamber,
-			"number": rollcall_number, # XXX: This is not the right number.
-			"question": rollcall["description"] if "description" in rollcall else None, # Sometimes there isn't a description.
-			"type": normalize_vote_type(rollcall["description"]) if "description" in rollcall else None,
-			"date": datetime.date(*[int(dd) for dd in rollcall["date"].split("-")]), # turn YYYY-MM-DD into datetime.date() instance
-			"date_unparsed": rollcall["date_unparsed"],
-			"votes": vote_results,
-			"presidents_position": presidents_position.get(rollcall_number),
+            "congress": congress,
+            "chamber": chamber,
+            "number": rollcall_number,  # XXX: This is not the right number.
+            "question": rollcall["description"] if "description" in rollcall else None,  # Sometimes there isn't a description.
+            "type": normalize_vote_type(rollcall["description"]) if "description" in rollcall else None,
+            "date": datetime.date(*[int(dd) for dd in rollcall["date"].split("-")]),  # turn YYYY-MM-DD into datetime.date() instance
+            "date_unparsed": rollcall["date_unparsed"],
+            "votes": vote_results,
+            "presidents_position": presidents_position.get(rollcall_number),
 
-			"category": "unknown",
-			"requires": "unknown",
-			"result": "unknown",
-		}
+            "category": "unknown",
+            "requires": "unknown",
+            "result": "unknown",
+        }
 
-		vote_output_list.append(vote_output)
+        vote_output_list.append(vote_output)
 
-	return vote_output_list
+    return vote_output_list
+
 
 def put_vote(vote, options):
-	output_vote(vote, options, id_type="bioguide")
-	return { "ok": True, "saved": True }
+    output_vote(vote, options, id_type="bioguide")
+    return {"ok": True, "saved": True}
+
 
 def normalize_vote_type(descr):
-	if descr.startswith("TO PASS "): return "On Passage"
-	if descr.startswith("TO AMEND "): return "On the Amendment"
-	if descr.startswith("TO CONCUR IN THE SENATE AMENDMENT "): return "Concurring in the Senate Amendment"
-	if descr.startswith("TO READ THE SECOND TIME "): return "Reading the Second Time"
-	if descr.startswith("TO ADVISE AND CONSENT TO THE RATIFICATION OF THE TREATY"): return "On the Treaty"
-	#logging.error("Unknown vote type: " + descr)
-	return descr
+    if descr.startswith("TO PASS "):
+        return "On Passage"
+    if descr.startswith("TO AMEND "):
+        return "On the Amendment"
+    if descr.startswith("TO CONCUR IN THE SENATE AMENDMENT "):
+        return "Concurring in the Senate Amendment"
+    if descr.startswith("TO READ THE SECOND TIME "):
+        return "Reading the Second Time"
+    if descr.startswith("TO ADVISE AND CONSENT TO THE RATIFICATION OF THE TREATY"):
+        return "On the Treaty"
+    #logging.error("Unknown vote type: " + descr)
+    return descr
