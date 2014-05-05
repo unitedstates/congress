@@ -51,6 +51,9 @@ def fetch_nomination(nomination_id, options={}):
 	# Also, the splitting process is nonsense:
 	# http://thomas.loc.gov/home/PN/split.htm
 
+	if "split into two or more parts" in body:
+		return {'saved': False, 'ok': True, 'reason': 'was split'}
+
 	nomination = parse_nomination(nomination_id, body, options)
 	output_nomination(nomination, options)
 	return {'ok': True, 'saved': True}
