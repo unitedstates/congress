@@ -64,10 +64,17 @@ def parse_nomination(nomination_id, body, options):
 	facts = re.findall("<!--(.+?)-->", body)
 	body = re.sub("<!--.+?-->", "", body)
 
+	doc = fromstring(body)
+
+	# get rid of centered bold labels, they screw stuff up,
+	# e.g. agency names on PN1375-113
+	body = re.sub(re.compile("<div align=\"center\">.+?</div>", re.M), "", body)
+	for elem in doc.xpath('//div[@align="center"]'):
+		elem.getparent().remove(elem)
+
 	committee_names = []
 	committees = []
 
-	doc = fromstring(body)
 	info = {
 		'nomination_id': nomination_id, 'actions': []
 	}
@@ -156,6 +163,9 @@ def parse_nomination(nomination_id, body, options):
 					}]
 
 				elif label.lower() == "nominees":
+					pass
+
+				elif label.lower() == "authority date":
 					pass
 
 				elif label.lower() == "list of nominees":
