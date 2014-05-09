@@ -697,6 +697,7 @@ def pickle_load(filename):
 
 def pickle_write(data, filename):
     import pickle
+    mkdir_p(os.path.dirname(filename))
     return pickle.dump(data, open(filename, "w"))
 
 # Get the hash used to verify the contents of a file.
