@@ -9,8 +9,19 @@ import logging
 from email.utils import parsedate
 from time import mktime
 
+# options:
+#
+#    --chamber: "house" or "senate" to limit the parse to a single chamber
 
 def run(options):
+
+    # can limit it to one chamber
+    chamber = options.get("chamber", None)
+    if chamber and (chamber in ("house", "senate")):
+        chambers = (chamber)
+    else:
+        chambers = ("house", "senate")
+
     # Load the committee metadata from the congress-legislators repository and make a
     # mapping from thomas_id and house_id to the committee dict. For each committee,
     # replace the subcommittees list with a dict from thomas_id to the subcommittee.
@@ -22,30 +33,36 @@ def run(options):
             committees[c["house_committee_id"] + "00"] = c
         c["subcommittees"] = dict((s["thomas_id"], s) for s in c.get("subcommittees", []))
 
-    for chamber in ("house", "senate"):
-        # Load any existing meetings file so we can recycle GUIDs generated for Senate meetings.
-        existing_meetings = []
-        output_file = utils.data_dir() + "/committee_meetings_%s.json" % chamber
-        if os.path.exists(output_file):
-            existing_meetings = json.load(open(output_file))
+    if "senate" in chambers:
+        print "Fetching Senate meetings..."
+        meetings = fetch_senate_committee_meetings(committees, options)
+        print "Writing Senate meeting data to disk."
+        utils.write_json(meetings, output_for("senate"))
 
-        # Scrape for meeting info.
-        if chamber == "senate":
-            meetings = fetch_senate_committee_meetings(existing_meetings, committees, options)
-        else:
-            meetings = fetch_house_committee_meetings(existing_meetings, committees, options)
+    if "house" in chambers:
+        print "Fetching House meetings..."
+        meetings = fetch_house_committee_meetings(committees, options)
+        print "Writing House meeting data to disk."
+        utils.write_json(meetings, output_for("house"))
 
-        # Write out.
-        utils.write(json.dumps(meetings, sort_keys=True, indent=2, default=utils.format_datetime),
-                    output_file)
+    # Write all meetings to a single file on disk.
 
 
-def fetch_senate_committee_meetings(existing_meetings, committees, options):
-    # Parse the Senate committee meeting XML feed for meetings.
-    # To aid users of the data, attempt to assign GUIDs to meetings.
+# TODO: if these have unique IDs, maybe worth storing a file per-meeting.
+def output_for(chamber):
+    return utils.data_dir() + "/committee_meetings_%s.json" % chamber
+
+# Parse the Senate committee meeting XML feed for meetings.
+# To aid users of the data, attempt to assign GUIDs to meetings.
+def fetch_senate_committee_meetings(committees, options):
+    # Load any existing meetings file so we can recycle any GUIDs.
+    existing_meetings = []
+    output_file = output_for("senate")
+    if os.path.exists(output_file):
+        existing_meetings = json.load(open(output_file))
 
     options = dict(options)  # clone
-    options["binary"] = True
+    options["binary"] = True #
 
     meetings = []
 
@@ -83,10 +100,13 @@ def fetch_senate_committee_meetings(existing_meetings, committees, options):
         # at the same time.
         for mtg in existing_meetings:
             if mtg["committee"] == committee_code and mtg.get("subcommittee", None) == subcommittee_code and mtg["occurs_at"] == occurs_at.isoformat():
+                if options.get("debug", False):
+                    print "[%s] Reusing gUID." % mtg["guid"]
                 guid = mtg["guid"]
                 break
         else:
             # Not found, so create a new ID.
+            # TODO: Can we make this a human-readable ID?
             guid = unicode(uuid.uuid4())
 
         # Scrape the topic text for mentions of bill numbers.
@@ -97,6 +117,9 @@ def fetch_senate_committee_meetings(existing_meetings, committees, options):
             bills.append(bill_match[0].lower() + bill_match[1] + "-" + str(congress))
 
         # Create the meeting event.
+        if options.get("debug", False):
+            print "[senate][%s][%s] Found meeting in room %s at %s." % (committee_code, subcommittee_code, room, occurs_at.isoformat())
+
         meetings.append({
             "chamber": "senate",
             "congress": congress,
@@ -109,12 +132,18 @@ def fetch_senate_committee_meetings(existing_meetings, committees, options):
             "bills": bills,
         })
 
+    print "[senate] Found %i meetings." % len(meetings)
     return meetings
 
 
-def fetch_house_committee_meetings(existing_meetings, committees, options):
-    # Scrape docs.house.gov for meetings.
-    # To aid users of the data, assign GUIDs to meetings piggy-backing off of the provided EventID.
+# Scrape docs.house.gov for meetings.
+# To aid users of the data, assign GUIDs to meetings piggy-backing off of the provided EventID.
+def fetch_house_committee_meetings(committees, options):
+    # Load any existing meetings file so we can recycle any GUIDs.
+    existing_meetings = []
+    output_file = output_for("house")
+    if os.path.exists(output_file):
+        existing_meetings = json.load(open(output_file))
 
     opts = dict(options)
     opts["binary"] = True
@@ -181,15 +210,19 @@ def fetch_house_committee_meetings(existing_meetings, committees, options):
 
             # Parse the XML.
             try:
-                parse_house_committee_meeting(event_id, dom, meetings, existing_meetings, committees)
+                meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options)
+                meetings.append(meeting)
             except Exception as e:
                 logging.error("Error parsing " + eventurl, exc_info=e)
                 continue
 
+
+    print "[house] Found %i meetings." % len(meetings)
     return meetings
 
 
-def parse_house_committee_meeting(event_id, dom, meetings, existing_meetings, committees):
+# Grab a House meeting out of the DOM for the XML feed.
+def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options):
     try:
         congress = int(dom.getroot().get("congress-num"))
 
@@ -241,10 +274,15 @@ def parse_house_committee_meeting(event_id, dom, meetings, existing_meetings, co
                 break
         else:
             # Not found, so create a new ID.
+            # TODO: when does this happen?
             guid = unicode(uuid.uuid4())
 
-        # Create the meeting record.
-        meetings.append({
+
+        # return the parsed meeting
+        if options.get("debug", False):
+            print "[house][%s][%s] Found meeting in room %s at %s" % (committee_code, subcommittee_code, room, occurs_at.isoformat())
+
+        return {
             "chamber": "house",
             "congress": congress,
             "guid": guid,
@@ -256,4 +294,4 @@ def parse_house_committee_meeting(event_id, dom, meetings, existing_meetings, co
             "bills": bills,
             "house_meeting_type": dom.getroot().get("meeting-type"),
             "house_event_id": event_id,
-        })
+        }

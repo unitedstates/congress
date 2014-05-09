@@ -368,6 +368,16 @@ def write(content, destination):
     f.write(content)
     f.close()
 
+def write_json(data, destination):
+    return write(
+        json.dumps(data,
+            sort_keys=True,
+            indent=2,
+            default=format_datetime
+        ),
+        destination
+    )
+
 
 def read(destination):
     if os.path.exists(destination):
