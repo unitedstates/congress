@@ -1223,7 +1223,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             status = new_status
 
     # A Senate Vote
-    m = re.search(r"(Passed Senate|Failed of passage in Senate|Disagreed to in Senate|Resolution agreed to in Senate|Received in the Senate, considered, and agreed to|Submitted in the Senate, considered, and agreed to|Introduced in the Senate, read twice, considered, read the third time, and passed|Received in the Senate, read twice, considered, read the third time, and passed|Senate agreed to conference report|Cloture \S*\s?on the motion to proceed .*?not invoked in Senate|Cloture on the bill not invoked in Senate|Cloture on the bill invoked in Senate|Cloture invoked in Senate|Cloture on the motion to proceed to the bill invoked in Senate|Cloture on the motion to proceed to the bill not invoked in Senate|Senate agreed to House amendment|Senate concurred in the House amendment(?:  to the Senate amendment)?)(,?.*,?) (without objection|by Unanimous Consent|by Voice Vote|(?:by )?Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)", line, re.I)
+    m = re.search(r"(Passed Senate|Failed of passage in Senate|Disagreed to in Senate|Resolution agreed to in Senate|Received in the Senate, considered, and agreed to|Submitted in the Senate, considered, and agreed to|Introduced in the Senate, read twice, considered, read the third time, and passed|Received in the Senate, read twice, considered, read the third time, and passed|Senate agreed to conference report|Cloture \S*\s?on the motion to proceed .*?not invoked in Senate|Cloture on the bill not invoked in Senate|Cloture on the bill invoked in Senate|Cloture invoked in Senate|Cloture(?: motion)? on the motion to proceed to the (?:bill|measure) invoked in Senate|Cloture on the motion to proceed to the bill not invoked in Senate|Senate agreed to House amendment|Senate concurred in the House amendment(?:  to the Senate amendment)?)(,?.*,?) (without objection|by Unanimous Consent|by Voice Vote|(?:by )?Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)", line, re.I)
     if m != None:
         motion, extra, how = m.group(1), m.group(2), m.group(3)
         roll = None
@@ -1231,7 +1231,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         # put disagreed check first, cause "agreed" is contained inside it
         if re.search("disagreed", motion, re.I):
             pass_fail = "fail"
-        elif re.search("passed|agreed|concurred|bill invoked|cloture invoked", motion, re.I):
+        elif re.search("passed|agreed|concurred|bill invoked|measure invoked|cloture invoked", motion, re.I):
             pass_fail = "pass"
         else:
             pass_fail = "fail"

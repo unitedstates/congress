@@ -134,6 +134,23 @@ class BillActions(unittest.TestCase):
 
         self.assertEqual(new_state, "PASS_BACK:SENATE")
 
+    def test_cloture_vote_verbose(self):
+        bill_id = "s1982-113"
+        title = "Comprehensive Veterans Health and Benefits and Military Retirement Pay Restoration Act of 2014"
+        line = "Cloture motion on the motion to proceed to the measure invoked in Senate by Yea-Nay Vote. 99 - 0. Record Vote Number: 44."
+        state = "REPORTED"
+
+        new_action, new_state = parse_bill_action(line, state, bill_id, title)
+
+        self.assertEqual(new_action['type'], "vote-aux")
+        self.assertEqual(new_action['vote_type'], "cloture")
+        self.assertEqual(new_action['where'], "s")
+        self.assertEqual(new_action['how'], "roll")
+        self.assertEqual(new_action['result'], "pass")
+        self.assertEqual(new_action['roll'], "44")
+
+        self.assertEqual(new_state, None)
+
     def test_vote_roll_pingpong(self):
         bill_id = "hr3590-111"
         title = "An act entitled The Patient Protection and Affordable Care Act."
