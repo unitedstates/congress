@@ -12,15 +12,17 @@ from time import mktime
 # options:
 #
 #    --chamber: "house" or "senate" to limit the parse to a single chamber
+#    --load_by: Takes a range of House Event IDs. Give it the beginning and end dates with a dash between, otherwise, it goes by the committee feeds
 
 def run(options):
-
     # can limit it to one chamber
     chamber = options.get("chamber", None)
     if chamber and (chamber in ("house", "senate")):
         chambers = (chamber)
     else:
         chambers = ("house", "senate")
+
+    load_by = options.get("load_by", None)
 
     # Load the committee metadata from the congress-legislators repository and make a
     # mapping from thomas_id and house_id to the committee dict. For each committee,
@@ -40,8 +42,13 @@ def run(options):
         utils.write_json(meetings, output_for("senate"))
 
     if "house" in chambers:
-        print "Fetching House meetings..."
-        meetings = fetch_house_committee_meetings(committees, options)
+        if load_by == None:
+            print "Fetching House meetings..."
+            meetings = fetch_house_committee_meetings(committees, options)
+        else:
+            print "Fetching House meetings by event_id..."
+            meetings = fetch_meeting_from_event_id(committees, options, load_by)
+
         print "Writing House meeting data to disk."
         utils.write_json(meetings, output_for("house"))
 
@@ -171,8 +178,10 @@ def fetch_house_committee_meetings(committees, options):
         # Parse and loop through the meetings listed in the committee feed.
         dom = lxml.etree.fromstring(html)
 
+        # original start to loop
         for mtg in dom.xpath("channel/item"):
             eventurl = unicode(mtg.xpath("string(link)"))
+  
             event_id = re.search(r"EventID=(\d+)$", eventurl).group(1)
             pubDate = datetime.datetime.fromtimestamp(mktime(parsedate(mtg.xpath("string(pubDate)"))))
 
@@ -186,39 +195,72 @@ def fetch_house_committee_meetings(committees, options):
                 continue
             seen_meetings.add(event_id)
 
-            # Load the HTML page for the event and use the mechanize library to
-            # submit the form that gets the meeting XML. TODO Simplify this when
-            # the House makes the XML available at an actual URL.
-
-            logging.info(eventurl)
-            import mechanize
-            br = mechanize.Browser()
-            br.open(eventurl)
-            br.select_form(nr=0)
-
-            # mechanize parser failed to find these fields
-            br.form.new_control("hidden", "__EVENTTARGET", {})
-            br.form.new_control("hidden", "__EVENTARGUMENT", {})
-            br.form.set_all_readonly(False)
-
-            # set field values
-            br["__EVENTTARGET"] = "ctl00$MainContent$LinkButtonDownloadMtgXML"
-            br["__EVENTARGUMENT"] = ""
-
-            # Submit form and get and load XML response
-            dom = lxml.etree.parse(br.submit())
-
-            # Parse the XML.
-            try:
-                meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options)
-                meetings.append(meeting)
-            except Exception as e:
-                logging.error("Error parsing " + eventurl, exc_info=e)
-                continue
-
+            # this loads the xml from the page and sends the xml to parse_house_committee_meeting
+            load_xml_from_page(eventurl, options, existing_meetings, committees, event_id, meetings)
 
     print "[house] Found %i meetings." % len(meetings)
     return meetings
+
+
+## load sequentially from event_id
+def fetch_meeting_from_event_id(committees, options, load_id):
+    existing_meetings = []
+    output_file = output_for("house")
+    if os.path.exists(output_file):
+        existing_meetings = json.load(open(output_file))
+
+    opts = dict(options)
+    opts["binary"] = True
+
+    meetings = []
+    ids = load_id.split('-')
+    current_id = int(ids[0])
+    end_id = int(ids[1])
+
+    while current_id <= end_id:
+        event_id = str(current_id)
+        event_url = "http://docs.house.gov/Committee/Calendar/ByEvent.aspx?EventID=" + event_id
+        load_xml_from_page(event_url, options, existing_meetings, committees, event_id, meetings)
+        current_id += 1
+    
+    print "[house] Found %i meetings." % len(meetings)
+    return meetings
+
+def load_xml_from_page(eventurl, options, existing_meetings, committees, event_id, meetings):  
+    # Load the HTML page for the event and use the mechanize library to
+    # submit the form that gets the meeting XML. TODO Simplify this when
+    # the House makes the XML available at an actual URL.
+
+    logging.info(eventurl)
+    import mechanize
+    br = mechanize.Browser()
+    br.open(eventurl)
+    br.select_form(nr=0)
+
+    # mechanize parser failed to find these fields
+    br.form.new_control("hidden", "__EVENTTARGET", {})
+    br.form.new_control("hidden", "__EVENTARGUMENT", {})
+    br.form.set_all_readonly(False)
+
+    # set field values
+    br["__EVENTTARGET"] = "ctl00$MainContent$LinkButtonDownloadMtgXML"
+    br["__EVENTARGUMENT"] = ""
+
+    # Submit form and get and load XML response
+    dom = lxml.etree.parse(br.submit())
+
+    # Parse the XML.
+    try:
+        meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options)
+        if meeting != None:
+            meetings.append(meeting)
+        else:
+            print (event_id, "postponed")
+    
+    except Exception as e:
+        logging.error("Error parsing " + eventurl, exc_info=e)
+        print(event_id, "error")
+        
 
 
 # Grab a House meeting out of the DOM for the XML feed.
@@ -269,6 +311,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         # See if this meeting already exists. If so, take its GUID.
         # Assume meetings are the same if they are for the same event ID and committee/subcommittee.
         for mtg in existing_meetings:
+
             if mtg["house_event_id"] == event_id and mtg.get("committee", None) == committee_code and mtg.get("subcommittee", None) == subcommittee_code:
                 guid = mtg["guid"]
                 break
@@ -277,6 +320,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             # TODO: when does this happen?
             guid = unicode(uuid.uuid4())
 
+        url = "http://docs.house.gov/Committee/Calendar/ByEvent.aspx?EventID=" + event_id
 
         # return the parsed meeting
         if options.get("debug", False):
@@ -294,4 +338,5 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             "bills": bills,
             "house_meeting_type": dom.getroot().get("meeting-type"),
             "house_event_id": event_id,
+            "url": url,
         }
