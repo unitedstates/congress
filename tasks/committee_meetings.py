@@ -12,8 +12,8 @@ from time import mktime
 # options:
 #
 #    --chamber: "house" or "senate" to limit the parse to a single chamber
-#    --load_by: beginning and end dates with a dash between, otherwise, it goes by the committee feeds
-test_list = []
+#    --load_by: Takes a range of House Event IDs. Give it the beginning and end dates with a dash between, otherwise, it goes by the committee feeds
+
 def run(options):
     # can limit it to one chamber
     chamber = options.get("chamber", None)
@@ -199,7 +199,6 @@ def fetch_house_committee_meetings(committees, options):
             load_xml_from_page(eventurl, options, existing_meetings, committees, event_id, meetings)
 
     print "[house] Found %i meetings." % len(meetings)
-    print test_list
     return meetings
 
 
@@ -255,9 +254,8 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
         meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options)
         if meeting != None:
             meetings.append(meeting)
-            print(event_id, "sucess")
         else:
-            print ("WTF???????????")
+            print (event_id, "postponed")
     
     except Exception as e:
         logging.error("Error parsing " + eventurl, exc_info=e)
