@@ -6,13 +6,16 @@ import json
 import lxml.etree
 import uuid
 import logging
+import mechanize
+import zipfile
+import StringIO
 from email.utils import parsedate
 from time import mktime
 
 # options:
 #
 #    --chamber: "house" or "senate" to limit the parse to a single chamber
-#    --load_by: Takes a range of House Event IDs. Give it the beginning and end dates with a dash between, otherwise, it goes by the committee feeds
+#    --load_by: Takes a range of House Event IDs. Give it the beginning and end IDs with a dash between, otherwise, it goes by the committee feeds.
 
 def run(options):
     # can limit it to one chamber
@@ -232,8 +235,10 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
     # the House makes the XML available at an actual URL.
 
     logging.info(eventurl)
-    import mechanize
+    # I am moving this to the top
+    # import mechanize
     br = mechanize.Browser()
+    # open committee event page
     br.open(eventurl)
     br.select_form(nr=0)
 
@@ -255,12 +260,48 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
         if meeting != None:
             meetings.append(meeting)
         else:
-            print (event_id, "postponed")
-    
+            print(event_id, "postponed")
+   
     except Exception as e:
         logging.error("Error parsing " + eventurl, exc_info=e)
         print(event_id, "error")
-        
+
+    look_for_witnesses(eventurl)
+
+#look for witnesses in the house package xml    
+def look_for_witnesses(eventurl):
+    br = mechanize.Browser()
+    # open committee event page
+    br.open(eventurl)
+
+    br.select_form(nr=0)
+
+    # mechanize parser failed to find these fields
+    br.form.new_control("hidden", "__EVENTTARGET", {})
+    br.form.new_control("hidden", "__EVENTARGUMENT", {})
+    br.form.set_all_readonly(False)
+
+    # set field values
+    br["__EVENTTARGET"] = "ctl00$MainContent$LinkButtonDownloadMtgPackage"
+    br["__EVENTARGUMENT"] = ""
+      
+    request = br.submit()
+
+    ## can see package information fine
+
+    request_bytes = StringIO.StringIO(request.read())
+    package = zipfile.ZipFile(request_bytes)
+
+    for name in package.namelist():
+        if "WList" in name:
+            bytes = package.read(name)
+            witness_tree = lxml.etree.fromstring(bytes)
+            parse_witness_list(witness_tree)
+
+def parse_witness_list(witness_tree):
+    ## this is not working
+    for witness in witness_tree.xpath("string(witness-list/panel/witness)"):
+        print "witness"
 
 
 # Grab a House meeting out of the DOM for the XML feed.
