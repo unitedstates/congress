@@ -300,8 +300,31 @@ def look_for_witnesses(eventurl):
 
 def parse_witness_list(witness_tree):
     ## this is not working
-    for witness in witness_tree.xpath("string(witness-list/panel/witness)"):
-        print "witness"
+    print witness_tree.xpath("string(witness-list/@meeting-id)")
+    for witness in witness_tree.xpath("panel/witness"):
+        record = {}
+        record["firstname"] =  witness.xpath("string(firstname)")
+        record["middlename"] = witness.xpath("string(middlename)")
+        record["lastname"] = witness.xpath("string(lastname)")
+        record["position"] = witness.xpath("string(position)")
+        record["organization"] = witness.xpath("string(organization)")
+        record["witness_type"] = witness.xpath("string(witness-type)")
+        for doc in witness.xpath("witness-documents/witness-document"):
+            document = {}
+            document["description"] = doc.xpath("string(description)")
+            document["type"] = doc.xpath("string(type)")
+            urls = []
+            # I need to test this on a case with multiple documents per witness
+            for files in doc.xpath("files/file"):
+                urls.append(files.xpath("string(@doc-url)"))
+            document["urls"] = urls
+        record["documents"] = document
+        print record
+
+
+
+    # for witness in witness_tree.xpath("string(panel/witness)"):
+    #     print witness
 
 
 # Grab a House meeting out of the DOM for the XML feed.
