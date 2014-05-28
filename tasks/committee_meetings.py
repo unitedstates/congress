@@ -11,8 +11,6 @@ import zipfile
 import StringIO
 from email.utils import parsedate
 from time import mktime
-import pprint
-pp = pprint.PrettyPrinter(indent=2)
 
 # options:
 #
@@ -207,7 +205,7 @@ def fetch_house_committee_meetings(committees, options):
     return meetings
 
 
-## load sequentially from event_id
+## load House meeting sequentially from event_id
 def fetch_meeting_from_event_id(committees, options, load_id):
     existing_meetings = []
     output_file = output_for("house")
@@ -299,7 +297,9 @@ def look_for_witnesses(eventurl):
         package = zipfile.ZipFile(request_bytes)
     except:
         message = "Error uploading zipfile uploaded for  %s "%(eventurl)
-        raise ValueError(message)
+        print message
+        return None
+        #raise ValueError(message)
 
 
     for name in package.namelist():
