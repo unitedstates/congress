@@ -11,9 +11,7 @@ import zipfile
 import StringIO
 from email.utils import parsedate
 from time import mktime
-# debug
-import pprint
-pp = pprint.PrettyPrinter(indent=2)
+
 
 # options:
 #
@@ -312,7 +310,7 @@ def parse_witness_list(witness_tree):
     hearing_id = witness_tree.xpath("//@meeting-id")[0]
     hearing_witness_info = []
     for witness in witness_tree.xpath("panel/witness"):
-        record = {"hearing_id": hearing_id}
+        record = {"house_event_id": hearing_id}
         record["firstname"] =  witness.xpath("string(firstname)")
         record["middlename"] = witness.xpath("string(middlename)")
         record["lastname"] = witness.xpath("string(lastname)")
@@ -412,9 +410,8 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             "url": url,
         }
 
-        # this could be an option
         if witness_info != None:
             results["witness_info"] = witness_info
-        pp.pprint(results)
+
         return results
 
