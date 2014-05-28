@@ -11,7 +11,9 @@ import zipfile
 import StringIO
 from email.utils import parsedate
 from time import mktime
-
+# debug
+import pprint
+pp = pprint.PrettyPrinter(indent=2)
 
 # options:
 #
@@ -317,6 +319,7 @@ def parse_witness_list(witness_tree):
         record["position"] = witness.xpath("string(position)")
         record["organization"] = witness.xpath("string(organization)")
         record["witness_type"] = witness.xpath("string(witness-type)")
+        record["documents"] = []
         for doc in witness.xpath("witness-documents/witness-document"):
             document = {}
             document["description"] = doc.xpath("string(description)")
@@ -326,7 +329,7 @@ def parse_witness_list(witness_tree):
             for files in doc.xpath("files/file"):
                 urls.append(files.xpath("string(@doc-url)"))
             document["urls"] = urls
-        record["documents"] = document
+            record["documents"].append(document)
         hearing_witness_info.append(record)
     return hearing_witness_info
 
@@ -412,6 +415,6 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         # this could be an option
         if witness_info != None:
             results["witness_info"] = witness_info
-
+        pp.pprint(results)
         return results
 
