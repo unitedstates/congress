@@ -11,7 +11,8 @@ import zipfile
 import StringIO
 from email.utils import parsedate
 from time import mktime
-
+import pprint
+pp = pprint.PrettyPrinter(indent=2)
 
 # options:
 #
@@ -293,8 +294,13 @@ def look_for_witnesses(eventurl):
     request = br.submit()
 
     ## read zipfile
-    request_bytes = StringIO.StringIO(request.read())
-    package = zipfile.ZipFile(request_bytes)
+    try:
+        request_bytes = StringIO.StringIO(request.read())
+        package = zipfile.ZipFile(request_bytes)
+    except:
+        message = "Error uploading zipfile uploaded for  %s "%(eventurl)
+        raise ValueError(message)
+
 
     for name in package.namelist():
         if "WList" in name:
@@ -359,6 +365,22 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         for c in
         dom.xpath("meeting-documents/meeting-document[@type='BR']/legis-num")]
 
+    # Meeting documents include legislation, reports, etc.
+    meeting_documents = []
+    for doc in dom.xpath("//meeting-document"):
+        document = {}
+        document["description"] = doc.xpath("string(description)")
+        document["type"] = doc.xpath("string(filename-metadata/doc-type)")
+        document["legislation_number"] = doc.xpath("string(filename-metadata/legis-num)")
+        document["legislation_stage"] = doc.xpath("string(filename-metadata/legis-stage)")
+        document["version_number"] = doc.xpath("string(version-num)") 
+        urls = []
+        for url in doc.xpath("files/file"):
+            urls.append(url.xpath("string(@doc-url)"))
+        if len(urls) > 0:
+            document["urls"] = urls
+        meeting_documents.append(document)
+
     # Repeat the event for each listed committee or subcommittee, since our
     # data model supports only a single committee/subcommittee ID per event.
 
@@ -410,8 +432,11 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             "url": url,
         }
 
+        # witness information and documents are only added if there was a result
         if witness_info != None:
             results["witness_info"] = witness_info
+        if len(meeting_documents) > 0:
+            results["meeting_documents"] = meeting_documents 
 
         return results
 
