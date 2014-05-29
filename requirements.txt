@@ -9,3 +9,4 @@ scrapelib==0.9.1
 mechanize
 BeautifulSoup4
 mock
+coveralls
