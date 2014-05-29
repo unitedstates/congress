@@ -7,7 +7,16 @@ os:
   - osx
 
 install: pip install -r requirements.txt
-script: python test/run
+script: coverage run --include=tasks/* test/run
+
+after_success:
+  - coverage report
+  - coveralls
+  - pip install pep8 pyflakes
+  - pep8 tasks/*.py     | tee >(wc -l)
+  - pyflakes tasks/*.py | tee >(wc -l)
+  - pep8 test/*.py      | tee >(wc -l)
+  - pyflakes test/*.py  | tee >(wc -l)
 
 notifications:
   email:
