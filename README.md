@@ -1,6 +1,6 @@
 ## unitedstates/congress
 
-[![Build Status](https://travis-ci.org/unitedstates/congress.svg?branch=master)](https://travis-ci.org/unitedstates/congress)
+[![Build Status](https://travis-ci.org/unitedstates/congress.svg?branch=master)](https://travis-ci.org/unitedstates/congress) [![Coverage Status](https://coveralls.io/repos/unitedstates/congress/badge.png?branch=master)](https://coveralls.io/r/unitedstates/congress?branch=master)
 
 Public domain code that collects data about the bills, amendments, roll call votes, and other core data about the U.S. Congress.
 
