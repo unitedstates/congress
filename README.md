@@ -1,5 +1,7 @@
 ## unitedstates/congress
 
+[![Build Status](https://travis-ci.org/unitedstates/congress.svg?branch=master)](https://travis-ci.org/unitedstates/congress)
+
 Public domain code that collects data about the bills, amendments, roll call votes, and other core data about the U.S. Congress.
 
 Includes:
