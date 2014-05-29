@@ -6,13 +6,16 @@ import json
 import lxml.etree
 import uuid
 import logging
+import mechanize
+import zipfile
+import StringIO
 from email.utils import parsedate
 from time import mktime
 
 # options:
 #
 #    --chamber: "house" or "senate" to limit the parse to a single chamber
-#    --load_by: Takes a range of House Event IDs. Give it the beginning and end dates with a dash between, otherwise, it goes by the committee feeds
+#    --load_by: Takes a range of House Event IDs. Give it the beginning and end IDs with a dash between, otherwise, it goes by the committee feeds.
 
 def run(options):
     # can limit it to one chamber
@@ -202,7 +205,7 @@ def fetch_house_committee_meetings(committees, options):
     return meetings
 
 
-## load sequentially from event_id
+## load House meeting sequentially from event_id
 def fetch_meeting_from_event_id(committees, options, load_id):
     existing_meetings = []
     output_file = output_for("house")
@@ -232,8 +235,10 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
     # the House makes the XML available at an actual URL.
 
     logging.info(eventurl)
-    import mechanize
+    # I am moving this to the top
+    # import mechanize
     br = mechanize.Browser()
+    # open committee event page
     br.open(eventurl)
     br.select_form(nr=0)
 
@@ -249,22 +254,92 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
     # Submit form and get and load XML response
     dom = lxml.etree.parse(br.submit())
 
+    witness_info = look_for_witnesses(eventurl)
+
     # Parse the XML.
     try:
-        meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options)
+        meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witness_info)
         if meeting != None:
             meetings.append(meeting)
         else:
-            print (event_id, "postponed")
-    
+            print(event_id, "postponed")
+   
     except Exception as e:
         logging.error("Error parsing " + eventurl, exc_info=e)
         print(event_id, "error")
-        
+
+    look_for_witnesses(eventurl)
+
+
+#look for witnesses in the house package xml    
+def look_for_witnesses(eventurl):
+    br = mechanize.Browser()
+    # open committee event page
+    br.open(eventurl)
+
+    br.select_form(nr=0)
+
+    # mechanize parser failed to find these fields
+    br.form.new_control("hidden", "__EVENTTARGET", {})
+    br.form.new_control("hidden", "__EVENTARGUMENT", {})
+    br.form.set_all_readonly(False)
+
+    # set field values
+    br["__EVENTTARGET"] = "ctl00$MainContent$LinkButtonDownloadMtgPackage"
+    br["__EVENTARGUMENT"] = ""
+    
+    # get the info
+    request = br.submit()
+
+    ## read zipfile
+    try:
+        request_bytes = StringIO.StringIO(request.read())
+        package = zipfile.ZipFile(request_bytes)
+    except:
+        message = "Error uploading zipfile uploaded for  %s "%(eventurl)
+        print message
+        return None
+        #raise ValueError(message)
+
+
+    for name in package.namelist():
+        if "WList" in name:
+            bytes = package.read(name)
+            witness_tree = lxml.etree.fromstring(bytes)
+            witness_info = parse_witness_list(witness_tree)
+            return witness_info
+    # it will return none if there is no witness list in the file
+    return None
+
+# parse xml for urls to testimony and witness information
+def parse_witness_list(witness_tree):
+    hearing_id = witness_tree.xpath("//@meeting-id")[0]
+    hearing_witness_info = []
+    for witness in witness_tree.xpath("panel/witness"):
+        record = {"house_event_id": hearing_id}
+        record["firstname"] =  witness.xpath("string(firstname)")
+        record["middlename"] = witness.xpath("string(middlename)")
+        record["lastname"] = witness.xpath("string(lastname)")
+        record["position"] = witness.xpath("string(position)")
+        record["organization"] = witness.xpath("string(organization)")
+        record["witness_type"] = witness.xpath("string(witness-type)")
+        record["documents"] = []
+        for doc in witness.xpath("witness-documents/witness-document"):
+            document = {}
+            document["description"] = doc.xpath("string(description)")
+            document["type"] = doc.xpath("string(type)")
+            urls = []
+            # I need to test this on a case with multiple documents per witness
+            for files in doc.xpath("files/file"):
+                urls.append(files.xpath("string(@doc-url)"))
+            document["urls"] = urls
+            record["documents"].append(document)
+        hearing_witness_info.append(record)
+    return hearing_witness_info
 
 
 # Grab a House meeting out of the DOM for the XML feed.
-def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options):
+def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witness_info):
     try:
         congress = int(dom.getroot().get("congress-num"))
 
@@ -289,6 +364,22 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         c.text.replace(".", "").replace(" ", "").lower() + "-" + str(congress)
         for c in
         dom.xpath("meeting-documents/meeting-document[@type='BR']/legis-num")]
+
+    # Meeting documents include legislation, reports, etc.
+    meeting_documents = []
+    for doc in dom.xpath("//meeting-document"):
+        document = {}
+        document["description"] = doc.xpath("string(description)")
+        document["type"] = doc.xpath("string(filename-metadata/doc-type)")
+        document["legislation_number"] = doc.xpath("string(filename-metadata/legis-num)")
+        document["legislation_stage"] = doc.xpath("string(filename-metadata/legis-stage)")
+        document["version_number"] = doc.xpath("string(version-num)") 
+        urls = []
+        for url in doc.xpath("files/file"):
+            urls.append(url.xpath("string(@doc-url)"))
+        if len(urls) > 0:
+            document["urls"] = urls
+        meeting_documents.append(document)
 
     # Repeat the event for each listed committee or subcommittee, since our
     # data model supports only a single committee/subcommittee ID per event.
@@ -326,7 +417,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         if options.get("debug", False):
             print "[house][%s][%s] Found meeting in room %s at %s" % (committee_code, subcommittee_code, room, occurs_at.isoformat())
 
-        return {
+        results = {
             "chamber": "house",
             "congress": congress,
             "guid": guid,
@@ -340,3 +431,12 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             "house_event_id": event_id,
             "url": url,
         }
+
+        # witness information and documents are only added if there was a result
+        if witness_info != None:
+            results["witness_info"] = witness_info
+        if len(meeting_documents) > 0:
+            results["meeting_documents"] = meeting_documents 
+
+        return results
+

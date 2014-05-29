@@ -1,0 +1,41 @@
+<?xml-stylesheet type='text/xsl' href='/xslt/cr-public.xslt'?>
+<committee-meeting congress-num="113" session-num="2" meeting-id="HMTG102252" meeting-type="HMTG" create-date="2014-05-15T16:23:57.633" orig-publish-date="2014-05-15T16:30:14.470" update-date="2014-05-20T13:47:13.700">
+  <current-status>S</current-status>
+  <language>en-us</language>
+  <copyright>Pursuant to Title 17 Section 105 of the United States Code, this file is not subject to copyright protection and is in the public domain.</copyright>
+  <publish-dates>
+    <publish-date date="2014-05-15T16:30:14.470" />
+    <publish-date date="2014-05-20T13:47:13.700" />
+  </publish-dates>
+  <meeting-details>
+    <committees>
+      <committee-name id="RU00">Committee on Rules</committee-name>
+    </committees>
+    <meeting-date>
+      <calendar-date>2014-05-19</calendar-date>
+      <start-time>17:00:00</start-time>
+    </meeting-date>
+    <meeting-location>
+      <capitol-complex>
+        <room>H-313</room>
+        <building>CAPITOL</building>
+      </capitol-complex>
+    </meeting-location>
+    <meeting-title>H.R. 4435—National Defense Authorization Act for Fiscal Year 2015 [General Debate]; H.R. 4660—Commerce, Justice, Science, and Related Agencies Appropriations Act, 2015</meeting-title>
+  </meeting-details>
+  <meeting-documents>
+    <meeting-document type="BR" add-date="2014-05-15T16:25:09.470" remove-date="" publish-date="2014-05-15T16:30:14.470">
+      <description>H.R. 4435 (as introduced)</description>
+      <legis-num>H.R. 4435</legis-num>
+      <filename-metadata>
+        <legis-num>H.R. 4435</legis-num>
+        <legis-stage>ih</legis-stage>
+        <doc-type>BR</doc-type>
+      </filename-metadata>
+      <files>
+        <file doc-url="http://beta.congress.gov/113/bills/hr4435/BILLS-113hr4435ih.pdf" doc-type="PDF" add-date="2014-05-15T16:25:09.470" publish-date="2014-05-15T16:30:14.470" />
+        <file doc-url="http://beta.congress.gov/113/bills/hr4435/BILLS-113hr4435ih.xml" doc-type="XML" add-date="2014-05-15T16:25:09.473" publish-date="2014-05-15T16:30:14.470" />
+      </files>
+    </meeting-document>
+  </meeting-documents>
+</committee-meeting>

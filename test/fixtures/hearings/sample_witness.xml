@@ -1,0 +1,30 @@
+<?xml-stylesheet type='text/xsl' href='/xslt/cr-public.xslt'?>
+<witness-list meeting-id="102266" create-date="2014-05-23T10:18:38.003">
+  <language>en-us</language>
+  <copyright>Pursuant to Title 17 Section 105 of the United States Code, this file is not subject to copyright protection and is in the public domain.</copyright>
+  <panel sort-order="1">
+    <witness add-date="2014-05-23T00:00:00" testified="Yes" witness-type="Government - Federal" remove-date="" publish-date="2014-05-23T10:18:37.963">
+      <honorific>Mr.</honorific>
+      <firstname>James</firstname>
+      <middlename>P.</middlename>
+      <lastname>Cochrane</lastname>
+      <position>Chief Information Officer and Executive Vice President</position>
+      <organization>U.S. Postal Service</organization>
+      <testified>Yes</testified>
+      <witness-type>Government - Federal</witness-type>
+      <witness-documents>
+        <witness-document remove-date="" publish-date="2014-05-23T10:18:37.963">
+          <description>Cochrane Bio</description>
+          <type>WB</type>
+          <filename-metadata>
+            <description>Cochrane Bio</description>
+            <type>WB</type>
+          </filename-metadata>
+          <files>
+            <file doc-url="http://docs.house.gov/meetings/GO/GO25/20140522/102266/HHRG-113-GO25-Bio-CochraneJ-20140522.pdf" doc-type="PDF" add-date="2014-05-23T09:55:55.943" publish-date="2014-05-23T10:18:37.963" />
+          </files>
+        </witness-document>
+      </witness-documents>
+    </witness>
+  </panel>
+</witness-list>
