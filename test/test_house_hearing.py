@@ -1,13 +1,15 @@
-import unittest
-import utils
 import committee_meetings
 import fixtures
 import lxml.etree
+import os
+import unittest
+import utils
 
 # Parsing the House hearing info
 class HearingInfo(unittest.TestCase):
 
     def test_hearing(self):
+        os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators congress-legislators")
         committees = {}
         for c in utils.yaml_load("congress-legislators/committees-current.yaml"):
             committees[c["thomas_id"]] = c
@@ -39,7 +41,7 @@ class HearingInfo(unittest.TestCase):
 
 
     def test_witnesses(self):
-        witness_xml = "test/fixtures/hearings/sample_witness.xml" 
+        witness_xml = "test/fixtures/hearings/sample_witness.xml"
         file_xml = open(witness_xml, "r")
         witness_tree = lxml.etree.parse(file_xml)
 
