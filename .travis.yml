@@ -9,6 +9,11 @@ os:
 install: pip install -r requirements.txt
 script: python test/run
 
+after_success:
+ - pip install pyflakes
+ - pyflakes tasks/*.py | tee >(wc -l)
+ - pyflakes test/*.py  | tee >(wc -l)
+
 notifications:
   email:
     recipients:
