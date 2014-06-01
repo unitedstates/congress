@@ -10,10 +10,9 @@ import utils
 class HearingInfo(unittest.TestCase):
 
     def test_hearing(self):
-        os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators congress-legislators")
         committees = {}
         for c in utils.yaml_load(
-                "congress-legislators/committees-current.yaml"):
+                "test/fixtures/committees-current.yaml"):
             committees[c["thomas_id"]] = c
             if "house_committee_id" in c:
                 committees[c["house_committee_id"] + "00"] = c
