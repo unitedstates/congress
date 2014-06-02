@@ -936,6 +936,8 @@ def related_bills_for(body, congress, bill_id):
             ("This bill has text inserted from .*", "includes"),
             ("Text from this bill was inserted in .*", "included-in"),
             ("Bill related to rule .* in House", "ruled-by"),
+            ("This bill caused other related action on .*", "caused-action"),
+            ("Other related action happened to this bill because of .*", "action-caused-by"),
         )
         for reason_re, reason_code in reasons:
             if re.search(reason_re + "$", reason, re.I):
