@@ -1411,15 +1411,14 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
 
     # Check for committee name, and store committee ids
 
-    # excluding subcommittee names (they have pipes),
-    # and make chamber prefix optional
+    # Build a regex to find mentioned committees in the action line.
     cmte_names = []
     for name in utils.committee_names.keys():
+        # excluding subcommittee names (they have pipes),
         if name.find('|') == -1:
             # name = re.sub(r"\(.*\)", '', name).strip()
-            name = re.sub(r"^(House|Senate) ", "(?:\\1 )?", name)
+            name = re.sub(r"^(House|Senate) ", "", name)
             cmte_names.append(name)
-
     cmte_reg = r"(House|Senate)?\s*(?:Committee)?\s*(?:on)?\s*(?:the)?\s*({0})".format("|".join(cmte_names))
 
     m = re.search(cmte_reg, line, re.I)
