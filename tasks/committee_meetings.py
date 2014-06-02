@@ -1,5 +1,6 @@
 import utils
 import os.path
+import os
 import re
 import datetime
 import json
@@ -12,9 +13,9 @@ import StringIO
 from email.utils import parsedate
 from time import mktime
 # debug 
-import pprint
+# import pprint
 
-pp = pprint.PrettyPrinter(indent=2)
+# pp = pprint.PrettyPrinter(indent=2)
 
 # options:
 #
@@ -258,7 +259,7 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
     # Submit form and get and load XML response
     dom = lxml.etree.parse(br.submit())
 
-    witness_info = extract_meeting_package(eventurl)
+    witness_info = extract_meeting_package(eventurl, event_id)
 
     # Parse the XML.
     try:
@@ -272,11 +273,9 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
         logging.error("Error parsing " + eventurl, exc_info=e)
         print(event_id, "error")
 
-    extract_meeting_package(eventurl)
-
 
 #look for witnesses and documents in the house meeting package    
-def extract_meeting_package(eventurl):
+def extract_meeting_package(eventurl, event_id):
     br = mechanize.Browser()
     # open committee event page
     br.open(eventurl)
@@ -305,8 +304,8 @@ def extract_meeting_package(eventurl):
         return None
         #raise ValueError(message)
 
-    # saves documents to disk
-    save_documents(package)
+    # save documents in meeting package
+    save_documents(package, event_id)
 
     # find witness information 
     for name in package.namelist():
@@ -380,7 +379,6 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         document["type"] = doc.xpath("string(filename-metadata/doc-type)")
         document["legislation_number"] = doc.xpath("string(filename-metadata/legis-num)")
         document["legislation_stage"] = doc.xpath("string(filename-metadata/legis-stage)")
-        document["version_number"] = doc.xpath("string(filename-metadata/version-num)") 
         urls = []
         for url in doc.xpath("files/file"):
             urls.append(url.xpath("string(@doc-url)"))
@@ -446,16 +444,28 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             results["meeting_documents"] = meeting_documents 
 
         # debug
-        pp.pprint(results)
+        # pp.pprint(results)
         return results
 
-def save_documents(package):
+# saves documents to disk, called in extract_meeting_package
+def save_documents(package, event_id):
+    # find/create directory
+    output_dir = utils.data_dir() + "/committee/meetings/house/%s" % (event_id)
+    if not os.path.exists(output_dir): os.makedirs(output_dir)
+
+    # loop through package and save documents    
     for name in package.namelist():
         # for documents that are not xml
         if ".xml" not in name:
-            #bytes = package.read(name)
-            print name
-            # save
+            try:
+                bytes = package.read(name)
+            except:
+                print "Did not save to disk: file %s" % (name)
+                continue
+            file_name = "%s/%s" % (output_dir, name)
+            # save document
+            with open(file_name, 'wb') as document_file:
+                document_file.write(bytes)
 
 
             
