@@ -259,11 +259,14 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
     # Submit form and get and load XML response
     dom = lxml.etree.parse(br.submit())
 
-    witness_info = extract_meeting_package(eventurl, event_id)
+    package_info = extract_meeting_package(eventurl, event_id)
+    witnesses = package_info["witnesses"]
+    xml_urls = package_info["xml_urls"]
+    uploaded_documents = package_info["uploaded_documents"]
 
     # Parse the XML.
     try:
-        meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witness_info)
+        meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents, xml_urls)
         if meeting != None:
             meetings.append(meeting)
         else:
@@ -298,14 +301,15 @@ def extract_meeting_package(eventurl, event_id):
     try:
         request_bytes = StringIO.StringIO(request.read())
         package = zipfile.ZipFile(request_bytes)
+
     except:
         message = "Error uploading zipfile uploaded for  %s "%(eventurl)
         print message
-        return None
+        return {"witnesses": None, "xml_urls": [], "uploaded_documents":[]}
         #raise ValueError(message)
 
     # save documents in meeting package
-    save_documents(package, event_id)
+    uploaded_documents = save_documents(package, event_id)
 
     # find witness information 
     for name in package.namelist():
@@ -313,39 +317,62 @@ def extract_meeting_package(eventurl, event_id):
             bytes = package.read(name)
             witness_tree = lxml.etree.fromstring(bytes)
             witness_info = parse_witness_list(witness_tree)
-            return witness_info
+            witnesses = witness_info["hearing_witness_info"]
+            xml_urls = witness_info["xml_urls"]
+
+            return {"witnesses": witnesses, "xml_urls": xml_urls, "uploaded_documents": uploaded_documents}
     # it will return none if there is no witness list in the file
-    return None
+    return {"witnesses": None, "xml_urls": [], "uploaded_documents": uploaded_documents}
 
 # parse xml for urls to testimony and witness information
 def parse_witness_list(witness_tree):
+    # keeping track of urls in the xml to compare to package download
+    xml_urls = []
     hearing_id = witness_tree.xpath("//@meeting-id")[0]
     hearing_witness_info = []
+    #basic witness information
     for witness in witness_tree.xpath("panel/witness"):
         record = {"house_event_id": hearing_id}
-        record["firstname"] =  witness.xpath("string(firstname)")
-        record["middlename"] = witness.xpath("string(middlename)")
-        record["lastname"] = witness.xpath("string(lastname)")
+        record["first_name"] =  witness.xpath("string(firstname)")
+        if record["first_name"] == '':
+            record["first_name"] = None
+        record["middle_name"] = witness.xpath("string(middlename)")
+        if record["middle_name"] == '':
+            record["middle_name"] = None
+        record["last_name"] = witness.xpath("string(lastname)")
+        if record["last_name"] == '':
+            record["last_name"] = None
         record["position"] = witness.xpath("string(position)")
+        if record["position"] == '':
+            record["position"] = None
         record["organization"] = witness.xpath("string(organization)")
+        if record["organization"] == '':
+            record["organization"] = None
         record["witness_type"] = witness.xpath("string(witness-type)")
+        if record["witness_type"] == '':
+            record["witness_type"] = None
         record["documents"] = []
+        # documents related to that witness
         for doc in witness.xpath("witness-documents/witness-document"):
             document = {}
             document["description"] = doc.xpath("string(description)")
+            if document["description"] == '':
+                document["description"] = None
             document["type"] = doc.xpath("string(type)")
             urls = []
-            # I need to test this on a case with multiple documents per witness
             for files in doc.xpath("files/file"):
-                urls.append(files.xpath("string(@doc-url)"))
+                url = files.xpath("string(@doc-url)")
+                urls.append(url)
+                ### for testing, want to take out if reliable
+                xml_urls.append(url)
             document["urls"] = urls
             record["documents"].append(document)
         hearing_witness_info.append(record)
-    return hearing_witness_info
+    return {"hearing_witness_info": hearing_witness_info, "xml_urls": xml_urls}
 
 
 # Grab a House meeting out of the DOM for the XML feed.
-def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witness_info):
+def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents, xml_urls):
     try:
         congress = int(dom.getroot().get("congress-num"))
 
@@ -376,12 +403,22 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
     for doc in dom.xpath("//meeting-document"):
         document = {}
         document["description"] = doc.xpath("string(description)")
+        if document["description"] == '':
+            document["description"] = None
         document["type"] = doc.xpath("string(filename-metadata/doc-type)")
-        document["legislation_number"] = doc.xpath("string(filename-metadata/legis-num)")
-        document["legislation_stage"] = doc.xpath("string(filename-metadata/legis-stage)")
+        if document["type"] == '':
+            document["type"] = None
+        document["bill_id"] = doc.xpath("string(filename-metadata/legis-num)")
+        if document["bill_id"] == '':
+            document["bill_id"] = None
+        document["version_code"] = doc.xpath("string(filename-metadata/legis-stage)")
+        if document["version_code"] == '':
+            document["version_code"] = None
         urls = []
         for url in doc.xpath("files/file"):
-            urls.append(url.xpath("string(@doc-url)"))
+            url = url.xpath("string(@doc-url)")
+            urls.append(url)
+            xml_urls.append(url)
         if len(urls) > 0:
             document["urls"] = urls
         meeting_documents.append(document)
@@ -438,17 +475,20 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         }
 
         # witness information and documents are only added if there was a result
-        if witness_info != None:
-            results["witness_info"] = witness_info
+        if witnesses != None:
+            results["witnesses"] = witnesses
         if len(meeting_documents) > 0:
             results["meeting_documents"] = meeting_documents 
 
+        check_for_upload(xml_urls, uploaded_documents)
         # debug
         # pp.pprint(results)
         return results
 
 # saves documents to disk, called in extract_meeting_package
 def save_documents(package, event_id):
+    uploaded_documents = []
+
     # find/create directory
     output_dir = utils.data_dir() + "/committee/meetings/house/%s" % (event_id)
     if not os.path.exists(output_dir): os.makedirs(output_dir)
@@ -463,13 +503,44 @@ def save_documents(package, event_id):
                 print "Did not save to disk: file %s" % (name)
                 continue
             file_name = "%s/%s" % (output_dir, name)
+            
             # save document
             with open(file_name, 'wb') as document_file:
                 document_file.write(bytes)
 
+            uploaded_documents.append(name)
+    return uploaded_documents
 
-            
-            
+
+# I am not sure if we can assume all documents referenced in the meeting package have been uploaded
+# If the process is reliable, we can remove this
+def check_for_upload(xml_urls, uploaded_documents):
+    if len(xml_urls) == len(uploaded_documents):
+        return True
+    
+    if len(xml_urls) > len(uploaded_documents):
+        print "Missing documents referenced in xml"
+    if len(xml_urls) < len(uploaded_documents):
+        print "More documents uploaded than in xml"
+
+    uploads = {}
+    for url in xml_urls:
+        splinter = url.split('/')
+        base_name = splinter[-1]
+        uploads[base_name] = url
+        if url not in uploaded_documents:
+            print url, "missing from download"
+
+    for url in xml_urls:
+        if not uploads.has_key(url):
+            print url, "missing from xml"
+
+    print 
+    print
+
+        
+
+
 
 
 
