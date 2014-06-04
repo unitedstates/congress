@@ -10,6 +10,7 @@ import logging
 import mechanize
 import zipfile
 import StringIO
+import requests
 from email.utils import parsedate
 from time import mktime
 # debug 
@@ -150,6 +151,7 @@ def fetch_senate_committee_meetings(committees, options):
     print "[senate] Found %i meetings." % len(meetings)
     return meetings
 
+# House
 
 # Scrape docs.house.gov for meetings.
 # To aid users of the data, assign GUIDs to meetings piggy-backing off of the provided EventID.
@@ -316,7 +318,7 @@ def extract_meeting_package(eventurl, event_id):
         if "WList" in name:
             bytes = package.read(name)
             witness_tree = lxml.etree.fromstring(bytes)
-            witness_info = parse_witness_list(witness_tree)
+            witness_info = parse_witness_list(witness_tree, uploaded_documents, event_id)
             witnesses = witness_info["hearing_witness_info"]
             xml_urls = witness_info["xml_urls"]
 
@@ -325,8 +327,8 @@ def extract_meeting_package(eventurl, event_id):
     return {"witnesses": None, "xml_urls": [], "uploaded_documents": uploaded_documents}
 
 # parse xml for urls to testimony and witness information
-def parse_witness_list(witness_tree):
-    # keeping track of urls in the xml to compare to package download
+def parse_witness_list(witness_tree, uploaded_documents, event_id):
+    # keeping track of urls in the xml to compare to package download in check_for_upload
     xml_urls = []
     hearing_id = witness_tree.xpath("//@meeting-id")[0]
     hearing_witness_info = []
@@ -362,8 +364,14 @@ def parse_witness_list(witness_tree):
             urls = []
             for files in doc.xpath("files/file"):
                 url = files.xpath("string(@doc-url)")
-                urls.append(url)
-                ### for testing, want to take out if reliable
+                splinter = url.split('/')
+                doc_name = splinter[-1]
+                if doc_name not in uploaded_documents:
+                    print "Witness doc missing from download- ", url 
+                    file_found = save_file(url, event_id)
+                else:
+                    file_found = True
+                urls.append({"url":url, "file_found": file_found})
                 xml_urls.append(url)
             document["urls"] = urls
             record["documents"].append(document)
@@ -417,8 +425,16 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         urls = []
         for url in doc.xpath("files/file"):
             url = url.xpath("string(@doc-url)")
-            urls.append(url)
+            splinter = url.split('/')
+            doc_name = splinter[-1]
+            if doc_name not in uploaded_documents:
+                print "Meeting doc missing from download- ", url 
+                file_found = save_file(url, event_id)
+            else:
+                file_found = True
+            urls.append({"url":url, "file_found": file_found})
             xml_urls.append(url)
+
         if len(urls) > 0:
             document["urls"] = urls
         meeting_documents.append(document)
@@ -470,7 +486,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             "topic": topic,
             "bills": bills,
             "house_meeting_type": dom.getroot().get("meeting-type"),
-            "house_event_id": event_id,
+            "house_event_id": int(event_id),
             "url": url,
         }
 
@@ -480,8 +496,8 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         if len(meeting_documents) > 0:
             results["meeting_documents"] = meeting_documents 
 
-        check_for_upload(xml_urls, uploaded_documents)
-        # debug
+        results = check_for_upload(xml_urls, uploaded_documents, event_id, results)
+        ## debug
         # pp.pprint(results)
         return results
 
@@ -512,34 +528,63 @@ def save_documents(package, event_id):
     return uploaded_documents
 
 
-# I am not sure if we can assume all documents referenced in the meeting package have been uploaded
-# If the process is reliable, we can remove this
-def check_for_upload(xml_urls, uploaded_documents):
-    if len(xml_urls) == len(uploaded_documents):
-        return True
-    
-    if len(xml_urls) > len(uploaded_documents):
-        print "Missing documents referenced in xml"
-    if len(xml_urls) < len(uploaded_documents):
-        print "More documents uploaded than in xml"
+# Check all documents referenced in the meeting package in xml or 
+# in the meeting package are in the results and have been uploaded
+def check_for_upload(xml_urls, uploaded_documents, event_id, results):
+    # return if totals are correct
+    if  len(xml_urls) > len(uploaded_documents):
+        print "more docs in xml for event_id %s" % (event_id)
+    if  len(xml_urls) < len(uploaded_documents):
+        print "more docs in download for event_id %s" % (event_id)
 
     uploads = {}
+    # downloading documents that are not in the meeting package
     for url in xml_urls:
         splinter = url.split('/')
-        base_name = splinter[-1]
-        uploads[base_name] = url
-        if url not in uploaded_documents:
+        name = splinter[-1]
+        uploads[name] = url
+        if name not in uploaded_documents:
             print url, "missing from download"
+            try:
+                file = utils.download(url)
+            except:
+                print "failed downloading additional file ", url
+                continue
 
-    for url in xml_urls:
-        if not uploads.has_key(url):
-            print url, "missing from xml"
+    # add these documents to json but I am not sure this is a problem
+    for file_name in uploaded_documents:
+        if not uploads.has_key(file_name):
+            print file_name, "missing from xml ----- %s " % (file_name)
+            # document = {}
+            # document["description"] = None
+            # document["type"] = None
+            # document["bill_id"] = None
+            # document["version_code"] = None
+            # document["urls"] = [url]
+            # results["meeting_documents"].append(document)
+            # print "added url", url
 
-    print 
-    print
+    return results
 
-        
-
+def save_file(url, event_id): 
+    try:
+        # open file 
+        r = requests.get(url, stream=True)
+        content = r.raw
+        # find or create directory
+        output_dir = utils.data_dir() + "/committee/meetings/house/%s" % (event_id)
+        if not os.path.exists(output_dir): os.makedirs(output_dir)
+        splinter = url.split('/')
+        name = splinter[-1]
+        file_name = "%s/%s" % (output_dir, name)
+        # try to save
+        with open(file_name, 'wb') as document_file:
+            document_file.write(content.read())
+        return True
+            
+    except:
+        return False
+        print "no hope for meeting: %s url: %s" % (event_id, url)
 
 
 
