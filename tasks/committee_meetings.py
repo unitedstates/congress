@@ -263,12 +263,11 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
 
     package_info = extract_meeting_package(eventurl, event_id)
     witnesses = package_info["witnesses"]
-    xml_urls = package_info["xml_urls"]
     uploaded_documents = package_info["uploaded_documents"]
 
     # Parse the XML.
     try:
-        meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents, xml_urls)
+        meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents)
         if meeting != None:
             meetings.append(meeting)
         else:
@@ -307,7 +306,7 @@ def extract_meeting_package(eventurl, event_id):
     except:
         message = "Error uploading zipfile uploaded for  %s "%(eventurl)
         print message
-        return {"witnesses": None, "xml_urls": [], "uploaded_documents":[]}
+        return {"witnesses": None, "uploaded_documents":[]}
         #raise ValueError(message)
 
     # save documents in meeting package
@@ -320,16 +319,13 @@ def extract_meeting_package(eventurl, event_id):
             witness_tree = lxml.etree.fromstring(bytes)
             witness_info = parse_witness_list(witness_tree, uploaded_documents, event_id)
             witnesses = witness_info["hearing_witness_info"]
-            xml_urls = witness_info["xml_urls"]
 
-            return {"witnesses": witnesses, "xml_urls": xml_urls, "uploaded_documents": uploaded_documents}
+            return {"witnesses": witnesses, "uploaded_documents": uploaded_documents}
     # it will return none if there is no witness list in the file
-    return {"witnesses": None, "xml_urls": [], "uploaded_documents": uploaded_documents}
+    return {"witnesses": None, "uploaded_documents": uploaded_documents}
 
 # parse xml for urls to testimony and witness information
 def parse_witness_list(witness_tree, uploaded_documents, event_id):
-    # keeping track of urls in the xml to compare to package download in check_for_upload
-    xml_urls = []
     hearing_id = witness_tree.xpath("//@meeting-id")[0]
     hearing_witness_info = []
     #basic witness information
@@ -372,15 +368,14 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
                 else:
                     file_found = True
                 urls.append({"url":url, "file_found": file_found})
-                xml_urls.append(url)
             document["urls"] = urls
             record["documents"].append(document)
         hearing_witness_info.append(record)
-    return {"hearing_witness_info": hearing_witness_info, "xml_urls": xml_urls}
+    return {"hearing_witness_info": hearing_witness_info}
 
 
 # Grab a House meeting out of the DOM for the XML feed.
-def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents, xml_urls):
+def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents):
     try:
         congress = int(dom.getroot().get("congress-num"))
 
@@ -433,7 +428,6 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             else:
                 file_found = True
             urls.append({"url":url, "file_found": file_found})
-            xml_urls.append(url)
 
         if len(urls) > 0:
             document["urls"] = urls
@@ -496,9 +490,6 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         if len(meeting_documents) > 0:
             results["meeting_documents"] = meeting_documents 
 
-        results = check_for_upload(xml_urls, uploaded_documents, event_id, results)
-        ## debug
-        # pp.pprint(results)
         return results
 
 # saves documents to disk, called in extract_meeting_package
@@ -527,48 +518,10 @@ def save_documents(package, event_id):
             uploaded_documents.append(name)
     return uploaded_documents
 
-
-# Check all documents referenced in the meeting package in xml or 
-# in the meeting package are in the results and have been uploaded
-# if we don't find examples of documents in the package that are not in the xml, we can get rid of this
-def check_for_upload(xml_urls, uploaded_documents, event_id, results):
-    # return if totals are correct
-    if  len(xml_urls) > len(uploaded_documents):
-        print "more docs in xml for event_id %s" % (event_id)
-    if  len(xml_urls) < len(uploaded_documents):
-        print "more docs in download for event_id %s" % (event_id)
-
-    uploads = {}
-    # creating comparable file names
-    for url in xml_urls:
-        splinter = url.split('/')
-        name = splinter[-1]
-        uploads[name] = url
-        # these should all be downloaded if possible
-
-    # add these documents to json but I am not sure this is a problem
-    for file_name in uploaded_documents:
-        if not uploads.has_key(file_name):
-            print file_name, "missing from xml ----- %s " % (file_name)
-            # document = {}
-            # document["description"] = None
-            # document["type"] = None
-            # document["bill_id"] = None
-            # document["version_code"] = None
-            # document["urls"] = [url]
-            # results["meeting_documents"].append(document)
-            # print "added url", url
-
-    return results
-
 # this is for files mentioned in the xml that do not appear in the meeting packet
 def save_file(url, event_id): 
-    print "delequent file-"
     r = requests.get(url, stream=True)
-    print r.status_code
-    print "requested"
     if r.status_code == requests.codes.ok:
-        print "OK status code"
         content = r.raw
         # find or create directory
         output_dir = utils.data_dir() + "/committee/meetings/house/%s" % (event_id)
@@ -582,13 +535,10 @@ def save_file(url, event_id):
         try:
             with open(file_name, 'wb') as document_file:
                 document_file.write(content.read())
-            "got it!"
             return True
         except:
-            print "no save for meeting: %s url: %s" % (event_id, url)
             return False
     else:
-        print "bad link"
         return False
             
 
