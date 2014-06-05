@@ -59,10 +59,6 @@ class HearingInfo(unittest.TestCase):
         event_id = "102266"
         test_output = committee_meetings.parse_witness_list(witness_tree, uploaded_documents, event_id)["hearing_witness_info"]
 
-        print test_output
-        print 
-
-
         self.assertEqual(test_output[0]['documents'][0]['type'], 'WB')
         self.assertEqual(
             test_output[0]['documents'][0]['description'], 'Cochrane Bio')
