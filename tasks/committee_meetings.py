@@ -13,10 +13,6 @@ import StringIO
 import requests
 from email.utils import parsedate
 from time import mktime
-# debug 
-# import pprint
-
-# pp = pprint.PrettyPrinter(indent=2)
 
 # options:
 #
@@ -363,7 +359,6 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
                 splinter = url.split('/')
                 doc_name = splinter[-1]
                 if doc_name not in uploaded_documents:
-                    print "Witness doc missing from download- ", url 
                     file_found = save_file(url, event_id)
                 else:
                     file_found = True
@@ -423,7 +418,6 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             splinter = url.split('/')
             doc_name = splinter[-1]
             if doc_name not in uploaded_documents:
-                print "Meeting doc missing from download- ", url 
                 file_found = save_file(url, event_id)
             else:
                 file_found = True
@@ -529,7 +523,6 @@ def save_file(url, event_id):
         # get file name
         splinter = url.split('/')
         name = splinter[-1]
-        print name
         file_name = "%s/%s" % (output_dir, name)
         # try to save
         try:
@@ -537,6 +530,7 @@ def save_file(url, event_id):
                 document_file.write(content.read())
             return True
         except:
+            print "Failed to save- %s" % (url)
             return False
     else:
         return False
