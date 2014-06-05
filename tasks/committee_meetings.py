@@ -530,6 +530,7 @@ def save_documents(package, event_id):
 
 # Check all documents referenced in the meeting package in xml or 
 # in the meeting package are in the results and have been uploaded
+# if we don't find examples of documents in the package that are not in the xml, we can get rid of this
 def check_for_upload(xml_urls, uploaded_documents, event_id, results):
     # return if totals are correct
     if  len(xml_urls) > len(uploaded_documents):
@@ -538,18 +539,12 @@ def check_for_upload(xml_urls, uploaded_documents, event_id, results):
         print "more docs in download for event_id %s" % (event_id)
 
     uploads = {}
-    # downloading documents that are not in the meeting package
+    # creating comparable file names
     for url in xml_urls:
         splinter = url.split('/')
         name = splinter[-1]
         uploads[name] = url
-        if name not in uploaded_documents:
-            print url, "missing from download"
-            try:
-                file = utils.download(url)
-            except:
-                print "failed downloading additional file ", url
-                continue
+        # these should all be downloaded if possible
 
     # add these documents to json but I am not sure this is a problem
     for file_name in uploaded_documents:
@@ -566,25 +561,37 @@ def check_for_upload(xml_urls, uploaded_documents, event_id, results):
 
     return results
 
+# this is for files mentioned in the xml that do not appear in the meeting packet
 def save_file(url, event_id): 
-    try:
-        # open file 
-        r = requests.get(url, stream=True)
+    print "delequent file-"
+    r = requests.get(url, stream=True)
+    print r.status_code
+    print "requested"
+    if r.status_code == requests.codes.ok:
+        print "OK status code"
         content = r.raw
         # find or create directory
         output_dir = utils.data_dir() + "/committee/meetings/house/%s" % (event_id)
         if not os.path.exists(output_dir): os.makedirs(output_dir)
+        # get file name
         splinter = url.split('/')
         name = splinter[-1]
+        print name
         file_name = "%s/%s" % (output_dir, name)
         # try to save
-        with open(file_name, 'wb') as document_file:
-            document_file.write(content.read())
-        return True
-            
-    except:
+        try:
+            with open(file_name, 'wb') as document_file:
+                document_file.write(content.read())
+            "got it!"
+            return True
+        except:
+            print "no save for meeting: %s url: %s" % (event_id, url)
+            return False
+    else:
+        print "bad link"
         return False
-        print "no hope for meeting: %s url: %s" % (event_id, url)
+            
+
 
 
 
