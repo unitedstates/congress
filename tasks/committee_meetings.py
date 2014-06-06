@@ -141,7 +141,7 @@ def fetch_senate_committee_meetings(committees, options):
             "occurs_at": occurs_at.isoformat(),
             "room": room,
             "topic": topic,
-            "bills": bills,
+            "bill_ids": bills,
         })
 
     print "[senate] Found %i meetings." % len(meetings)
@@ -391,10 +391,13 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
     for n in dom.xpath("meeting-details/meeting-location/capitol-complex"):
         room = n.xpath("string(building)") + " " + n.xpath("string(room)")
 
-    bills = [
-        c.text.replace(".", "").replace(" ", "").lower() + "-" + str(congress)
-        for c in
-        dom.xpath("meeting-documents/meeting-document[@type='BR']/legis-num")]
+    bills = []
+    for bill_id in dom.xpath("meeting-documents/meeting-document[@type='BR']/legis-num"):
+        # validating bill ids
+
+        bill_id = house_bill_id_formatter(bill_id.text, congress)
+        if bill_id != None:
+            bills.append(bill_id)
 
     # Meeting documents include legislation, reports, etc.
     meeting_documents = []
@@ -406,9 +409,10 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         document["type"] = doc.xpath("string(filename-metadata/doc-type)")
         if document["type"] == '':
             document["type"] = None
-        document["bill_id"] = doc.xpath("string(filename-metadata/legis-num)")
-        if document["bill_id"] == '':
-            document["bill_id"] = None
+
+        bill_id = doc.xpath("string(filename-metadata/legis-num)")
+        document["bill_id"] = house_bill_id_formatter(bill_id, congress)
+
         document["version_code"] = doc.xpath("string(filename-metadata/legis-stage)")
         if document["version_code"] == '':
             document["version_code"] = None
@@ -472,7 +476,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             "occurs_at": occurs_at.isoformat(),
             "room": room,
             "topic": topic,
-            "bills": bills,
+            "bill_ids": bills,
             "house_meeting_type": dom.getroot().get("meeting-type"),
             "house_event_id": int(event_id),
             "url": url,
@@ -535,7 +539,37 @@ def save_file(url, event_id):
     else:
         return False
             
+def house_bill_id_formatter(bill_id, congress):
+    # make sure there is a number
+    if bill_id == None or bill_id == '':
+        return None
 
+    else:
+        bill_id = bill_id.strip()
+        digit = False
+        alpha = False
+        for char in bill_id:
+            if char.isdigit():
+                digit = True
+            if char.isalpha():
+                alpha = True
+        
+        if digit == False:
+            return None
+       
+        # look for 
+        if alpha == False:
+            bill_id = "hr" + bill_id
+            # add hr on the front
+        else:
+            bill_id = bill_id.replace(".", "").replace(" ", "").lower()
+        
+        bill_id = bill_id + "-" + str(congress)
+
+        return bill_id
+
+
+        
 
 
 

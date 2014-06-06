@@ -24,9 +24,9 @@ class HearingInfo(unittest.TestCase):
         dom = lxml.etree.parse(file_xml)
         test_output = committee_meetings.parse_house_committee_meeting(
             '102252', dom, [], committees, {"debug": False}, None, ["BILLS-113hr4435ih.pdf", "BILLS-113hr4435ih.xml"])
-
+        
 #          event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents
-        self.assertEqual(test_output['bills'], ['hr4435-113'])
+        self.assertEqual(test_output['bill_ids'], ['hr4435-113'])
         self.assertEqual(test_output['chamber'], 'house')
         self.assertEqual(test_output['committee'], 'HSRU')
         self.assertEqual(test_output['congress'], 113)
@@ -35,7 +35,7 @@ class HearingInfo(unittest.TestCase):
                          'description'], 'H.R. 4435 (as introduced)')
         self.assertEqual(
             test_output['meeting_documents'][0]['bill_id'],
-            'H.R. 4435')
+            'hr4435-113')
         self.assertEqual(
             test_output['meeting_documents'][0]['version_code'], 'ih')
         self.assertEqual(test_output['meeting_documents'][0]['type'], 'BR')
