@@ -420,10 +420,14 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         if document["version_code"] == '':
             document["version_code"] = None
         urls = []
-        for url in doc.xpath("files/file"):
-            url = url.xpath("string(@doc-url)")
+        for u in doc.xpath("files/file"):
+            url = u.xpath("string(@doc-url)")
             splinter = url.split('/')
             doc_name = splinter[-1]
+            document["publish_date"] = u.xpath("string(@publish-date)")
+            if document["publish_date"] == '':
+                document["publish_date"] = None
+
             if doc_name not in uploaded_documents:
                 file_found = save_file(url, event_id)
             else:
