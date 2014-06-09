@@ -409,6 +409,9 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         document["type"] = doc.xpath("string(filename-metadata/doc-type)")
         if document["type"] == '':
             document["type"] = None
+        document["bioguide_id"] = doc.xpath("string(filename-metadata/bioguideID)")
+        if document["bioguide_id"] == '':
+            document["bioguide_id"] = None
 
         bill_id = doc.xpath("string(filename-metadata/legis-num)")
         document["bill_id"] = house_bill_id_formatter(bill_id, congress)
