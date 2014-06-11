@@ -251,12 +251,12 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
         meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents)
         if meeting != None:
             meetings.append(meeting)
-    else:
-        print(event_id, "postponed")
+        else:
+            print(event_id, "postponed")
    
-    # except Exception as e:
-    #     logging.error("Error parsing " + eventurl, exc_info=e)
-    #     print(event_id, "error")
+    except Exception as e:
+        logging.error("Error parsing " + eventurl, exc_info=e)
+        print(event_id, "error")
 
 
 #look for witnesses and documents in the house meeting package    
