@@ -379,7 +379,6 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
 # Grab a House meeting out of the DOM for the XML feed.
 def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents):
     try:
-        congress = int(dom.getroot().get("congress-num"))
         congress = int(dom.xpath("//@congress-num")[0])
         occurs_at = dom.xpath("string(meeting-details/meeting-date/calendar-date)") + " " + dom.xpath("string(meeting-details/meeting-date/start-time)")
         occurs_at = datetime.datetime.strptime(occurs_at, "%Y-%m-%d %H:%M:%S")
