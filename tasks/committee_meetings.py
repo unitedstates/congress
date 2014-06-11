@@ -239,21 +239,7 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
 
 
     logging.info(eventurl)
-# We don't need to open the xml only link because it is in the Meeting package that we need anyway
-    # # import mechanize
-    # br = mechanize.Browser()
-    # # open committee event page
-    # br.open(eventurl)
-    # br.select_form(nr=0)
-
-    # # mechanize parser failed to find these fields
-    # br.form.new_control("hidden", "__EVENTTARGET", {})
-    # br.form.new_control("hidden", "__EVENTARGUMENT", {})
-    # br.form.set_all_readonly(False)
-
-    # # set field values
-    # br["__EVENTTARGET"] = "ctl00$MainContent$LinkButtonDownloadMtgXML"
-    # br["__EVENTARGUMENT"] = ""
+    # We don't need to open the xml only link because it is in the Meeting package that we need anyway
 
     package_info = extract_meeting_package(eventurl, event_id)
     witnesses = package_info["witnesses"]
@@ -261,10 +247,10 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
     dom = package_info["dom"]
 
     # Parse the XML.
-    # try:
-    meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents)
-    if meeting != None:
-        meetings.append(meeting)
+    try:
+        meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents)
+        if meeting != None:
+            meetings.append(meeting)
     else:
         print(event_id, "postponed")
    
@@ -392,13 +378,13 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
 
 # Grab a House meeting out of the DOM for the XML feed.
 def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents):
-    # try:
-        #congress = int(dom.getroot().get("congress-num"))
-    congress = int(dom.xpath("//@congress-num")[0])
-    occurs_at = dom.xpath("string(meeting-details/meeting-date/calendar-date)") + " " + dom.xpath("string(meeting-details/meeting-date/start-time)")
-    occurs_at = datetime.datetime.strptime(occurs_at, "%Y-%m-%d %H:%M:%S")
-    # except:
-    #     raise ValueError("Invalid meeting data (probably server error).")
+    try:
+        congress = int(dom.getroot().get("congress-num"))
+        congress = int(dom.xpath("//@congress-num")[0])
+        occurs_at = dom.xpath("string(meeting-details/meeting-date/calendar-date)") + " " + dom.xpath("string(meeting-details/meeting-date/start-time)")
+        occurs_at = datetime.datetime.strptime(occurs_at, "%Y-%m-%d %H:%M:%S")
+    except:
+        raise ValueError("Invalid meeting data (probably server error).")
 
     current_status = str(dom.xpath("string(current-status)"))
     if current_status not in ("S", "R"):
