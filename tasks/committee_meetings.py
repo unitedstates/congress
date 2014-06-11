@@ -237,41 +237,40 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
     # submit the form that gets the meeting XML. TODO Simplify this when
     # the House makes the XML available at an actual URL.
 
+
     logging.info(eventurl)
-    # I am moving this to the top
-    # import mechanize
-    br = mechanize.Browser()
-    # open committee event page
-    br.open(eventurl)
-    br.select_form(nr=0)
+# We don't need to open the xml only link because it is in the Meeting package that we need anyway
+    # # import mechanize
+    # br = mechanize.Browser()
+    # # open committee event page
+    # br.open(eventurl)
+    # br.select_form(nr=0)
 
-    # mechanize parser failed to find these fields
-    br.form.new_control("hidden", "__EVENTTARGET", {})
-    br.form.new_control("hidden", "__EVENTARGUMENT", {})
-    br.form.set_all_readonly(False)
+    # # mechanize parser failed to find these fields
+    # br.form.new_control("hidden", "__EVENTTARGET", {})
+    # br.form.new_control("hidden", "__EVENTARGUMENT", {})
+    # br.form.set_all_readonly(False)
 
-    # set field values
-    br["__EVENTTARGET"] = "ctl00$MainContent$LinkButtonDownloadMtgXML"
-    br["__EVENTARGUMENT"] = ""
-
-    # Submit form and get and load XML response
-    dom = lxml.etree.parse(br.submit())
+    # # set field values
+    # br["__EVENTTARGET"] = "ctl00$MainContent$LinkButtonDownloadMtgXML"
+    # br["__EVENTARGUMENT"] = ""
 
     package_info = extract_meeting_package(eventurl, event_id)
     witnesses = package_info["witnesses"]
     uploaded_documents = package_info["uploaded_documents"]
+    dom = package_info["dom"]
 
     # Parse the XML.
-    try:
-        meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents)
-        if meeting != None:
-            meetings.append(meeting)
-        else:
-            print(event_id, "postponed")
+    # try:
+    meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents)
+    if meeting != None:
+        meetings.append(meeting)
+    else:
+        print(event_id, "postponed")
    
-    except Exception as e:
-        logging.error("Error parsing " + eventurl, exc_info=e)
-        print(event_id, "error")
+    # except Exception as e:
+    #     logging.error("Error parsing " + eventurl, exc_info=e)
+    #     print(event_id, "error")
 
 
 #look for witnesses and documents in the house meeting package    
@@ -307,18 +306,23 @@ def extract_meeting_package(eventurl, event_id):
 
     # save documents in meeting package
     uploaded_documents = save_documents(package, event_id)
-
-    # find witness information 
+    witnesses = None
+    # find meeting and witness xml
     for name in package.namelist():
-        if "WList" in name:
-            bytes = package.read(name)
-            witness_tree = lxml.etree.fromstring(bytes)
-            witness_info = parse_witness_list(witness_tree, uploaded_documents, event_id)
-            witnesses = witness_info["hearing_witness_info"]
+        if ".xml" in name:
+            if "WList" in name:
+                bytes = package.read(name)
+                witness_tree = lxml.etree.fromstring(bytes)
+                witness_info = parse_witness_list(witness_tree, uploaded_documents, event_id)
+                witnesses = witness_info["hearing_witness_info"]
+            else:
+                bytes = package.read(name)
+                dom = lxml.etree.fromstring(bytes)
+                print name
+                print type(dom)
 
-            return {"witnesses": witnesses, "uploaded_documents": uploaded_documents}
     # it will return none if there is no witness list in the file
-    return {"witnesses": None, "uploaded_documents": uploaded_documents}
+    return {"witnesses": witnesses, "uploaded_documents": uploaded_documents, "dom": dom}
 
 # parse xml for urls to testimony and witness information
 def parse_witness_list(witness_tree, uploaded_documents, event_id):
@@ -352,7 +356,23 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
             document["description"] = doc.xpath("string(description)")
             if document["description"] == '':
                 document["description"] = None
-            document["type"] = doc.xpath("string(type)")
+            
+            doc_type = doc.xpath("string(type)")
+            if doc_type == '':
+                document["type"] = None
+                document["type_name"] = None
+            else:
+                document["type"] = doc_type
+                types = { "CV": "committee vote", "WS": "witness statement", 
+                        "WT": "witness truth statement", "WB": "witness bio",
+                        "CR": "committee report", "BR": "bill", "FA": "floor amendment",
+                        "CA": "committee amendment", "HT": "transcript", "WD": "witness document"}
+                        # "SD": "" I don't know this one, the SD category covers a lot
+                if types.has_key(doc_type):
+                  document["type_name"] = types[doc_type]
+                else:
+                  document["type_name"] = None
+            
             urls = []
             for files in doc.xpath("files/file"):
                 url = files.xpath("string(@doc-url)")
@@ -363,6 +383,7 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
                 else:
                     file_found = True
                 urls.append({"url":url, "file_found": file_found})
+            
             document["urls"] = urls
             record["documents"].append(document)
         hearing_witness_info.append(record)
@@ -371,13 +392,13 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
 
 # Grab a House meeting out of the DOM for the XML feed.
 def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents):
-    try:
-        congress = int(dom.getroot().get("congress-num"))
-
-        occurs_at = dom.xpath("string(meeting-details/meeting-date/calendar-date)") + " " + dom.xpath("string(meeting-details/meeting-date/start-time)")
-        occurs_at = datetime.datetime.strptime(occurs_at, "%Y-%m-%d %H:%M:%S")
-    except:
-        raise ValueError("Invalid meeting data (probably server error).")
+    # try:
+        #congress = int(dom.getroot().get("congress-num"))
+    congress = int(dom.xpath("//@congress-num")[0])
+    occurs_at = dom.xpath("string(meeting-details/meeting-date/calendar-date)") + " " + dom.xpath("string(meeting-details/meeting-date/start-time)")
+    occurs_at = datetime.datetime.strptime(occurs_at, "%Y-%m-%d %H:%M:%S")
+    # except:
+    #     raise ValueError("Invalid meeting data (probably server error).")
 
     current_status = str(dom.xpath("string(current-status)"))
     if current_status not in ("S", "R"):
@@ -399,6 +420,8 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         if bill_id != None:
             bills.append(bill_id)
 
+    meeting_type = dom.xpath("//@meeting-type")[0]
+
     # Meeting documents include legislation, reports, etc.
     meeting_documents = []
     for doc in dom.xpath("//meeting-document"):
@@ -406,12 +429,30 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         document["description"] = doc.xpath("string(description)")
         if document["description"] == '':
             document["description"] = None
-        document["type"] = doc.xpath("string(filename-metadata/doc-type)")
-        if document["type"] == '':
+        
+        doc_type = doc.xpath("string(filename-metadata/doc-type)")
+        if doc_type == '':
             document["type"] = None
+            document["type_name"] = None
+        else:
+            document["type"] = doc_type
+            types = { "CV": "committee vote", "WS": "witness statement", 
+                    "WT": "witness truth statement", "WB": "witness bio",
+                    "CR": "committee report", "BR": "bill", "FA": "floor amendment",
+                    "CA": "committee amendment", "HT": "transcript", "WD": "witness document"}
+                    # "SD": "" I don't know this one, the SD category covers a lot
+            if types.has_key(doc_type):
+              document["type_name"] = types[doc_type]
+            else:
+              document["type_name"] = None
+
         document["bioguide_id"] = doc.xpath("string(filename-metadata/bioguideID)")
         if document["bioguide_id"] == '':
             document["bioguide_id"] = None
+
+
+
+        # could add amendment number doc.xpath("string(filename-metadata/amdt-num)")
 
         bill_id = doc.xpath("string(filename-metadata/legis-num)")
         document["bill_id"] = house_bill_id_formatter(bill_id, congress)
@@ -484,7 +525,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             "room": room,
             "topic": topic,
             "bill_ids": bills,
-            "house_meeting_type": dom.getroot().get("meeting-type"),
+            "house_meeting_type": meeting_type,
             "house_event_id": int(event_id),
             "url": url,
         }
