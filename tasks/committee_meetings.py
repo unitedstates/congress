@@ -11,8 +11,14 @@ import mechanize
 import zipfile
 import StringIO
 import requests
+import subprocess
+
 from email.utils import parsedate
 from time import mktime
+
+# to get text files their is a new dependency; you need to have pdftotext. 
+# On Ubuntu, apt-get install poppler-utils. On OS X, install it via MacPorts 
+# with port install poppler, or via Homebrew with brew install poppler.
 
 # options:
 #
@@ -63,6 +69,7 @@ def run(options):
 # TODO: if these have unique IDs, maybe worth storing a file per-meeting.
 def output_for(chamber):
     return utils.data_dir() + "/committee_meetings_%s.json" % chamber
+
 
 # Parse the Senate committee meeting XML feed for meetings.
 # To aid users of the data, attempt to assign GUIDs to meetings.
@@ -203,6 +210,8 @@ def fetch_house_committee_meetings(committees, options):
 
             # this loads the xml from the page and sends the xml to parse_house_committee_meeting
             load_xml_from_page(eventurl, options, existing_meetings, committees, event_id, meetings)
+            # if bad zipfile
+            if load_xml_from_page == False: continue
 
     print "[house] Found %i meetings." % len(meetings)
     return meetings
@@ -227,21 +236,22 @@ def fetch_meeting_from_event_id(committees, options, load_id):
         event_id = str(current_id)
         event_url = "http://docs.house.gov/Committee/Calendar/ByEvent.aspx?EventID=" + event_id
         load_xml_from_page(event_url, options, existing_meetings, committees, event_id, meetings)
+        # bad zipfile
+        if load_xml_from_page == False: continue
         current_id += 1
     
     print "[house] Found %i meetings." % len(meetings)
     return meetings
+
 
 def load_xml_from_page(eventurl, options, existing_meetings, committees, event_id, meetings):  
     # Load the HTML page for the event and use the mechanize library to
     # submit the form that gets the meeting XML. TODO Simplify this when
     # the House makes the XML available at an actual URL.
 
-
     logging.info(eventurl)
-    # We don't need to open the xml only link because it is in the Meeting package that we need anyway
-
     package_info = extract_meeting_package(eventurl, event_id)
+    if package_info == False: return False
     witnesses = package_info["witnesses"]
     uploaded_documents = package_info["uploaded_documents"]
     dom = package_info["dom"]
@@ -283,12 +293,10 @@ def extract_meeting_package(eventurl, event_id):
     try:
         request_bytes = StringIO.StringIO(request.read())
         package = zipfile.ZipFile(request_bytes)
-
     except:
-        message = "Error uploading zipfile uploaded for  %s "%(eventurl)
+        message = "Problem downloading zipfile: %s" % (event_id)
         print message
-        return {"witnesses": None, "uploaded_documents":[]}
-        #raise ValueError(message)
+        return False
 
     # save documents in meeting package
     uploaded_documents = save_documents(package, event_id)
@@ -304,11 +312,10 @@ def extract_meeting_package(eventurl, event_id):
             else:
                 bytes = package.read(name)
                 dom = lxml.etree.fromstring(bytes)
-                print name
-                print type(dom)
 
     # it will return none if there is no witness list in the file
     return {"witnesses": witnesses, "uploaded_documents": uploaded_documents, "dom": dom}
+
 
 # parse xml for urls to testimony and witness information
 def parse_witness_list(witness_tree, uploaded_documents, event_id):
@@ -450,9 +457,6 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             url = u.xpath("string(@doc-url)")
             splinter = url.split('/')
             doc_name = splinter[-1]
-            document["publish_date"] = u.xpath("string(@publish-date)")
-            if document["publish_date"] == '':
-                document["publish_date"] = None
 
             if doc_name not in uploaded_documents:
                 file_found = save_file(url, event_id)
@@ -523,12 +527,14 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
 
         return results
 
+
 # saves documents to disk, called in extract_meeting_package
 def save_documents(package, event_id):
     uploaded_documents = []
 
     # find/create directory
-    output_dir = utils.data_dir() + "/committee/meetings/house/%s" % (event_id)
+    folder = str(int(event_id)/100)
+    output_dir = utils.data_dir() + "/committee/meetings/house/%s/%s" % (folder, event_id)
     if not os.path.exists(output_dir): os.makedirs(output_dir)
 
     # loop through package and save documents    
@@ -545,9 +551,40 @@ def save_documents(package, event_id):
             # save document
             with open(file_name, 'wb') as document_file:
                 document_file.write(bytes)
-
+            # try to make a text version
+            text_doc = text_from_pdf(file_name)
+            if text_doc != None:
+                uploaded_documents.append(text_doc)
             uploaded_documents.append(name)
+
     return uploaded_documents
+
+# Code from IG scraper project
+# uses pdftotext to get text out of PDFs,
+# then writes it and returns the /data-relative path.
+def text_from_pdf(pdf_path):
+  try:
+    subprocess.Popen(["pdftotext", "-v"], shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()
+  except:
+    logging.warn("Not processing PDF. Have you installed pdftotext?")
+    return None
+
+  real_pdf_path = pdf_path
+  real_text_path = pdf_path.replace(".pdf", ".txt")
+
+  try:
+    subprocess.check_call("pdftotext -layout \"%s\" \"%s\"" % (real_pdf_path, real_text_path), shell=True)
+  except subprocess.CalledProcessError as exc:
+    logging.warn("Error extracting text to %s:\n\n%s" % (real_text_path, format_exception(exc)))
+    return None
+
+  if os.path.exists(real_text_path):
+    file_name = os.path.basename(real_text_path)
+    return file_name
+  else:
+    logging.warn("Text not extracted to %s" % real_text_path)
+    return None     
+
 
 # this is for files mentioned in the xml that do not appear in the meeting packet
 def save_file(url, event_id): 
@@ -555,7 +592,8 @@ def save_file(url, event_id):
     if r.status_code == requests.codes.ok:
         content = r.raw
         # find or create directory
-        output_dir = utils.data_dir() + "/committee/meetings/house/%s" % (event_id)
+        folder = str(int(event_id)/100)
+        output_dir = utils.data_dir() + "/committee/meetings/house/%s/%s" % (folder, event_id)
         if not os.path.exists(output_dir): os.makedirs(output_dir)
         # get file name
         splinter = url.split('/')
@@ -572,6 +610,7 @@ def save_file(url, event_id):
     else:
         return False
             
+
 def house_bill_id_formatter(bill_id, congress):
     # make sure there is a number
     if bill_id == None or bill_id == '':
@@ -589,20 +628,15 @@ def house_bill_id_formatter(bill_id, congress):
         
         if digit == False:
             return None
-       
-        # look for 
+        # look for missing hr
         if alpha == False:
             bill_id = "hr" + bill_id
-            # add hr on the front
         else:
             bill_id = bill_id.replace(".", "").replace(" ", "").lower()
         
         bill_id = bill_id + "-" + str(congress)
-
         return bill_id
 
-
-        
 
 
 
