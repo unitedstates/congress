@@ -603,6 +603,7 @@ def save_file(url, event_id):
         try:
             with open(file_name, 'wb') as document_file:
                 document_file.write(content.read())
+            text_doc = text_from_pdf(file_name)
             return True
         except:
             print "Failed to save- %s" % (url)
