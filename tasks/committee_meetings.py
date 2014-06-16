@@ -346,6 +346,11 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
         # documents related to that witness
         for doc in witness.xpath("witness-documents/witness-document"):
             document = {}
+            published_on = doc.xpath("string(@publish-date)")
+            # second fraction causing problems, removing it
+            published_on = published_on.split('.')[0]
+            document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S")
+            
             document["description"] = doc.xpath("string(description)")
             if document["description"] == '':
                 document["description"] = None
@@ -407,7 +412,6 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
     bills = []
     for bill_id in dom.xpath("meeting-documents/meeting-document[@type='BR']/legis-num"):
         # validating bill ids
-
         bill_id = house_bill_id_formatter(bill_id.text, congress)
         if bill_id != None:
             bills.append(bill_id)
@@ -418,6 +422,10 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
     meeting_documents = []
     for doc in dom.xpath("//meeting-document"):
         document = {}
+        published_on = doc.xpath("string(@publish-date)")
+        published_on = published_on.split('.')[0]
+        document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S")
+
         document["description"] = doc.xpath("string(description)")
         if document["description"] == '':
             document["description"] = None
@@ -442,9 +450,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         if document["bioguide_id"] == '':
             document["bioguide_id"] = None
 
-
-
-        # could add amendment number doc.xpath("string(filename-metadata/amdt-num)")
+        document["amendmendment_number"]= doc.xpath("string(filename-metadata/amdt-num)")
 
         bill_id = doc.xpath("string(filename-metadata/legis-num)")
         document["bill_id"] = house_bill_id_formatter(bill_id, congress)
@@ -452,12 +458,12 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         document["version_code"] = doc.xpath("string(filename-metadata/legis-stage)")
         if document["version_code"] == '':
             document["version_code"] = None
+        
         urls = []
         for u in doc.xpath("files/file"):
             url = u.xpath("string(@doc-url)")
             splinter = url.split('/')
             doc_name = splinter[-1]
-
             if doc_name not in uploaded_documents:
                 file_found = save_file(url, event_id)
             else:
@@ -588,9 +594,11 @@ def text_from_pdf(pdf_path):
 
 # this is for files mentioned in the xml that do not appear in the meeting packet
 def save_file(url, event_id): 
+    # not saving xml but I cold be convinced otherwise
+    if ".xml" in url: return False
+
     r = requests.get(url, stream=True)
-    if r.status_code == requests.codes.ok:
-        content = r.raw
+    if r.status_code == requests.codes.ok: 
         # find or create directory
         folder = str(int(event_id)/100)
         output_dir = utils.data_dir() + "/committee/meetings/house/%s/%s" % (folder, event_id)
@@ -600,14 +608,19 @@ def save_file(url, event_id):
         name = splinter[-1]
         file_name = "%s/%s" % (output_dir, name)
         # try to save
-        try:
-            with open(file_name, 'wb') as document_file:
-                document_file.write(content.read())
+
+        # try:
+
+        with open(file_name, 'wb') as document_file:
+            document_file.write(r.data)
+            print file_name, "check this one"
+        if ".pdf" in file_name:
             text_doc = text_from_pdf(file_name)
-            return True
-        except:
-            print "Failed to save- %s" % (url)
-            return False
+        return True
+
+        # except:
+        #     print "Failed to save- %s" % (url)
+        #     return False
     else:
         return False
             
@@ -616,7 +629,6 @@ def house_bill_id_formatter(bill_id, congress):
     # make sure there is a number
     if bill_id == None or bill_id == '':
         return None
-
     else:
         bill_id = bill_id.strip()
         digit = False
@@ -629,7 +641,7 @@ def house_bill_id_formatter(bill_id, congress):
         
         if digit == False:
             return None
-        # look for missing hr
+        # look for missing hr, though this risks mislabeling continuing and joint resolutions
         if alpha == False:
             bill_id = "hr" + bill_id
         else:
