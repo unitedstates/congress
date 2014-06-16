@@ -589,11 +589,12 @@ def text_from_pdf(pdf_path):
 
 
 # this is for files mentioned in the xml that do not appear in the meeting packet
-def save_file(url, event_id): 
+def save_file(url, event_id):
     # not saving xml but I cold be convinced otherwise
     if ".xml" in url: return False
 
     r = requests.get(url, stream=True)
+
     if r.status_code == requests.codes.ok: 
         # find or create directory
         folder = str(int(event_id)/100)
@@ -605,18 +606,16 @@ def save_file(url, event_id):
         file_name = "%s/%s" % (output_dir, name)
         # try to save
 
-        # try:
-
-        with open(file_name, 'wb') as document_file:
-            document_file.write(r.read())
-            print file_name, "check this one"
-        if ".pdf" in file_name:
-            text_doc = text_from_pdf(file_name)
-        return True
-
-        # except:
-        #     print "Failed to save- %s" % (url)
-        #     return False
+        try:
+            with open(file_name, 'wb') as document_file:
+                document_file.write(r.content)
+                print file_name, "check this one"
+            if ".pdf" in file_name:
+                text_doc = text_from_pdf(file_name)
+            return True
+        except:
+            print "Failed to save- %s" % (url)
+            return False
     else:
         return False
             
