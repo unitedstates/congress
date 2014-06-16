@@ -347,9 +347,7 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
         for doc in witness.xpath("witness-documents/witness-document"):
             document = {}
             published_on = doc.xpath("string(@publish-date)")
-            # second fraction causing problems, removing it
-            published_on = published_on.split('.')[0]
-            document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S")
+            document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S.%f")
             
             document["description"] = doc.xpath("string(description)")
             if document["description"] == '':
@@ -423,9 +421,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
     for doc in dom.xpath("//meeting-document"):
         document = {}
         published_on = doc.xpath("string(@publish-date)")
-        published_on = published_on.split('.')[0]
-        document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S")
-
+        document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S.%f")
         document["description"] = doc.xpath("string(description)")
         if document["description"] == '':
             document["description"] = None
@@ -612,7 +608,7 @@ def save_file(url, event_id):
         # try:
 
         with open(file_name, 'wb') as document_file:
-            document_file.write(r.data)
+            document_file.write(r.read())
             print file_name, "check this one"
         if ".pdf" in file_name:
             text_doc = text_from_pdf(file_name)
