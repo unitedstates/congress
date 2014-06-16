@@ -427,6 +427,7 @@ def normalize_vote_type(vote_type):
     # note that these allow .* after each pattern, so some things look like
     # no-ops but they are really truncating the type after the specified text.
     mapping = (
+        (r"^On the Resolution of Ratification.*", "On the Resolution of Ratification"), # order matters so must go before other resolutions
         (r"On (Agreeing to )?the (Joint |Concurrent )?Resolution", "On the $2Resolution"),
         (r"On (Agreeing to )?the Conference Report", "On the Conference Report"),
         (r"On (Agreeing to )?the (En Bloc )?Amendments?", "On the Amendment"),
@@ -454,7 +455,7 @@ def normalize_vote_type(vote_type):
 
 
 def get_vote_category(vote_question):
-    # Takes the "question" field of a House or Senate vote and returns a normalized
+    # Takes the type/question field of a House or Senate vote and returns a normalized
     # category for the vote type.
     #
     # Based on Eric's vote_type_for function in sunlightlabs/congress.
@@ -468,6 +469,7 @@ def get_vote_category(vote_question):
         (r"^On Presidential Veto", "veto-override"),
         (r"Objections of the President Not ?Withstanding", "veto-override"),  # order matters so must go before bill passage
         (r"^On Passage", "passage"),
+        (r"^On the Resolution of Ratification.*", "treaty"), # order matters so must go before other resolutions
         (r"^On (Agreeing to )?the (Joint |Concurrent )?Resolution", "passage"),
         (r"^On (Agreeing to )?the Conference Report", "passage"),
         (r"^On (Agreeing to )?the (En Bloc )?Amendments?", "amendment"),
@@ -476,7 +478,6 @@ def get_vote_category(vote_question):
         (r"cloture", "cloture"),
         (r"^On the Nomination", "nomination"),
         (r"^Guilty or Not Guilty", "conviction"),  # was "impeachment" in sunlightlabs/congress but that's not quite right
-        (r"^On the Resolution of Ratification", "treaty"),
         (r"^On (?:the )?Motion to Recommit", "recommit"),
         (r"^On the Motion \(Motion to Concur", "passage"),
 
