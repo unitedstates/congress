@@ -293,10 +293,14 @@ def parse_house_vote(dom, vote):
     vote["question"] = unicode(dom.xpath("string(vote-metadata/vote-question)"))
     vote["type"] = unicode(dom.xpath("string(vote-metadata/vote-question)"))
     vote["type"] = normalize_vote_type(vote["type"])
-    vote["category"] = get_vote_category(vote["question"])
+    if unicode(dom.xpath("string(vote-metadata/vote-desc)")).startswith("Impeaching "):
+        vote["category"] = "impeachment"
+    else:
+        vote["category"] = get_vote_category(vote["question"])
     vote["subject"] = unicode(dom.xpath("string(vote-metadata/vote-desc)"))
     if not vote["subject"]:
         del vote["subject"]
+        
 
     vote_types = {"YEA-AND-NAY": "1/2", "2/3 YEA-AND-NAY": "2/3", "3/5 YEA-AND-NAY": "3/5", "1/2": "1/2", "2/3": "2/3", "QUORUM": "QUORUM", "RECORDED VOTE": "1/2", "2/3 RECORDED VOTE": "2/3", "3/5 RECORDED VOTE": "3/5"}
     vote["requires"] = vote_types.get(str(dom.xpath("string(vote-metadata/vote-type)")), "unknown")
