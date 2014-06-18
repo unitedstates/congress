@@ -414,6 +414,11 @@ def parse_house_vote(dom, vote):
             v["id"] = "H000323"
             continue
 
+        # dead man recorded as Not Voting (he died the day before, so none of our roles match the vote date)
+        if vote["vote_id"] == "h306-106.1999" and display_name == "Brown" and v["state"] == "CA":
+            v["id"] = "B000918"
+            continue
+
         # look up ID
         v["id"] = utils.lookup_legislator(vote["congress"], "rep", display_name, v["state"], v["party"], vote["date"], "bioguide", exclude=seen_ids)
 
