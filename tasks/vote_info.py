@@ -124,7 +124,7 @@ def output_vote(vote, options, id_type=None):
             n.set("number", str(vote["amendment"]["number"]))
 
     # well-known keys for certain vote types: +/-/P/0
-    option_keys = {"Aye": "+", "Yea": "+", "Nay": "-", "No": "-", "Present": "P", "Not Voting": "0"}
+    option_keys = {"Aye": "+", "Yea": "+", "Nay": "-", "No": "-", "Present": "P", "Not Voting": "0", "Guilty": "+", "Not Guilty": "-" }
 
     # preferred order of output: ayes, nays, present, then not voting, and similarly for guilty/not-guilty
     # and handling other options like people's names for votes for the Speaker.
