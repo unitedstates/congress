@@ -256,7 +256,7 @@ def parse_senate_vote(dom, vote):
                 logging.info("[%s] Missing lis_member_id, falling back to name lookup for %s" % (vote["vote_id"], voter["last_name"]))
 
     # Ensure the options are noted, even if no one votes that way.
-    if unicode(dom.xpath("string(vote_question)")) == "Guilty or Not Guilty":
+    if unicode(dom.xpath("string(question)")) == "Guilty or Not Guilty":
         vote["votes"]['Guilty'] = []
         vote["votes"]['Not Guilty'] = []
     else:
