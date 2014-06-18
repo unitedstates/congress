@@ -209,12 +209,6 @@ def process_bill(bill_id, options,
 
     slip_law = slip_law_from(actions)
 
-    # Get the updated_at time.
-    if not options.get("preserve_update_time", False):
-        updated_at = datetime.datetime.fromtimestamp(time.time())
-    else:
-        updated_at = json.load(open(output_for_bill(bill_id, "json")))["updated_at"]
-
     return {
         'bill_id': bill_id,
         'bill_type': bill_type,
@@ -244,7 +238,7 @@ def process_bill(bill_id, options,
         'committees': committees,
         'amendments': amendments,
 
-        'updated_at': updated_at,
+        'updated_at': datetime.datetime.fromtimestamp(time.time()),
     }
 
 
@@ -254,7 +248,8 @@ def output_bill(bill, options):
     # output JSON - so easy!
     utils.write(
         json.dumps(bill, sort_keys=True, indent=2, default=utils.format_datetime),
-        output_for_bill(bill['bill_id'], "json")
+        output_for_bill(bill['bill_id'], "json"),
+        options=options,
     )
 
     # output XML
@@ -391,7 +386,8 @@ def output_bill(bill, options):
 
     utils.write(
         etree.tostring(root, pretty_print=True),
-        output_for_bill(bill['bill_id'], "xml")
+        output_for_bill(bill['bill_id'], "xml"),
+        options=options
     )
 
 

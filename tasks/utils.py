@@ -362,7 +362,29 @@ def download(url, destination=None, options={}):
     return body
 
 
-def write(content, destination):
+def write(content, destination, options={}):
+    if options.get("diff"):
+        # Instead of writing the file, do a comparison with what's on disk
+        # to test any changes. But be nice and replace any update date with
+        # what's in the previous file so we avoid spurrious changes. Use
+        # how updated_at appears in the JSON and in the XML.
+        if os.path.exists(destination):
+            with open(destination) as f:
+                existing_content = f.read()
+            for pattern in ('"updated_at": ".*?"', 'updated=".*?"'):
+                m1 = re.search(pattern, existing_content)
+                m2 = re.search(pattern, content)
+                if m1 and m2:
+                    content = content.replace(m2.group(0), m1.group(0))
+
+        fn = "/tmp/congress-changed-file"
+        with open(fn, 'w') as f:
+            f.write(content)
+        os.system("diff -u %s %s" % (destination, fn))
+        os.unlink(fn)
+        return
+
+    # Save the content to disk.
     mkdir_p(os.path.dirname(destination))
     f = open(destination, 'w')
     f.write(content)

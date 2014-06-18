@@ -74,6 +74,7 @@ def output_vote(vote, options, id_type=None):
     utils.write(
         json.dumps(vote, sort_keys=True, indent=2, default=utils.format_datetime),
         output_for_vote(vote["vote_id"], "json"),
+        options=options
     )
 
     # What kind of IDs are we passed for Members of Congress?
@@ -157,7 +158,8 @@ def output_vote(vote, options, id_type=None):
 
     utils.write(
         xmloutput,
-        output_for_vote(vote['vote_id'], "xml")
+        output_for_vote(vote['vote_id'], "xml"),
+        options=options
     )
 
 
