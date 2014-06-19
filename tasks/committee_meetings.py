@@ -174,7 +174,7 @@ def fetch_house_committee_meetings(committees, options):
     # Scrape the committee listing page for a list of committees with scrapable events.
     committee_html = utils.download("http://docs.house.gov/Committee/Committees.aspx", "committee_schedule/house_overview.html", options)
     for cmte in re.findall(r'<option value="(....)">', committee_html):
-
+        print cmte
         if cmte not in committees:
             logging.error("Invalid committee code: " + cmte)
             continue
@@ -187,17 +187,15 @@ def fetch_house_committee_meetings(committees, options):
 
         # It's not really valid?
         html = html.replace("&nbsp;", " ")  # who likes nbsp's? convert to spaces. but otherwise, entity is not recognized.
-
+        #print html
         # Parse and loop through the meetings listed in the committee feed.
         dom = lxml.etree.fromstring(html)
 
         # original start to loop
         for mtg in dom.xpath("channel/item"):
             eventurl = unicode(mtg.xpath("string(link)"))
-  
             event_id = re.search(r"EventID=(\d+)$", eventurl).group(1)
             pubDate = datetime.datetime.fromtimestamp(mktime(parsedate(mtg.xpath("string(pubDate)"))))
-
             # skip old records of meetings, some of which just give error pages
             if pubDate < (datetime.datetime.now() - datetime.timedelta(days=60)):
                 continue
@@ -347,8 +345,11 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
         for doc in witness.xpath("witness-documents/witness-document"):
             document = {}
             published_on = doc.xpath("string(@publish-date)")
-            document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S.%f")
-            
+            try:
+                document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S.%f")
+            except:
+                document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S")
+
             document["description"] = doc.xpath("string(description)")
             if document["description"] == '':
                 document["description"] = None
@@ -421,7 +422,10 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
     for doc in dom.xpath("//meeting-document"):
         document = {}
         published_on = doc.xpath("string(@publish-date)")
-        document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S.%f")
+        try:
+            document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S.%f")
+        except:
+            document["published_on"] = datetime.datetime.strptime(published_on, "%Y-%m-%dT%H:%M:%S")
         document["description"] = doc.xpath("string(description)")
         if document["description"] == '':
             document["description"] = None
@@ -577,7 +581,7 @@ def text_from_pdf(pdf_path):
   try:
     subprocess.check_call("pdftotext -layout \"%s\" \"%s\"" % (real_pdf_path, real_text_path), shell=True)
   except subprocess.CalledProcessError as exc:
-    logging.warn("Error extracting text to %s:\n\n%s" % (real_text_path, format_exception(exc)))
+    logging.warn("Error extracting text for %s\n" % (real_text_path))
     return None
 
   if os.path.exists(real_text_path):
