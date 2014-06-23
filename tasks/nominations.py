@@ -16,7 +16,9 @@ def run(options):
         to_fetch = [nomination_id]
     else:
         congress = options.get('congress', utils.current_congress())
+        print congress, options
         to_fetch = nomination_ids_for(congress, options)
+        print to_fetch
         if not to_fetch:
             if options.get("fast", False):
                 logging.warn("No nominations changed.")
@@ -39,11 +41,13 @@ def nomination_ids_for(congress, options={}):
     nomination_ids = []
 
     page = page_for(congress, options)
+    print page, "page"
     if not page:
         logging.error("Couldn't download page for %d congress" % congress)
         return None
 
     # extract matching links
+    print html.document_fromstring(page)
     doc = html.document_fromstring(page)
     raw_nomination_ids = doc.xpath('//div[@id="content"]/p[2]/a/text()')
     nomination_ids = []
@@ -94,6 +98,8 @@ def page_for(congress, options):
 
     # unused: never cache search listing
     cache = page_cache_for(congress)
+
+    print post_options
 
     page = utils.download("http://thomas.loc.gov/cgi-bin/thomas",
                           None,

@@ -82,6 +82,7 @@ def fetch_senate_committee_meetings(committees, options):
 
     options = dict(options)  # clone
     options["binary"] = True #
+    options["force"] = True
 
     meetings = []
 
@@ -167,6 +168,7 @@ def fetch_house_committee_meetings(committees, options):
 
     opts = dict(options)
     opts["binary"] = True
+    opts["force"] = True
 
     meetings = []
     seen_meetings = set()
@@ -190,9 +192,10 @@ def fetch_house_committee_meetings(committees, options):
 
         # Parse and loop through the meetings listed in the committee feed.
         dom = lxml.etree.fromstring(html)
-
+        
         # original start to loop
         for mtg in dom.xpath("channel/item"):
+
             eventurl = unicode(mtg.xpath("string(link)"))
   
             event_id = re.search(r"EventID=(\d+)$", eventurl).group(1)
@@ -226,6 +229,7 @@ def fetch_meeting_from_event_id(committees, options, load_id):
 
     opts = dict(options)
     opts["binary"] = True
+    opts["force"] = True
 
     meetings = []
     ids = load_id.split('-')
@@ -609,7 +613,6 @@ def save_file(url, event_id):
         try:
             with open(file_name, 'wb') as document_file:
                 document_file.write(r.content)
-                print file_name, "check this one"
             if ".pdf" in file_name:
                 text_doc = text_from_pdf(file_name)
             return True

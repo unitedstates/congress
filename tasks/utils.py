@@ -229,8 +229,9 @@ def download(url, destination=None, options={}):
     # if need a POST request with data
     postdata = options.get('postdata', False)
 
-    timeout = float(options.get('timeout', 30))  # The low level socket api requires a float
-    urlopen_kwargs = {'timeout': timeout}
+    #timeout = float(options.get('timeout', 30))  # The low level socket api requires a float
+    #urlopen_kwargs = {'timeout': timeout}
+    urlopen_kwargs = {}
 
     # caller cares about actually bytes or only success/fail
     needs_content = options.get('needs_content', True) or not is_binary or postdata
