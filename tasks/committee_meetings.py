@@ -176,7 +176,6 @@ def fetch_house_committee_meetings(committees, options):
     # Scrape the committee listing page for a list of committees with scrapable events.
     committee_html = utils.download("http://docs.house.gov/Committee/Committees.aspx", "committee_schedule/house_overview.html", options)
     for cmte in re.findall(r'<option value="(....)">', committee_html):
-        print cmte
         if cmte not in committees:
             logging.error("Invalid committee code: " + cmte)
             continue
@@ -364,10 +363,10 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
                 document["type_name"] = None
             else:
                 document["type"] = doc_type
-                types = { "CV": "committee vote", "WS": "witness statement", 
-                        "WT": "witness truth statement", "WB": "witness bio",
-                        "CR": "committee report", "BR": "bill", "FA": "floor amendment",
-                        "CA": "committee amendment", "HT": "transcript", "WD": "witness document"}
+                types = {"CV": "Committee vote", "WS": "Witness statement", 
+                    "WT": "Witness truth statement", "WB": "Witness biography",
+                    "CR": "Committee report", "BR": "Bill", "FA": "Floor amendment",
+                    "CA": "Committee amendment", "HT": "Transcript", "WD": "Witness document"}
                         # "SD": "" I don't know this one, the SD category covers a lot
                 if types.has_key(doc_type):
                   document["type_name"] = types[doc_type]
@@ -408,6 +407,16 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
 
     topic = dom.xpath("string(meeting-details/meeting-title)")
 
+    committee_names = []
+    for com in dom.xpath("meeting-details/committees"):
+        comte = com.xpath("string(committee-name)")
+        if comte != None:
+            committee_names.append(com.xpath("string(committee-name)"))
+    for scom in dom.xpath("meeting-details/subcommittees"):
+        scomte = scom.xpath("string(committee-name)")
+        if scomte != None:
+            committee_names.append(scom.xpath("string(committee-name)"))
+
     room = None
     for n in dom.xpath("meeting-details/meeting-location/capitol-complex"):
         room = n.xpath("string(building)") + " " + n.xpath("string(room)")
@@ -440,10 +449,10 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             document["type_name"] = None
         else:
             document["type"] = doc_type
-            types = { "CV": "committee vote", "WS": "witness statement", 
-                    "WT": "witness truth statement", "WB": "witness bio",
-                    "CR": "committee report", "BR": "bill", "FA": "floor amendment",
-                    "CA": "committee amendment", "HT": "transcript", "WD": "witness document"}
+            types = { "CV": "Committee vote", "WS": "Witness statement", 
+                    "WT": "Witness truth statement", "WB": "Witness biography",
+                    "CR": "Committee report", "BR": "Bill", "FA": "Floor amendment",
+                    "CA": "Committee amendment", "HT": "Transcript", "WD": "Witness document"}
                     # "SD": "" I don't know this one, the SD category covers a lot
             if types.has_key(doc_type):
               document["type_name"] = types[doc_type]
@@ -519,6 +528,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             "congress": congress,
             "guid": guid,
             "committee": committee_code,
+            "committee_names": committee_names,
             "subcommittee": subcommittee_code,
             "occurs_at": occurs_at.isoformat(),
             "room": room,
