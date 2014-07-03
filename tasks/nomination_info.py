@@ -201,7 +201,6 @@ def parse_nomination(nomination_id, body, options):
 		raise Exception("Choked, couldn't find received date.")
 
 	if not info.get("nominees", None):
-		print info
 		raise Exception("Choked, couldn't find nominee info.")
 
 	# try to normalize committee name to an ID
