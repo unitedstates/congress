@@ -23,9 +23,10 @@ class HearingInfo(unittest.TestCase):
         file_xml = open(hearing_xml, "r")
         dom = lxml.etree.parse(file_xml)
         test_output = committee_meetings.parse_house_committee_meeting(
-            '102252', dom, [], committees, {"debug": False}, None)
-
-        self.assertEqual(test_output['bills'], ['hr4435-113'])
+            '102252', dom, [], committees, {"debug": False}, None, ["BILLS-113hr4435ih.pdf", "BILLS-113hr4435ih.xml"])
+        
+#          event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents
+        self.assertEqual(test_output['bill_ids'], ['hr4435-113'])
         self.assertEqual(test_output['chamber'], 'house')
         self.assertEqual(test_output['committee'], 'HSRU')
         self.assertEqual(test_output['congress'], 113)
@@ -33,15 +34,15 @@ class HearingInfo(unittest.TestCase):
         self.assertEqual(test_output['meeting_documents'][0][
                          'description'], 'H.R. 4435 (as introduced)')
         self.assertEqual(
-            test_output['meeting_documents'][0]['legislation_number'],
-            'H.R. 4435')
+            test_output['meeting_documents'][0]['bill_id'],
+            'hr4435-113')
         self.assertEqual(
-            test_output['meeting_documents'][0]['legislation_stage'], 'ih')
+            test_output['meeting_documents'][0]['version_code'], 'ih')
         self.assertEqual(test_output['meeting_documents'][0]['type'], 'BR')
         self.assertEqual(
             test_output['meeting_documents'][0]['urls'], [
-                'http://beta.congress.gov/113/bills/hr4435/BILLS-113hr4435ih.pdf',
-                'http://beta.congress.gov/113/bills/hr4435/BILLS-113hr4435ih.xml'])
+                        {'url': 'http://beta.congress.gov/113/bills/hr4435/BILLS-113hr4435ih.pdf', 'file_found': True}, 
+                        {'url': 'http://beta.congress.gov/113/bills/hr4435/BILLS-113hr4435ih.xml', 'file_found': True},])
         self.assertEqual(test_output['occurs_at'], '2014-05-19T17:00:00')
         self.assertEqual(test_output['room'], 'CAPITOL H-313')
         self.assertEqual(test_output['subcommittee'], None)
@@ -54,18 +55,19 @@ class HearingInfo(unittest.TestCase):
         witness_xml = "test/fixtures/hearings/sample_witness.xml"
         file_xml = open(witness_xml, "r")
         witness_tree = lxml.etree.parse(file_xml)
+        uploaded_documents = ["HHRG-113-GO25-Bio-CochraneJ-20140522.pdf"]
+        event_id = "102266"
+        test_output = committee_meetings.parse_witness_list(witness_tree, uploaded_documents, event_id)["hearing_witness_info"]
 
-        test_output = committee_meetings.parse_witness_list(witness_tree)[0]
-
-        self.assertEqual(test_output['documents'][0]['type'], 'WB')
+        self.assertEqual(test_output[0]['documents'][0]['type'], 'WB')
         self.assertEqual(
-            test_output['documents'][0]['description'], 'Cochrane Bio')
-        self.assertEqual(test_output['documents'][0]['urls'], [
-                         'http://docs.house.gov/meetings/GO/GO25/20140522/102266/HHRG-113-GO25-Bio-CochraneJ-20140522.pdf'])
-        self.assertEqual(test_output['house_event_id'], '102266')
-        self.assertEqual(test_output['firstname'], 'James')
-        self.assertEqual(test_output['lastname'], 'Cochrane')
+            test_output[0]['documents'][0]['description'], 'Cochrane Bio')
+        self.assertEqual(test_output[0]['documents'][0]['urls'], [
+                         {'url': 'http://docs.house.gov/meetings/GO/GO25/20140522/102266/HHRG-113-GO25-Bio-CochraneJ-20140522.pdf', 'file_found': True}])
+        self.assertEqual(test_output[0]['house_event_id'], '102266')
+        self.assertEqual(test_output[0]['first_name'], 'James')
+        self.assertEqual(test_output[0]['last_name'], 'Cochrane')
         self.assertEqual(
-            test_output['position'],
+            test_output[0]['position'],
             'Chief Information Officer and Executive Vice President')
-        self.assertEqual(test_output['organization'], 'U.S. Postal Service')
+        self.assertEqual(test_output[0]['organization'], 'U.S. Postal Service')
