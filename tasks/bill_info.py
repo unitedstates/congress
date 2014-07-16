@@ -5,7 +5,7 @@ import json
 from lxml import etree
 import time
 import datetime
-from lxml.html import fromstring
+from lxml.html import fromstring, HtmlElement
 
 # can be run on its own, just require a bill_id
 
@@ -103,6 +103,7 @@ def parse_bill(bill_id, body, options):
 
     # parse everything out of the All Information page
     introduced_at = introduced_at_for(body)
+    by_request = parse_by_request(body)
     sponsor = sponsor_for(body)
     cosponsors = cosponsors_for(body)
     summary = summary_for(body)
@@ -113,7 +114,7 @@ def parse_bill(bill_id, body, options):
     committees = committees_for(body, bill_id)
     amendments = amendments_for(body, bill_id)
 
-    return process_bill(bill_id, options, introduced_at, sponsor, cosponsors,
+    return process_bill(bill_id, options, introduced_at, by_request, sponsor, cosponsors,
                         summary, titles, actions, related_bills, subjects, committees, amendments)
 
 
@@ -123,6 +124,7 @@ def parse_bill_split(bill_id, body, options):
 
     # get some info out of the All Info page, since we already have it
     introduced_at = introduced_at_for(body)
+    by_request = parse_by_request(body)
     sponsor = sponsor_for(body)
     subjects = subjects_for(body)
 
@@ -179,13 +181,13 @@ def parse_bill_split(bill_id, body, options):
     committees_body = utils.unescape(committees_body)
     committees = committees_for(committees_body, bill_id)
 
-    return process_bill(bill_id, options, introduced_at, sponsor, cosponsors,
+    return process_bill(bill_id, options, introduced_at, by_request, sponsor, cosponsors,
                         summary, titles, actions, related_bills, subjects, committees, amendments)
 
 
 # take the initial parsed content, extract more information, assemble output data
 def process_bill(bill_id, options,
-                 introduced_at, sponsor, cosponsors,
+                 introduced_at, by_request, sponsor, cosponsors,
                  summary, titles, actions, related_bills, subjects, committees, amendments):
 
     bill_type, number, congress = utils.split_bill_id(bill_id)
@@ -216,6 +218,7 @@ def process_bill(bill_id, options,
         'congress': congress,
 
         'introduced_at': introduced_at,
+        'by_request': by_request,
         'sponsor': sponsor,
         'cosponsors': cosponsors,
 
@@ -821,6 +824,28 @@ def introduced_at_for(body):
     # maybe silly to parse and re-serialize, but I'd like to make explicit the format we publish dates in
     parsed = datetime.datetime.strptime(introduced_at, "%Y-%m-%d")
     return datetime.datetime.strftime(parsed, "%Y-%m-%d")
+
+
+def parse_by_request(body):
+    """
+    Check whether the bill was introduced by the request.
+
+    Return boolean value.
+    """
+    doc = fromstring(body)
+
+    # Extract all text nodes from the range
+    # <b>Sponsor: </b> .... <br />
+    b_node = doc.xpath('//b[normalize-space(text()) = "Sponsor:"]')[0]
+    text_items = []
+    for node in b_node.xpath('.//following-sibling::node()'):
+        if isinstance(node, HtmlElement):
+            if node.tag == 'br':
+                break
+        if isinstance(node, unicode):
+            text_items.append(unicode(node))
+    text = u' '.join(text_items)
+    return u'by request' in text
 
 
 def cosponsors_for(body):
