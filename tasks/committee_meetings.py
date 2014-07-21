@@ -334,6 +334,9 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
         record["last_name"] = witness.xpath("string(lastname)")
         if record["last_name"] == '':
             record["last_name"] = None
+        record["honorific"] = witness.xpath("string(honorific)")
+        if record["honorific"] == '':
+            record["honorific"] = None
         record["position"] = witness.xpath("string(position)")
         if record["position"] == '':
             record["position"] = None
