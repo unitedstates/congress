@@ -225,8 +225,8 @@ def parse_nomination(nomination_id, body, options):
 					# choke, I think we handle all of them now
 					raise Exception("Unrecognized label: %s" % label)
 
-	# These are NOT catastrophic errors and may result from the record
-	# simply not containing this information.
+	# These are catastrophic errors and would result in the record
+	# not containing essential information
 	if not info.get("received_on", None):
 		raise Exception("Choked, couldn't find received date.")
 	if not info.get("nominees", None):
