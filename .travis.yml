@@ -17,7 +17,7 @@ after_success:
 notifications:
   email:
     recipients:
-      - eric@sunlightfoundation.com
+      - eric@konklone.com
       - tauberer@govtrack.us
       - dwillis@gmail.com
     on_success: change
