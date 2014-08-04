@@ -11,6 +11,8 @@ import importlib
 import socket
 socket.setdefaulttimeout(10)
 
+CONGRESS_ROOT = os.path.dirname(os.path.abspath(__file__))
+
 # name of the task comes first
 task_name = sys.argv[1]
 
@@ -48,8 +50,7 @@ else:
     logging.basicConfig(format='%(message)s', level=log_level.upper())
 
 
-# depends on tasks/[task_name].py being present relative to this directory
-sys.path.append("tasks")
+sys.path.append(os.path.join(CONGRESS_ROOT, "tasks"))
 import utils
 
 try:
