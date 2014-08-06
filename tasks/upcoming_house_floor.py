@@ -104,11 +104,19 @@ def fetch_floor_week(for_the_week, options):
             draft_bill_id = draft_bill_id_for(bill_number, date, congress)
             bill['item_type'] = 'draft_bill'
             bill['draft_bill_id'] = draft_bill_id
-
+        elif "Concur in the Senate Amendment to" in bill_number:
+            bill['item_type'] = 'senate_amendment'
+            bill_id = bill_id.replace('Concur in the Senate Amendment to', '')
+        elif "Senate Amendment to " in bill_number:
+            bill['item_type'] = 'senate_amendment'
+            bill_id = bill_id.replace("Senate Amendment to ", '')
+        elif "Conference report to accompany" in bill_number:
+            bill['item_type'] = 'conference_report'
+            bill_id = bill_id.replace("Conference report to accompany ", '')
         else:
             bill_id = bill_id_for(bill_number, congress)
             bill['item_type'] = 'bill'
-            bill['bill_id'] = bill_id
+        bill['bill_id'] = bill_id
 
         bill['files'] = []
         for file in node.xpath('files/file'):
@@ -146,7 +154,7 @@ def fetch_floor_week(for_the_week, options):
 
 
 def get_monday_of_week(day_to_get_bills):
-    formatted_day = datetime.datetime.strptime(day_to_get_bills, '%Y%m%d').date()
+    formatted_day = datetime.strptime(day_to_get_bills, '%Y%m%d').date()
     return (formatted_day + relativedelta(weekday=MO(-1))).strftime('%Y%m%d')
 
 # actually go fetch docs.house.gov/floor/ and scrape the download link out of it
