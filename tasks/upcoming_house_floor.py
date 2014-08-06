@@ -106,17 +106,16 @@ def fetch_floor_week(for_the_week, options):
             bill['draft_bill_id'] = draft_bill_id
         elif "Concur in the Senate Amendment to" in bill_number:
             bill['item_type'] = 'senate_amendment'
-            bill_id = bill_id.replace('Concur in the Senate Amendment to', '')
+            bill['bill_id'] = bill_id.replace('Concur in the Senate Amendment to', '')
         elif "Senate Amendment to " in bill_number:
             bill['item_type'] = 'senate_amendment'
-            bill_id = bill_id.replace("Senate Amendment to ", '')
+            bill['bill_id'] = bill_id.replace("Senate Amendment to ", '')
         elif "Conference report to accompany" in bill_number:
             bill['item_type'] = 'conference_report'
-            bill_id = bill_id.replace("Conference report to accompany ", '')
+            bill['bill_id'] = bill_id.replace("Conference report to accompany ", '')    
         else:
-            bill_id = bill_id_for(bill_number, congress)
+            bill['bill_id'] = bill_id_for(bill_number, congress)
             bill['item_type'] = 'bill'
-        bill['bill_id'] = bill_id
 
         bill['files'] = []
         for file in node.xpath('files/file'):
