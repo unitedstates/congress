@@ -67,6 +67,7 @@ def bill_ids_for(congress, options, bill_states={}):
         # loop through pages and collect the links on each page until
         # we hit a page with < 100 results, or no results
         offset = 0
+        count = 0
         while True:
             # download page, find the matching links
             page = utils.download(
@@ -79,15 +80,19 @@ def bill_ids_for(congress, options, bill_states={}):
                 return None
 
             # extract matching links
+            # (There can be links to related bills inside the search result for a bill, so
+            # only grab the first <a> within the <p> for the search result. Otherwise --fast
+            # will get very confused.)
             doc = html.document_fromstring(page)
             links = doc.xpath(
-                "//a[re:match(text(), '%s')]" % link_pattern,
+                "//a[1][re:match(text(), '%s')]" % link_pattern,
                 namespaces={"re": "http://exslt.org/regular-expressions"})
 
             # extract the bill ID from each link
             for link in links:
                 code = link.text.lower().replace(".", "").replace(" ", "")
                 bill_id = "%s-%s" % (code, congress)
+                count += 1
 
                 if options.get("fast", False):
                     fast_cache_path = utils.cache_dir() + "/" + bill_info.bill_cache_for(bill_id, "search_result.html")
@@ -116,6 +121,8 @@ def bill_ids_for(congress, options, bill_states={}):
             # sanity check, while True loops are dangerous
             if offset > 100000:
                 break
+
+        logging.info("%s: %d bills" % (bill_type, count))
 
     return utils.uniq(bill_ids)
 
