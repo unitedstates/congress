@@ -85,7 +85,7 @@ def bill_ids_for(congress, options, bill_states={}):
             # will get very confused.)
             doc = html.document_fromstring(page)
             links = doc.xpath(
-                "//a[1][re:match(text(), '%s')]" % link_pattern,
+                "//p/a[1][re:match(text(), '%s')]" % link_pattern,
                 namespaces={"re": "http://exslt.org/regular-expressions"})
 
             # extract the bill ID from each link
