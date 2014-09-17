@@ -187,4 +187,8 @@ def draft_bill_id_for(bill_number, published_at, congress):
 
 
 def date_for(timestamp):
-    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f")
+    if "." not in timestamp:
+        strptime_config = "%Y-%m-%dT%H:%M:%S"
+    else:
+        strptime_config = "%Y-%m-%dT%H:%M:%S.%f"
+    return datetime.strptime(timestamp, strptime_config)
