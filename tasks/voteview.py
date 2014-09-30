@@ -311,16 +311,41 @@ def parse_vote_list_file(vote_list_file):
 
         icpsr_id = vote_info["icpsr_id"]
 
+        # I think these are mistakes? Don't know if the 9- codes something special.
+        if icpsr_id == 91449: icpsr_id = 1449
+        if icpsr_id == 92484: icpsr_id = 2484
+        if icpsr_id == 94804: icpsr_id = 4804
+        if icpsr_id == 94891: icpsr_id = 4891
+        if icpsr_id == 96738: icpsr_id = 6738
+        if icpsr_id == 98500: icpsr_id = 8500
+        if icpsr_id == 99369: icpsr_id = 9369
+        if icpsr_id == 90618: icpsr_id = 10618
+        if icpsr_id == 90634: icpsr_id = 10634
+        if icpsr_id == 91043: icpsr_id = 11043
+        if icpsr_id == 93033: icpsr_id = 13033
+        if icpsr_id == 94428: icpsr_id = 14428
+        if icpsr_id == 94454: icpsr_id = 14454
+        if icpsr_id == 94602: icpsr_id = 14602
+        if icpsr_id == 94628: icpsr_id = 14628
+        if icpsr_id == 95122: icpsr_id = 15122
+        if icpsr_id == 95415: icpsr_id = 15415
+        if icpsr_id == 3769: icpsr_id = 15101 # guy was given two ids
+        if icpsr_id == 14240: icpsr_id = 94240 # per our id
+
         try:
             bioguide_id = utils.get_person_id("icpsr" if vote_info["state_name"] != "USA" else "icpsr_prez", icpsr_id, "bioguide")
         except KeyError as e:
-            logging.error("Problem with member %s ([%d] %s) of %s %s: %s" % (vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
+            # skip some guys named Poe (99999) and Chambers (10509) that don't seem to have existed and didn't cast actual votes,
+            # and Jack Swigert (15067) who died before being sworn in.
+            # and presidents may not have bioguide IDs
+            if icpsr_id not in (99999, 10509, 15067) and vote_info["state_name"] != "USA":
+                logging.error("Problem with member %s ([%d] %s) of %s %s: %s" % (vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
                                                                              vote_info["state_name"], vote_info["district"], e.message))
+                #logging.error(vote_info)
             bioguide_id = None
         else:
             logging.debug("Parsed member %s ([%d] %s) of %s %s..." % (vote_info["member_name"], vote_info["icpsr_party"], vote_info["party"],
                                                                       vote_info["state_name"], vote_info["district"]))
-
         vote_info["bioguide_id"] = bioguide_id
 
         # This is used to record the President's position, or something.
@@ -378,6 +403,13 @@ def build_votes(vote_list):
             # Separate the president's position from Member votes.
             if voter["is_president"]:
                 presidents_position[i] = {"option": choice[0], "voteview_votecode_extra": choice[1]}
+                continue
+
+            # Drop anyone we didn't have a bioguide id for. We issued warnings
+            # when we did the lookup if we couldn't find the id. Any remaining
+            # cases are individuals who didn't actually take office and didn't
+            # actually vote.
+            if voter["bioguide_id"] is None:
                 continue
 
             # Make a record for this vote, grouped by vote option (Aye, etc).
@@ -468,6 +500,10 @@ def get_votes(chamber, congress, options, session_dates):
         if session is None:
             # This vote did not occur durring a session of Congress. Some sort of data error.
             logging.error("Vote on %s is not within a session of Congress." % rollcall["date"])
+            continue
+
+        # Only process votes from the requested session.
+        if options.get("session") and session != options["session"]:
             continue
 
         # Form the vote dict.

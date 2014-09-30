@@ -90,7 +90,10 @@ def output_vote(vote, options, id_type=None):
     root.set("session", str(vote["congress"]))
     root.set("year", str(vote["date"].year))
     root.set("roll", str(vote["number"]))
-    root.set("source", "house.gov" if vote["chamber"] == "h" else "senate.gov")
+    if "voteview" in vote["source_url"]:
+        root.set("source", "keithpoole")
+    else:
+        root.set("source", "house.gov" if vote["chamber"] == "h" else "senate.gov")
 
     root.set("datetime", utils.format_datetime(vote['date']))
     root.set("updated", utils.format_datetime(vote['updated_at']))
