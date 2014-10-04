@@ -357,7 +357,7 @@ def parse_vote_list_file(vote_list_file):
     return vote_list_info
 
 
-def parse_rollcall_dtl_list_file(rollcall_dtl_list_file):
+def parse_rollcall_dtl_list_file(rollcall_dtl_list_file, congress):
     rollcall_dtl_list_info = {}
 
     for rollcall_dtl_list_line in rollcall_dtl_list_file.split("\r\n"):
@@ -370,12 +370,29 @@ def parse_rollcall_dtl_list_file(rollcall_dtl_list_file):
             rollcall_info = {}
 
             rollcall_dtl_list_first_line_parts = parse_rollcall_dtl_list_first_line(rollcall_dtl_list_line_info["text"])
-
             rollcall_info["record_id"] = rollcall_dtl_list_first_line_parts[0].strip()
             rollcall_info["journal_id"] = rollcall_dtl_list_first_line_parts[1].strip()
-            rollcall_info["bill"] = rollcall_dtl_list_first_line_parts[2].strip()
+
             rollcall_info["date_unparsed"] = rollcall_dtl_list_first_line_parts[3].strip()
             rollcall_info["date"] = parse_rollcall_dtl_date(rollcall_info["date_unparsed"])
+
+            rollcall_info["bill_unparsed"] = rollcall_dtl_list_first_line_parts[2].strip()
+            m = re.match(r"([A-Z]+)([0-9]+)$", rollcall_info["bill_unparsed"])
+            if m:
+                bill_type_map = {
+                   'HR': 'hr', 'H': 'hr',
+                   'S': 's',
+                   'HJR': 'hjres', 'HJ': 'hjres', 'HJRE': 'hjres', 'HJRES': 'hjres',
+                   'SJR': 'sjres', 'SJ': 'sjres', 'SJRE': 'sjres', 'SJRES': 'sjres',
+                   'HCR': 'hconres', 'HCRE': 'hconres', 'HCRES': 'hconres', 'HCONR': 'hconres', 'HCON': 'hconres',
+                   'SCR': 'sconres', 'SCRE': 'sconres', 'SCRES': 'sconres', 'SCONRES': 'sconres', 'SCONR': 'sconres', 'SCON': 'sconres',
+                   'HRE': 'hres', 'HRES': 'hres',
+                   'SRE': 'sres', 'SR': 'sres', 'SRES': 'sres' }
+                if not m.group(1) in bill_type_map:
+                    logging.error('Could not parse bill: %s' % rollcall_info["bill_unparsed"])
+                else:
+                    rollcall_info["bill"] = { 'congress': congress, 'type': bill_type_map[m.group(1)], 'number': int(m.group(2)) }
+
         elif rollcall_dtl_list_line_info["line"] == 2:
             pass
         elif rollcall_dtl_list_line_info["line"] == 3:
@@ -457,7 +474,7 @@ def get_votes(chamber, congress, options, session_dates):
     if not rollcall_list_file:
         logging.error("Couldn't download rollcall list file.")
         return None
-    rollcall_list = parse_rollcall_dtl_list_file(rollcall_list_file)
+    rollcall_list = parse_rollcall_dtl_list_file(rollcall_list_file, congress)
 
     # The dates listed in the DTL file were originally OCRd and have tons
     # of errors. Many strings could not be parsed. There are occasional
@@ -522,6 +539,7 @@ def get_votes(chamber, congress, options, session_dates):
             "date_unparsed": rollcall["date_unparsed"],
             "votes": vote_results,
             "presidents_position": presidents_position.get(rollcall_number),
+            "bill": rollcall.get('bill'),
 
             "category": "unknown",
             "requires": "unknown",

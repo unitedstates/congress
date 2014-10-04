@@ -111,7 +111,7 @@ def output_vote(vote, options, id_type=None):
     utils.make_node(root, "required", vote["requires"])
     utils.make_node(root, "result", vote["result"])
 
-    if "bill" in vote:
+    if vote.get("bill"):
         govtrack_type_codes = {'hr': 'h', 's': 's', 'hres': 'hr', 'sres': 'sr', 'hjres': 'hj', 'sjres': 'sj', 'hconres': 'hc', 'sconres': 'sc'}
         utils.make_node(root, "bill", None, session=str(vote["bill"]["congress"]), type=govtrack_type_codes[vote["bill"]["type"]], number=str(vote["bill"]["number"]))
 
