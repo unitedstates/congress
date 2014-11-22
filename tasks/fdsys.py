@@ -332,10 +332,15 @@ def mirror_package(year, collection, package_name, lastmod, granule_name, file_t
     if not path:
         return  # should skip
 
-    # Do we need to update this record?
+    # Delete legacy cache file.
     lastmod_cache_file = path + "/lastmod.txt"
-    cache_lastmod = utils.read(lastmod_cache_file)
-    force = ((lastmod != cache_lastmod) or options.get("force", False)) and not options.get("cached", False)
+    if os.path.exists(lastmod_cache_file): os.unlink(lastmod_cache_file)
+
+    # Get the lastmod times of the files previously saved for this package.
+    stored_lastmod_by_type = { }
+    lastmod_cache_file = path + "/lastmod.json"
+    if os.path.exists(lastmod_cache_file):
+        stored_lastmod_by_type = json.load(open(lastmod_cache_file))
 
     # Try downloading files for each file type.
     targets = get_package_files(package_name, granule_name, path)
@@ -351,25 +356,44 @@ def mirror_package(year, collection, package_name, lastmod, granule_name, file_t
 
         f_url, f_path = targets[file_type]
 
-        if (not force) and os.path.exists(f_path):
-            continue  # we already have the current file
+        if os.path.exists(f_path):
+            # We already have the current file. Should we skip?
+            # Skip if --cache is used.
+            if options.get("cached", False):
+                continue
+
+            # Skip if the lastmod in the (remote) sitemap matches the lastmod
+            # stored for this file on disk, and --force is not used.
+            if lastmod == stored_lastmod_by_type.get(file_type) and not options.get("force", False):
+                continue
+
+        # Download.
         logging.warn("Downloading: " + f_path)
         data = utils.download(f_url, f_path, utils.merge(options, {
             'binary': True,
-            'force': force,
+            'force': True, # decision to cache was made above
             'to_cache': False,
             'needs_content': file_type == "text" and f_path.endswith(".html"),
         }))
-        updated_file_types.add(file_type)
 
+        # Download failed?
         if not data:
             if file_type in ("pdf", "zip"):
                 # expected to be present for all packages
-                raise Exception("Failed to download %s" % package_name)
+                raise Exception("Failed to download %s %s" % (package_name, file_type))
+            elif collection == "BILLS" and file_type in ("text", "mods"):
+                # expected to be present for bills
+                raise Exception("Failed to download %s %s" % (package_name, file_type))
             else:
                 # not all packages have all file types, but assume this is OK
                 logging.error("file not found: " + f_url)
                 continue
+
+        # Update the lastmod of the downloaded file.
+        stored_lastmod_by_type[file_type] = lastmod
+
+        # Note that we got the file.
+        updated_file_types.add(file_type)
 
         if file_type == "text" and f_path.endswith(".html"):
             # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
@@ -414,8 +438,8 @@ def mirror_package(year, collection, package_name, lastmod, granule_name, file_t
 
     # Write the current last modified date to disk so we know the next time whether
     # we need to fetch the files for this sitemap item.
-    if lastmod and not options.get("cached", False):
-        utils.write(lastmod, lastmod_cache_file)
+    if not options.get("cached", False):
+        utils.write(json.dumps(stored_lastmod_by_type), lastmod_cache_file)
 
 
 def get_bill_id_for_package(package_name, with_version=True, restrict_to_congress=None):
