@@ -377,6 +377,14 @@ def write(content, destination, options={}):
                 if m1 and m2:
                     content = content.replace(m2.group(0), m1.group(0))
 
+            # Avoid writing to disk and spawning `diff` by checking if
+            # the files match in memory.
+            if content == existing_content:
+                return
+
+        # Shell `diff` and let it display output directly to the console.
+        # Write `content` to disk first so diff can see it. Maybe more
+        # efficient to pipe?
         fn = "/tmp/congress-changed-file"
         with open(fn, 'w') as f:
             f.write(content)
