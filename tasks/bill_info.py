@@ -1487,7 +1487,14 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             cmte_names.append(name)
     cmte_reg = r"(House|Senate)?\s*(?:Committee)?\s*(?:on)?\s*(?:the)?\s*({0})".format("|".join(cmte_names))
 
-    m = re.search(cmte_reg, line, re.I)
+    # "Rules" occurs often in "suspend the rules" not referring to a committee, so
+    # wipe that out so that it doesn't get picked up as House Rules and subsequently
+    # generate an error for not, in lowercase?, actually matching a committee name.
+    # Likewise for "budgetary" triggering the budget committees.
+    line_for_cmte_reg = line.replace("suspend the rules", "XXX").replace("suspension of the rules", "XXX").replace("closed rule", "XXX")\
+        .replace("budgetary", "XXX")
+
+    m = re.search(cmte_reg, line_for_cmte_reg, re.I)
     if m:
         committees = []
         chamber = m.groups()[0]  # optional match
