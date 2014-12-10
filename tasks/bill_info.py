@@ -1176,20 +1176,14 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
 
     m = re.search("("
         + "|".join([
-            "House Agreed to Senate Amendments.*?",
-            "On agreeing to the conference report",
-            "On agreeing to the resolution",
-            "On motion that the House agree to the Senate amendments?",
-            "On motion that the House agree with an amendment to the Senate amendments?",
-            "On motion that the House suspend the rules and agree to the Senate amendments?",
-            "On motion that the House suspend the rules and concur in the Senate amendments?",
-            "On motion to suspend the rules and agree to the conference report",
-            "On motion to suspend the rules and agree to the resolution",
-            "On motion to suspend the rules and pass the bill",
-            "On motion to suspend the rules and pass the resolution",
             "On passage",
             "Passed House",
             "Two-thirds of the Members present having voted in the affirmative the bill is passed,?",
+            "On motion to suspend the rules and pass the (?:bill|resolution)",
+            "On agreeing to the (?:resolution|conference report)",
+            "On motion to suspend the rules and agree to the (?:resolution|conference report)",
+            "House Agreed to Senate Amendments.*?",
+            "On motion that the House (?:suspend the rules and )?(?:agree(?: with an amendment)? to|concur in) the Senate amendments?",
         ])
         + ")"
         + "(, the objections of the President to the contrary notwithstanding.?)?"
@@ -1276,23 +1270,17 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
     # A Senate Vote
     m = re.search("("
         + "|".join([
+        "Passed Senate",
+        "Failed of passage in Senate",
+        "Disagreed to in Senate",
+        "Resolution agreed to in Senate",
+        "Senate agreed to (?:conference report|House amendment)",
+        "Senate concurred in the House amendment(?:  to the Senate amendment)?",
         r"Cloture \S*\s?on the motion to proceed .*?not invoked in Senate",
         r"Cloture(?: motion)? on the motion to proceed to the (?:bill|measure) invoked in Senate",
         "Cloture invoked in Senate",
-        "Cloture on the bill invoked in Senate",
-        "Cloture on the bill not invoked in Senate",
-        "Cloture on the motion to proceed to the bill not invoked in Senate",
-        "Disagreed to in Senate",
-        "Failed of passage in Senate",
-        "Introduced in the Senate, read twice, considered, read the third time, and passed",
-        "Passed Senate",
-        "Received in the Senate, considered, and agreed to",
-        "Received in the Senate, read twice, considered, read the third time, and passed",
-        "Resolution agreed to in Senate",
-        "Senate agreed to conference report",
-        "Senate agreed to House amendment",
-        "Senate concurred in the House amendment(?:  to the Senate amendment)?",
-        "Submitted in the Senate, considered, and agreed to",
+        "Cloture on (?:the motion to proceed to )?the bill (?:not )?invoked in Senate",
+        "(?:Introduced|Received|Submitted) in the Senate, (?:read twice, |considered, |read the third time, )+and (?:passed|agreed to)",
         ])
         + ")"
         + "(,?.*,?) "
