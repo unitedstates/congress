@@ -1183,7 +1183,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             "On agreeing to the (?:resolution|conference report)",
             "On motion to suspend the rules and agree to the (?:resolution|conference report)",
             "House Agreed to Senate Amendments.*?",
-            "On motion that the House (?:suspend the rules and )?(?:agree(?: with an amendment)? to|concur in) the Senate amendments?",
+            "On motion that the House (?:suspend the rules and )?(?:agree(?: with an amendment)? to|concur in) the Senate amendments?(?: to the House amendments?| to the Senate amendments?)*",
         ])
         + ")"
         + "(, the objections of the President to the contrary notwithstanding.?)?"
@@ -1268,14 +1268,15 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             status = new_status
 
     # A Senate Vote
+    # (There are some annoying weird cases of double spaces which are taken care of
+    # at the end.)
     m = re.search("("
         + "|".join([
         "Passed Senate",
         "Failed of passage in Senate",
         "Disagreed to in Senate",
         "Resolution agreed to in Senate",
-        "Senate agreed to (?:conference report|House amendment)",
-        "Senate concurred in the House amendment(?:  to the Senate amendment)?",
+        "Senate (?:agreed to|concurred in) (?:the )?(?:conference report|House amendment(?: to the Senate amendments?| to the House amendments?)*)",
         r"Cloture \S*\s?on the motion to proceed .*?not invoked in Senate",
         r"Cloture(?: motion)? on the motion to proceed to the (?:bill|measure) invoked in Senate",
         "Cloture invoked in Senate",
@@ -1285,7 +1286,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         + ")"
         + "(,?.*,?) "
         + "(without objection|by Unanimous Consent|by Voice Vote|(?:by )?Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)",
-        line, re.I)
+        line.replace("  ", " "), re.I)
     if m != None:
         motion, extra, how = m.group(1), m.group(2), m.group(3)
         roll = None
@@ -1306,7 +1307,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         elif re.search("cloture", motion, re.I):
             vote_type = "cloture"
             voteaction_type = "vote-aux"  # because it is not a vote on passage
-        elif re.search("Senate agreed to House amendment|Senate concurred in the House amendment", motion, re.I):
+        elif re.search("Senate agreed to (the )?House amendment|Senate concurred in (the )?House amendment", motion, re.I):
             vote_type = "pingpong"
         elif bill_type[0] == "s":
             vote_type = "vote"
