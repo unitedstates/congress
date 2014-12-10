@@ -1213,6 +1213,10 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         if roll and "On motion to suspend the rules" in motion:
             suspension = True
 
+        # alternate form of as amended, e.g. hr3979-113
+        if "that the House agree with an amendment" in motion:
+            as_amended = True
+
         action["type"] = "vote"
         action["vote_type"] = vote_type
         action["how"] = how
