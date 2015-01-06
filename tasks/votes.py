@@ -38,7 +38,7 @@ def run(options):
         elif chamber == "senate":
             to_fetch = vote_ids_for_senate(congress, session_year, options)
         else:
-            to_fetch = vote_ids_for_house(congress, session_year, options) + vote_ids_for_senate(congress, session_year, options)
+            to_fetch = (vote_ids_for_house(congress, session_year, options) or []) + (vote_ids_for_senate(congress, session_year, options) or [])
 
         if not to_fetch:
             if not options.get("fast", False):
