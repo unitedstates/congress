@@ -129,6 +129,16 @@ def vote_ids_for_senate(congress, session_year, options):
         return None
 
     dom = etree.fromstring(page)
+
+    # Sanity checks.
+    if int(congress) != int(dom.xpath("congress")[0].text):
+        logging.error("Senate vote XML returns the wrong Congress: %s" % dom.xpath("congress")[0].text)
+        return None
+    if int(session_year) != int(dom.xpath("congress_year")[0].text):
+        logging.error("Senate vote XML returns the wrong session: %s" % dom.xpath("congress_year")[0].text)
+        return None
+
+    # Get vote list.
     for vote in dom.xpath("//vote"):
         num = int(vote.xpath("vote_number")[0].text)
         vote_id = "s" + str(num) + "-" + str(congress) + "." + session_year
