@@ -1169,7 +1169,10 @@ def get_govtrack_person_id(source_id_type, source_id):
     except KeyError:
         see_also = ""
         if source_id_type == "thomas":
-            see_also = "http://beta.congress.gov/member/xxx/" + source_id
+            # Suggest a URL on congress.gov to quickly look up who the ID corresponds to.
+            # We store the IDs as strings with leading zeroes like on THOMAS, but in
+            # Congress.gov URLs it must not be zero-padded.
+            see_also = "http://www.congress.gov/member/xxx/%d" % int(source_id)
         logging.error("GovTrack ID not known for %s %s. (%s)" % (source_id_type, str(source_id), see_also))
         raise UnmatchedIdentifer(source_id_type, source_id, see_also)
 
