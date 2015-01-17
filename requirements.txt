@@ -5,7 +5,7 @@ ipython
 lxml>=2.2
 pytz
 cssselect
-scrapelib==0.9.1
+scrapelib>=0.10.0
 mechanize
 BeautifulSoup4
 mock
