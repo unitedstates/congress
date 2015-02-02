@@ -511,8 +511,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         # See if this meeting already exists. If so, take its GUID.
         # Assume meetings are the same if they are for the same event ID and committee/subcommittee.
         for mtg in existing_meetings:
-
-            if mtg["house_event_id"] == event_id and mtg.get("committee", None) == committee_code and mtg.get("subcommittee", None) == subcommittee_code:
+            if mtg["house_event_id"] == int(event_id) and mtg.get("committee", None) == committee_code and mtg.get("subcommittee", None) == subcommittee_code:
                 guid = mtg["guid"]
                 break
         else:
