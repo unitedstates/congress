@@ -19,7 +19,6 @@ def fetch_vote(vote_id, options):
     else:
         session_num = int(vote_session_year) - utils.get_congress_first_year(int(vote_congress)) + 1
         url = "http://www.senate.gov/legislative/LIS/roll_call_votes/vote%d%d/vote_%d_%d_%05d.xml" % (int(vote_congress), session_num, int(vote_congress), session_num, int(vote_number))
-
     # fetch vote XML page
     body = utils.download(
         url,
@@ -353,7 +352,7 @@ def parse_house_vote(dom, vote):
     if unicode(dom.xpath("string(vote-metadata/vote-question)")) == "Election of the Speaker":
         for n in dom.xpath('vote-metadata/vote-totals/totals-by-candidate/candidate'):
             vote["votes"][n.text] = []
-    elif unicode(dom.xpath("string(vote-metadata/vote-question)")) == "Call of the House":
+    elif unicode(dom.xpath("string(vote-metadata/vote-question)")) == ("Call of the House" or "Call by States"):
         for n in dom.xpath('vote-metadata/vote-totals/totals-by-candidate/candidate'):
             vote["votes"][n.text] = []
     elif "YEA-AND-NAY" in dom.xpath('string(vote-metadata/vote-type)'):
@@ -499,6 +498,7 @@ def get_vote_category(vote_question):
         (r"^(On Motion to )?(Concur in|Concurring|Concurring in|On Concurring|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "passage"),
         (r"^(On Motion to )?Suspend (the )?Rules and (Agree|Concur|Pass)", "passage-suspension"),
         (r"^Call of the House$", "quorum"),
+        (r"^Call by States$", "quorum"),
         (r"^Election of the Speaker$", "leadership"),
 
         # various procedural things
