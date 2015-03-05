@@ -19,6 +19,7 @@ def fetch_vote(vote_id, options):
     else:
         session_num = int(vote_session_year) - utils.get_congress_first_year(int(vote_congress)) + 1
         url = "http://www.senate.gov/legislative/LIS/roll_call_votes/vote%d%d/vote_%d_%d_%05d.xml" % (int(vote_congress), session_num, int(vote_congress), session_num, int(vote_number))
+
     # fetch vote XML page
     body = utils.download(
         url,
