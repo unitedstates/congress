@@ -353,7 +353,7 @@ def parse_house_vote(dom, vote):
     if unicode(dom.xpath("string(vote-metadata/vote-question)")) == "Election of the Speaker":
         for n in dom.xpath('vote-metadata/vote-totals/totals-by-candidate/candidate'):
             vote["votes"][n.text] = []
-    elif unicode(dom.xpath("string(vote-metadata/vote-question)")) == ("Call of the House" or "Call by States"):
+    elif unicode(dom.xpath("string(vote-metadata/vote-question)"))  == "Call of the House":
         for n in dom.xpath('vote-metadata/vote-totals/totals-by-candidate/candidate'):
             vote["votes"][n.text] = []
     elif "YEA-AND-NAY" in dom.xpath('string(vote-metadata/vote-type)'):
