@@ -216,6 +216,8 @@ def process_bill(bill_id, options,
         'bill_type': bill_type,
         'number': number,
         'congress': congress,
+        
+        'url': bill_url_for(bill_id),
 
         'introduced_at': introduced_at,
         'by_request': by_request,
