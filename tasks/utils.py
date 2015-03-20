@@ -38,8 +38,12 @@ eastern_time_zone = timezone('US/Eastern')
 
 # scraper should be instantiated at class-load time, so that it can rate limit appropriately
 scraper = scrapelib.Scraper(requests_per_minute=120, retry_attempts=3)
-scraper.user_agent = "unitedstates/congress (https://github.com/unitedstates/congress)"
-
+user_agent = "unitedstates/congress (https://github.com/unitedstates/congress)"
+if config:
+    scrape_config = config.get('scraping')
+    if scrape_config:
+        user_agent = scrape_config.get('user_agent', user_agent)
+scraper.user_agent = user_agent
 
 def format_datetime(obj):
     if isinstance(obj, datetime.datetime):
