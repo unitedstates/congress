@@ -452,6 +452,29 @@ def session_from_date(date, session_dates):
             return int(sess["congress"]), sess["session"]
     return None, None
 
+def parse_rollcall_description(rollcall):
+    # The description sometimes has additional metadata. It's a little tricky
+    # to parse because the description has hyphens at the ends of lines where
+    # words are split.
+    dparts = rollcall['description'].split(". ")
+    while len(dparts) > 1:
+        dpart = dparts[-1].strip(".- ") # remove trailing spaces, hyphens, and periods (which occur at the end of the final dpart but not inner ones because it is the split string)
+        if dpart == "NAY SUPPORTS PRESIDENT'S POSITION":
+            rollcall['presidents_position'] =  { "option": "Nay" } # also recorded in the big table, so we probably already have this
+        elif dpart == "YEA SUPPORTS PRESIDENT'S POSITION":
+            rollcall['presidents_position'] =  { "option": "Yea" }
+        elif dpart in ("REJECTED", "PASSED", "AGREED TO", "ADOPTED", "ACCEPTED", "CONFIRMED", "RATIFIED"):
+            rollcall['result'] = dpart.title()
+        elif dpart.startswith("(SEE CQ "):
+            pass # remove this
+        else:
+            # Unrecognized, so stop here.
+            break
+        # Remove this part from the description.
+        dparts.pop(-1)
+    rollcall['description'] = ". ".join(dparts)
+    if not rollcall['description'].endswith('.'): rollcall['description'] += "."
+    
 
 def get_votes(chamber, congress, options, session_dates):
     logging.warn("Getting votes for %d-%s..." % (congress, chamber))
@@ -523,6 +546,10 @@ def get_votes(chamber, congress, options, session_dates):
         if options.get("session") and session != options["session"]:
             continue
 
+        rollcall['result'] = "unknown"
+        if "description" in rollcall:
+            parse_rollcall_description(rollcall)
+
         # Form the vote dict.
         vote_output = {
             "vote_id": "%s%s-%d.%s" % (chamber, rollcall_number, congress, session),
@@ -538,12 +565,12 @@ def get_votes(chamber, congress, options, session_dates):
             "date": datetime.date(*[int(dd) for dd in rollcall["date"].split("-")]),  # turn YYYY-MM-DD into datetime.date() instance
             "date_unparsed": rollcall["date_unparsed"],
             "votes": vote_results,
-            "presidents_position": presidents_position.get(rollcall_number),
+            "presidents_position": presidents_position.get(rollcall_number) or rollcall.get('presidents_position'),
             "bill": rollcall.get('bill'),
 
             "category": "unknown",
             "requires": "unknown",
-            "result": "unknown",
+            "result": rollcall['result'],
         }
 
         vote_output_list.append(vote_output)
