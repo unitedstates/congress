@@ -152,6 +152,8 @@ def output_vote(vote, options, id_type=None):
             n.set("value", option)
             if v != "VP":
                 n.set("state", v["state"])
+                if v.get("voteview_votecode_extra") is not None:
+                    n.set("voteview_votecode_extra", v["voteview_votecode_extra"])
 
     xmloutput = etree.tostring(root, pretty_print=True, encoding="utf8")
 
