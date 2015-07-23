@@ -204,13 +204,26 @@ def parse_icpsr_vote_string(icpsr_vote_string):
     # Probably the House used Aye and No in some votes, but we don't
     # know which. "Yea" and "Nay" are always used by the Senate, and always
     # in the House on the passage of bills.
+    # A paired vote is when two members plan to be absent in a way that
+    # does not affect the vote outcome. You can see in the Congressional
+    # record who is paired with who. Sometimes the pairings are for a
+    # particular vote, other pairings are "until further notice." The paired
+    # members are recorded as not voting. A live pair is when one half of
+    # the pair is present and withdraws their vote and votes present because
+    # the other half of the pair isn't there. Live pairs aren't recorded
+    # in this data and are treated simply as pairs (and thus for us, not
+    # voting). Some paired members are recorded simply as present in this
+    # data --- not clear why that would be.
+    # See the House vote on the Civil Rights Act of 1957 (85th Congress,
+    # Jun 18, 1957, what this data calls #42, volume 103 page 9518 of
+    # the Congressional Record) for an example of paired votes.
     icpsr_vote_code_map = {
         0: None,  # not a member
         1: ("Yea", None),
-        2: ("Yea", "paired"),
+        2: ("Not Voting", "paired-yea"),
         3: ("Not Voting", "announced-yea"),
         4: ("Not Voting", "announced-nay"),
-        5: ("Nay", "paired"),
+        5: ("Not Voting", "paired-nay"),
         6: ("Nay", None),
         7: ("Present", "type-seven"),
         8: ("Present", "type-eight"),
