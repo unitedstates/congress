@@ -512,12 +512,22 @@ def get_votes(chamber, congress, options, session_dates):
         return None
     rollcall_list = parse_rollcall_dtl_list_file(rollcall_list_file, congress)
 
+    # Some dates are valid but incorrect. When the date doesn't even fall
+    # within the Congress that we know the vote falls in, clear out the
+    # date so we can try to guess a valid date in the next step.
+    for rollcall_number in rollcall_list:
+        rollcall = rollcall_list[rollcall_number]
+        if rollcall["date"]:
+            d_congress, d_session = session_from_date(rollcall["date"], session_dates)
+            if d_congress != congress:
+                rollcall["date"] = None
+
     # The dates listed in the DTL file were originally OCRd and have tons
     # of errors. Many strings could not be parsed. There are occasional
     # invalid dates (like Feb 29 on a non-leap year --- the 9s are probably
     # incorrectly OCR'd 5's). Try to resolve these quickly without resorting
     # to manual fact-checking...
-    for i in range(1, max(rollcall_list) - 1):
+    for i in range(min(rollcall_list)+1, max(rollcall_list) - 1):
         if rollcall_list[i]["date"]:
             continue  # was OK
         if not rollcall_list[i - 1]["date"]:
@@ -548,6 +558,7 @@ def get_votes(chamber, congress, options, session_dates):
 
         s_congress, session = session_from_date(rollcall["date"], session_dates)
         if s_congress != congress:
+            # should not occur - handled above
             logging.error("Vote on %s disagrees about which Congress it is in." % rollcall["date"])
             continue
         if session is None:
