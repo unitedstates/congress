@@ -98,24 +98,26 @@ def fetch_floor_week(for_the_week, options):
             'published_at': date_for(node.get('publish-date')),
             'added_at': date_for(node.get('add-date')),
         }
-
+        
         # treat drafts and numbered bills a bit differently
         if "_" in bill_number:
             draft_bill_id = draft_bill_id_for(bill_number, date, congress)
             bill['item_type'] = 'draft_bill'
             bill['draft_bill_id'] = draft_bill_id
-        elif "Concur in the Senate Amendment to" in bill_number:
-            bill['item_type'] = 'senate_amendment'
-            bill['bill_id'] = bill_number.replace('Concur in the Senate Amendment to ', '')
-        elif "Senate Amendment to " in bill_number:
-            bill['item_type'] = 'senate_amendment'
-            bill['bill_id'] = bill_number.replace("Senate Amendment to ", '')
-        elif "Conference report to accompany" in bill_number:
-            bill['item_type'] = 'conference_report'
-            bill['bill_id'] = bill_number.replace("Conference report to accompany ", '')    
         else:
-            bill['bill_id'] = bill_id_for(bill_number, congress)
-            bill['item_type'] = 'bill'
+            if "Concur in the Senate Amendment to" in bill_number:
+                bill['item_type'] = 'senate_amendment'
+                bill_number = bill_number.replace('Concur in the Senate Amendment to ', '')
+            elif "Senate Amendment to " in bill_number:
+                bill['item_type'] = 'senate_amendment'
+                bill_number = bill_number.replace("Senate Amendment to ", '')
+            elif "Conference report to accompany" in bill_number:
+                bill['item_type'] = 'conference_report'
+                bill_number = bill_number.replace("Conference report to accompany ", '')
+            else:
+                bill['item_type'] = 'bill'
+        
+            bill['bill_id'] = bill_id_for(bill_number.strip(), congress)
 
         bill['files'] = []
         for file in node.xpath('files/file'):
