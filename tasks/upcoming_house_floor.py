@@ -108,6 +108,9 @@ def fetch_floor_week(for_the_week, options):
             if "Concur in the Senate Amendment to" in bill_number:
                 bill['item_type'] = 'senate_amendment'
                 bill_number = bill_number.replace('Concur in the Senate Amendment to ', '')
+            elif "Concur in the Senate Amendment with an Amendment to" in bill_number:
+                bill['item_type'] = 'senate_amendment'
+                bill_number = bill_number.replace('Concur in the Senate Amendment with an Amendment to ', '')
             elif "Senate Amendment to " in bill_number:
                 bill['item_type'] = 'senate_amendment'
                 bill_number = bill_number.replace("Senate Amendment to ", '')
