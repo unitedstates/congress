@@ -8,6 +8,12 @@ import logging
 import utils
 from vote_info import output_vote
 
+# load some hard-coded codes
+special_vote_options = { }
+for rec in csv.reader(open("tasks/voteview_codedoptions.csv")):
+    if rec[0] == "vote date": continue # header
+    special_vote_options[rec[1]] = (rec[2], dict((int(r.split(':', 1)[0]), r.split(':', 1)[1]) for r in rec[3].split(';')))
+
 
 def run(options):
     congress = options.get("congress", None)
@@ -197,7 +203,7 @@ def get_party_from_icpsr_party_code(icpsr_party_code):
     return icpsr_party_code_map.get(icpsr_party_code)
 
 
-def parse_icpsr_vote_string(icpsr_vote_string):
+def parse_voteview_vote_code(vote_code):
     # Convert the integer codes into a tuple containing:
     #    standard vote options "Yea", "Nay", "Not Voting", "Present"
     #    an additional string so that we don't lose any information provided by voteview
@@ -217,8 +223,8 @@ def parse_icpsr_vote_string(icpsr_vote_string):
     # See the House vote on the Civil Rights Act of 1957 (85th Congress,
     # Jun 18, 1957, what this data calls #42, volume 103 page 9518 of
     # the Congressional Record) for an example of paired votes.
-    icpsr_vote_code_map = {
-        0: None,  # not a member
+    vote_code_map = {
+        0: (None, None),  # not a member at the time of the vote (but sometimes recorded as Not Voting)
         1: ("Yea", None),
         2: ("Not Voting", "paired-yea"),
         3: ("Not Voting", "announced-yea"),
@@ -229,7 +235,7 @@ def parse_icpsr_vote_string(icpsr_vote_string):
         8: ("Present", "type-eight"),
         9: ("Not Voting", None),
     }
-    return [icpsr_vote_code_map[int(icpsr_vote_code)] for icpsr_vote_code in icpsr_vote_string]
+    return vote_code_map[vote_code]
 
 
 def parse_vote_list_line(vote_list_line):
@@ -292,7 +298,7 @@ def extract_vote_info_from_parsed_vote_list_line(parsed_vote_list_line):
         "means": int(parsed_vote_list_line[7]) if parsed_vote_list_line[7].strip() else None,
         # parsed_vote_list_line[8] is partial member name
         "member_name": parsed_vote_list_line[8].strip(),
-        "votes": parse_icpsr_vote_string(parsed_vote_list_line[9]),
+        "votes": [int(icpsr_vote_code) for icpsr_vote_code in parsed_vote_list_line[9]],
     }
 
     return vote_info
@@ -309,6 +315,10 @@ def extract_rollcall_info_from_parsed_rollcall_dtl_list_line(parsed_rollcall_dtl
 
 
 def parse_vote_list_file(vote_list_file):
+    # Each line in the vote list file is for a Member of Congress, with
+    # identifying data in the left column followed by one character per
+    # vote (1=aye, etc.).
+
     logging.info("Parsing vote list file...")
 
     vote_list_info = []
@@ -419,44 +429,43 @@ def parse_rollcall_dtl_list_file(rollcall_dtl_list_file, congress):
 
 
 def build_votes(vote_list):
+    # Go from a list of individuals (and their votes) to a mapping
+    # from votes to how the individuals voted on it.
+
     logging.info("Building votes...")
 
     votes = {}
-    presidents_position = {}
+    presidents_positions = {}
 
     for voter in vote_list:
         for i, choice in enumerate(voter["votes"]):
-            # Not all people were present for all votes.
-            if choice == None:
-                continue
-
             # Separate the president's position from Member votes.
             if voter["is_president"]:
-                presidents_position[i] = {"option": choice[0], "voteview_votecode_extra": choice[1]}
+                presidents_positions[i] = choice
                 continue
 
             # Drop anyone we didn't have a bioguide id for. We issued warnings
             # when we did the lookup if we couldn't find the id. Any remaining
             # cases are individuals who didn't actually take office and didn't
-            # actually vote.
+            # actually vote. Presidents may not have bioguide IDs so we filter
+            # those first above.
             if voter["bioguide_id"] is None:
                 continue
 
             # Make a record for this vote, grouped by vote option (Aye, etc).
-            votes.setdefault(i, {}).setdefault(choice[0], []).append({
+            votes.setdefault(i, []).append({
                 "id": voter["bioguide_id"],
                 "display_name": voter["member_name"],
                 "party": voter["party"],
                 "state": voter["state"],
-                "voteview_votecode_extra": choice[1],
+                "vote": choice,
             })
 
     # sort for output
-    for vote in votes.values():
-        for voters in vote.values():
-            voters.sort(key=lambda v: v['display_name'])
+    for voters in votes.values():
+        voters.sort(key=lambda v: v['display_name'])
 
-    return (votes, presidents_position)
+    return (votes, presidents_positions)
 
 
 def session_from_date(date, session_dates):
@@ -487,7 +496,49 @@ def parse_rollcall_description(rollcall):
         dparts.pop(-1)
     rollcall['description'] = ". ".join(dparts)
     if not rollcall['description'].endswith('.'): rollcall['description'] += "."
-    
+
+def build_votes_dict(votes_list, rollcall):    
+    if rollcall.get("description") in special_vote_options:
+        # Some votes are for things besides aye/no etc where the vote
+        # description says how the numeric codes are mapped to options.
+        # e.g. for Election of the Speaker, 1 will be one candidate, 2
+        # will be another candidate. We've manually coded these and
+        # loaded them at the top of the module. In these cases, we also
+        # have replacement strings for the vote description.
+        original_description = rollcall["description"]
+        new_description, vote_codes = special_vote_options[original_description]
+        rollcall["description"] = new_description
+        for v in votes_list:
+            if v["vote"] == 0:
+                v["vote"] = None
+            elif v["vote"] == 9:
+                v["vote"] = "Not Voting"
+            else:
+                try:
+                    v["vote"] = vote_codes[v["vote"]]
+                except KeyError:
+                    logging.error('Vote "%s" had a "%d" vote.' % (original_description, v["vote"]))
+                    v["vote"] = "Unknown"
+
+    else:
+        # This is a regular vote. Use the regular voteview codebook.
+        for v in votes_list:
+            v["vote"], v["voteview_votecode_extra"] = parse_voteview_vote_code(v["vote"])
+
+    # Now make a dict from vote option to the legislators who voted
+    # that option. Preserve ordering of votes_list which is already
+    # sorted.
+    ret = {
+        choice: [v for v in votes_list if v["vote"] == choice]
+        for choice in set(v["vote"] for v in votes_list)
+        if choice != None # legislators who were not serving at the time of the vote
+    }
+
+    # No longer need the "vote" keys.
+    for v in votes_list:
+        del v["vote"]
+
+    return ret
 
 def get_votes(chamber, congress, options, session_dates):
     logging.warn("Getting votes for %d-%s..." % (congress, chamber))
@@ -502,7 +553,7 @@ def get_votes(chamber, congress, options, session_dates):
         return None
 
     vote_list = parse_vote_list_file(vote_list_file)
-    votes, presidents_position = build_votes(vote_list)
+    votes, presidents_positions = build_votes(vote_list)
 
     # Load the DTL file which lists each roll call vote with textual metadata.
 
@@ -574,6 +625,10 @@ def get_votes(chamber, congress, options, session_dates):
         if "description" in rollcall:
             parse_rollcall_description(rollcall)
 
+        # Make the votes dictionary, but also replace the description
+        # text when it contains coded vote information.
+        votes_dict = build_votes_dict(vote_results, rollcall)
+
         # Form the vote dict.
         vote_output = {
             "vote_id": "%s%s-%d.%s" % (chamber, rollcall_number, congress, session),
@@ -588,8 +643,8 @@ def get_votes(chamber, congress, options, session_dates):
             "type": normalize_vote_type(rollcall["description"]) if "description" in rollcall else None,
             "date": datetime.date(*[int(dd) for dd in rollcall["date"].split("-")]),  # turn YYYY-MM-DD into datetime.date() instance
             "date_unparsed": rollcall["date_unparsed"],
-            "votes": vote_results,
-            "presidents_position": presidents_position.get(rollcall_number) or rollcall.get('presidents_position'),
+            "votes": votes_dict,
+            "presidents_position": presidents_positions.get(rollcall_number) or rollcall.get('presidents_position'),
             "bill": rollcall.get('bill'),
 
             "category": "unknown",
