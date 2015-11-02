@@ -498,7 +498,7 @@ def get_vote_category(vote_question):
         (r"^On the Motion \(Motion to Concur", "passage"),
 
         # house only
-        (r"^(On Motion to )?(Concur in|Concurring|Concurring in|On Concurring|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "passage"),
+        (r"^(On Motion (to|that the House) )?(Concur in|Concurring|Concurring in|On Concurring|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "passage"),
         (r"^(On Motion to )?Suspend (the )?Rules and (Agree|Concur|Pass)", "passage-suspension"),
         (r"^Call of the House$", "quorum"),
         (r"^Call by States$", "quorum"),
