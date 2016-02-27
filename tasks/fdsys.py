@@ -74,7 +74,7 @@ def update_sitemap_cache(fetch_collections, options):
         # Get year and lastmod date.
         url = str(year_node.xpath("string(x:loc)", namespaces=ns))
         lastmod = str(year_node.xpath("string(x:lastmod)", namespaces=ns))
-        m = re.match(r"http://www.gpo.gov/smap/fdsys/sitemap_(\d+)/sitemap_(\d+).xml", url)
+        m = re.match(r"https://www.gpo.gov/smap/fdsys/sitemap_(\d+)/sitemap_(\d+).xml", url)
         if not m or m.group(1) != m.group(2):
             raise ValueError("Unmatched sitemap URL: %s" % url)
         year = m.group(1)
@@ -95,7 +95,7 @@ def update_sitemap_cache(fetch_collections, options):
             # Get collection and lastmod date.
             url = str(collection_node.xpath("string(x:loc)", namespaces=ns))
             lastmod = str(collection_node.xpath("string(x:lastmod)", namespaces=ns))
-            m = re.match(r"http://www.gpo.gov/smap/fdsys/sitemap_(\d+)/(\d+)_(.*)_sitemap.xml", url)
+            m = re.match(r"https://www.gpo.gov/smap/fdsys/sitemap_(\d+)/(\d+)_(.*)_sitemap.xml", url)
             if not m or m.group(1) != year or m.group(2) != year:
                 raise ValueError("Unmatched sitemap URL: %s" % url)
             collection = m.group(3)
@@ -147,13 +147,13 @@ def get_sitemap(year, collection, lastmod, options):
 
     # Construct the URL and the path to where to cache the file on disk.
     if year == None:
-        url = "http://www.gpo.gov/smap/fdsys/sitemap.xml"
+        url = "https://www.gpo.gov/smap/fdsys/sitemap.xml"
         path = "fdsys/sitemap/sitemap.xml"
     elif collection == None:
-        url = "http://www.gpo.gov/smap/fdsys/sitemap_%s/sitemap_%s.xml" % (year, year)
+        url = "https://www.gpo.gov/smap/fdsys/sitemap_%s/sitemap_%s.xml" % (year, year)
         path = "fdsys/sitemap/%s/sitemap.xml" % year
     else:
-        url = "http://www.gpo.gov/smap/fdsys/sitemap_%s/%s_%s_sitemap.xml" % (year, year, collection)
+        url = "https://www.gpo.gov/smap/fdsys/sitemap_%s/%s_%s_sitemap.xml" % (year, year, collection)
         path = "fdsys/sitemap/%s/%s.xml" % (year, collection)
 
     # Should we re-download the file?
@@ -272,7 +272,7 @@ def mirror_packages(fetch_collections, options):
                 # In the STATUTE collection, the MODS information in granules is redundant with
                 # information in the top-level package MODS file. But the only way to get granule-
                 # level PDFs is to go through the granules.
-                content_detail_url = "http://www.gpo.gov/fdsys/pkg/%s/content-detail.html" % package_name
+                content_detail_url = "https://www.gpo.gov/fdsys/pkg/%s/content-detail.html" % package_name
                 content_index = utils.download(content_detail_url,
                                                "fdsys/package/%s/%s/%s.html" % (year, collection, package_name),
                                                utils.merge(options, {
@@ -318,7 +318,7 @@ def get_sitemap_entries(sitemap_filename):
             raise Exception("Unrecognized file pattern.")
 
         # Get the package name.
-        m = re.match("http://www.gpo.gov/fdsys/pkg/(.*)/content-detail.html", url)
+        m = re.match("https://www.gpo.gov/fdsys/pkg/(.*)/content-detail.html", url)
         if not m:
             raise Exception("Unmatched document URL")
         package_name = m.group(1)
@@ -476,14 +476,14 @@ def get_output_path(year, collection, package_name, granule_name, options):
 
 
 def get_package_files(package_name, granule_name, path):
-    baseurl = "http://www.gpo.gov/fdsys/pkg/%s" % package_name
+    baseurl = "https://www.gpo.gov/fdsys/pkg/%s" % package_name
     baseurl2 = baseurl
 
     if not granule_name:
         file_name = package_name
     else:
         file_name = granule_name
-        baseurl2 = "http://www.gpo.gov/fdsys/granule/%s/%s" % (package_name, granule_name)
+        baseurl2 = "https://www.gpo.gov/fdsys/granule/%s/%s" % (package_name, granule_name)
 
     ret = {
         # map file type names used on the command line to a tuple of the URL path on FDSys and the relative path on disk
