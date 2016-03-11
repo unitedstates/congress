@@ -24,6 +24,7 @@ from time import mktime
 #
 #    --chamber: "house" or "senate" to limit the parse to a single chamber
 #    --load_by: Takes a range of House Event IDs. Give it the beginning and end IDs with a dash between, otherwise, it goes by the committee feeds.
+#    --docs=False: Don't download (& convert to text) House committee documents
 
 def run(options):
     # can limit it to one chamber
@@ -251,7 +252,7 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
     # the House makes the XML available at an actual URL.
 
     logging.info(eventurl)
-    package_info = extract_meeting_package(eventurl, event_id)
+    package_info = extract_meeting_package(eventurl, event_id, options)
     if package_info == False: return False
     witnesses = package_info["witnesses"]
     uploaded_documents = package_info["uploaded_documents"]
@@ -271,7 +272,7 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
 
 
 #look for witnesses and documents in the house meeting package    
-def extract_meeting_package(eventurl, event_id):
+def extract_meeting_package(eventurl, event_id, options):
     br = mechanize.Browser()
     # open committee event page
     br.open(eventurl)
@@ -300,7 +301,10 @@ def extract_meeting_package(eventurl, event_id):
         return False
 
     # save documents in meeting package
-    uploaded_documents = save_documents(package, event_id)
+    if options.get("docs", True):
+       uploaded_documents = save_documents(package, event_id)
+    else:
+       uploaded_documents = []
     witnesses = None
     # find meeting and witness xml
     for name in package.namelist():
@@ -308,7 +312,7 @@ def extract_meeting_package(eventurl, event_id):
             if "WList" in name:
                 bytes = package.read(name)
                 witness_tree = lxml.etree.fromstring(bytes)
-                witness_info = parse_witness_list(witness_tree, uploaded_documents, event_id)
+                witness_info = parse_witness_list(witness_tree, uploaded_documents, event_id, options)
                 witnesses = witness_info["hearing_witness_info"]
             else:
                 bytes = package.read(name)
@@ -319,7 +323,7 @@ def extract_meeting_package(eventurl, event_id):
 
 
 # parse xml for urls to testimony and witness information
-def parse_witness_list(witness_tree, uploaded_documents, event_id):
+def parse_witness_list(witness_tree, uploaded_documents, event_id, options):
     hearing_id = witness_tree.xpath("//@meeting-id")[0]
     hearing_witness_info = []
     #basic witness information
@@ -381,10 +385,11 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
                 url = files.xpath("string(@doc-url)")
                 splinter = url.split('/')
                 doc_name = splinter[-1]
-                if doc_name not in uploaded_documents:
-                    file_found = save_file(url, event_id)
-                else:
+                file_found = False
+                if doc_name in uploaded_documents:
                     file_found = True
+                elif options.get("docs", True):
+                    file_found = save_file(url, event_id)
                 urls.append({"url":url, "file_found": file_found})
             
             document["urls"] = urls
@@ -480,10 +485,11 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
             url = u.xpath("string(@doc-url)")
             splinter = url.split('/')
             doc_name = splinter[-1]
-            if doc_name not in uploaded_documents:
-                file_found = save_file(url, event_id)
-            else:
+            file_found = False
+            if doc_name in uploaded_documents:
                 file_found = True
+            elif options.get("docs", True):
+                file_found = save_file(url, event_id)
             urls.append({"url":url, "file_found": file_found})
 
         if len(urls) > 0:
@@ -571,6 +577,7 @@ def save_documents(package, event_id):
             file_name = "%s/%s" % (output_dir, name)
             
             # save document
+            logging.info("saved " + file_name)
             with open(file_name, 'wb') as document_file:
                 document_file.write(bytes)
             # try to make a text version
@@ -627,6 +634,7 @@ def save_file(url, event_id):
         # try to save
 
         try:
+            logging.info("saved " + url + " to " + file_name)
             with open(file_name, 'wb') as document_file:
                 document_file.write(r.content)
             if ".pdf" in file_name:
@@ -636,6 +644,7 @@ def save_file(url, event_id):
             print "Failed to save- %s" % (url)
             return False
     else:
+        logging.info("failed to fetch: " + url)
         return False
             
 
