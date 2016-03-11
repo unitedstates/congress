@@ -285,11 +285,21 @@ def extract_meeting_package(eventurl, event_id, options):
     br.form.set_all_readonly(False)
 
     # set field values
-    br["__EVENTTARGET"] = "ctl00$MainContent$LinkButtonDownloadMtgPackage"
+    if options.get("docs", True):
+        # When we want documents, download the whole ZIP package.
+        br["__EVENTTARGET"] = "ctl00$MainContent$LinkButtonDownloadMtgPackage"
+    else:
+        # Otherwise, just download the metadata XML.
+        br["__EVENTTARGET"] = "ctl00$MainContent$LinkButtonDownloadMtgXML"
     br["__EVENTARGUMENT"] = ""
     
     # get the info
     request = br.submit()
+
+    # when just downloading the metadata XML, return the DOM and no other info
+    if not options.get("docs", True):
+        dom = lxml.etree.fromstring(request.read())
+        return {"witnesses": None, "uploaded_documents": [], "dom": dom}
 
     ## read zipfile
     try:
@@ -301,10 +311,7 @@ def extract_meeting_package(eventurl, event_id, options):
         return False
 
     # save documents in meeting package
-    if options.get("docs", True):
-       uploaded_documents = save_documents(package, event_id)
-    else:
-       uploaded_documents = []
+    uploaded_documents = save_documents(package, event_id)
     witnesses = None
     # find meeting and witness xml
     for name in package.namelist():
@@ -312,7 +319,7 @@ def extract_meeting_package(eventurl, event_id, options):
             if "WList" in name:
                 bytes = package.read(name)
                 witness_tree = lxml.etree.fromstring(bytes)
-                witness_info = parse_witness_list(witness_tree, uploaded_documents, event_id, options)
+                witness_info = parse_witness_list(witness_tree, uploaded_documents, event_id)
                 witnesses = witness_info["hearing_witness_info"]
             else:
                 bytes = package.read(name)
@@ -323,7 +330,7 @@ def extract_meeting_package(eventurl, event_id, options):
 
 
 # parse xml for urls to testimony and witness information
-def parse_witness_list(witness_tree, uploaded_documents, event_id, options):
+def parse_witness_list(witness_tree, uploaded_documents, event_id):
     hearing_id = witness_tree.xpath("//@meeting-id")[0]
     hearing_witness_info = []
     #basic witness information
@@ -385,11 +392,10 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id, options):
                 url = files.xpath("string(@doc-url)")
                 splinter = url.split('/')
                 doc_name = splinter[-1]
-                file_found = False
-                if doc_name in uploaded_documents:
-                    file_found = True
-                elif options.get("docs", True):
+                if doc_name not in uploaded_documents:
                     file_found = save_file(url, event_id)
+                else:
+                    file_found = True
                 urls.append({"url":url, "file_found": file_found})
             
             document["urls"] = urls
