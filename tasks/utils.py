@@ -346,6 +346,8 @@ def download(url, destination=None, options={}):
                     raise ValueError("Binary content improperly decoded.")
         except scrapelib.HTTPError as e:
             logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
+            if options.get("return_status_code_on_error"):
+                return e.response.status_code
             return None
 
         # don't allow 0-byte files
