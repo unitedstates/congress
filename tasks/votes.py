@@ -75,7 +75,7 @@ def vote_ids_for_house(congress, session_year, options):
         options)
 
     if not page:
-        logging.error("Couldn't download House vote index page, aborting")
+        logging.error("Couldn't download House vote index page, skipping")
         return None
 
     # extract matching links
@@ -118,14 +118,15 @@ def vote_ids_for_senate(congress, session_year, options):
 
     vote_ids = []
 
+    url = "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%d.xml" % (congress, session_num)
     page = utils.download(
-        "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%d.xml" % (congress, session_num),
+        url,
         "%s/votes/%s/pages/senate.xml" % (congress, session_year),
         utils.merge(options, {'binary': True})
     )
 
-    if not page:
-        logging.error("Couldn't download Senate vote XML index, aborting")
+    if not page or "Requested Page Not Found (404)" in page:
+        logging.error("Couldn't download Senate vote XML index %s, skipping" % url)
         return None
 
     dom = etree.fromstring(page)
