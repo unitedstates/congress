@@ -8,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 from dateutil.relativedelta import MO
 import lxml
 import json
+import re
 
 from bs4 import BeautifulSoup
 
@@ -111,9 +112,9 @@ def fetch_floor_week(for_the_week, options):
             elif "Concur in the Senate Amendment with an Amendment to" in bill_number:
                 bill['item_type'] = 'senate_amendment'
                 bill_number = bill_number.replace('Concur in the Senate Amendment with an Amendment to ', '')
-            elif ("Senate Amendment to " in bill_number) or ("Senate amendment to " in bill_number):
+            elif "senate amendment to " in bill_number.lower():
                 bill['item_type'] = 'senate_amendment'
-                bill_number = bill_number.replace("Senate Amendment to ", '')
+                bill_number = bill_number.lower().replace("senate amendment to ", '')
             elif "Conference report to accompany" in bill_number:
                 bill['item_type'] = 'conference_report'
                 bill_number = bill_number.replace("Conference report to accompany ", '')
@@ -182,6 +183,7 @@ def get_latest_monday(options):
 
 def bill_id_for(bill_number, congress):
     number = bill_number.replace('.', '').replace(' ', '').lower()
+    if not re.match(r"^(hr|s|hres|sres|hjres|sjres|hconres|sconres)\d{1,4}$", number): raise ValueError(number)
     return "%s-%i" % (number, congress)
 
 
