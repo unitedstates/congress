@@ -31,7 +31,7 @@
 #   apply to bulk data collections which are not divided by
 #   year).
 #
-#   --store mods,pdf,text,xml,premis
+#   --store=mods,pdf,text,xml,premis
 #   Save the MODS, PDF, text, XML, or PREMIS file associated
 #   with each package. If omitted, stores every file for each
 #   package.
@@ -100,7 +100,8 @@ def update_sitemap_cache(options, listing):
     # with --bulkdata=True, or not specified
     if options.get("bulkdata", None) in (None, True):
         # Scrape FDSys for a list of the names of the bulk data collections.
-        # We'll also pick up the last modified date from the directory listing.
+        # (The last modified date from the directory listing on this page is
+        # not an indication of the lastmod dates within sitemaps.)
         #
         # Note that "BILLS" appears both as a regular collection and as a
         # bulk data collection - both are bill text.
@@ -113,8 +114,8 @@ def update_sitemap_cache(options, listing):
             fdsys_bulkdata_list)
 
         # Process the bulk data collections sitemaps.
-        for collection, lastmod in bulk_data_collections:
-            update_sitemap("https://www.gpo.gov/smap/bulkdata/%s/sitemapindex.xml" % collection, lastmod, [], options, listing)
+        for collection, timestamp in bulk_data_collections:
+            update_sitemap("https://www.gpo.gov/smap/bulkdata/%s/sitemapindex.xml" % collection, None, [], options, listing)
 
 
 def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
