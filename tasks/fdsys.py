@@ -36,6 +36,12 @@
 #   with each package. If omitted, stores every file for each
 #   package.
 #
+#   --filter="regex"
+#   Only stores files that match the regex. Regular collections
+#   are matched against the package name (i.e. BILLS-113hconres66ih)
+#   while bulk data items are matched against the their file path
+#   (i.e. 113/1/hconres/BILLS-113hconres66ih.xml).
+#
 #   --granules
 #   Some collections, like STATUTE, have "granules" inside each
 #   package (a package is a volume of the Statutes at Large, while
@@ -202,6 +208,7 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
                 if not m:
                     raise Exception("Unmatched package URL (%s) at %s." % (url, "->".join(how_we_got_here)))
                 package_name = m.group(1)
+                if options.get("filter") and not re.search(options["filter"], package_name): continue
                 mirror_package(subject, package_name, lastmod, url, options)
 
             else:
@@ -210,6 +217,7 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
                 if not m:
                     raise Exception("Unmatched bulk data file URL (%s) at %s." % (url, "->".join(how_we_got_here)))
                 item_path = m.group(1)
+                if options.get("filter") and not re.search(options["filter"], item_path): continue
                 mirror_bulkdata_file(subject, url, item_path, lastmod, options)
     
     else:
