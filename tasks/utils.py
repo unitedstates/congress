@@ -762,27 +762,7 @@ def check_cached_file(filename, cache_filename):
 # Problem with finding a cache entry.
 
 
-class CacheError(LookupError):
-    pass
 
-# Load a cached file.
-
-
-def cache_load(cache_filename, file_hash):
-    try:
-        cache_data = pickle_load(cache_filename)
-    except IOError:
-        raise CacheError("Could not retrieve potential cache file: %s" % (cache_filename))
-
-    # A cache file has a specific structure.
-    if "hash" not in cache_data or "data" not in cache_data:
-        raise TypeError("Not a cache file: %s" % (cache_filename))
-
-    # If the hashes don't match, we've retrieved the cache for something else.
-    if cache_data["hash"] != file_hash:
-        raise CacheError("Hashes do not match: %s, %s" % (file_hash, cache_data["hash"]))
-
-    return cache_data["data"]
 
 # Cache a file.
 

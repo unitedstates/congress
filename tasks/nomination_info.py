@@ -7,6 +7,10 @@ from lxml import etree
 import time
 from lxml.html import fromstring
 
+
+# TODO REWRITE
+
+
 # can be run on its own, just require a nomination_id (e.g. PN2094-112)
 
 

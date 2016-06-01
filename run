@@ -2,72 +2,60 @@
 
 import sys
 import os
-import traceback
-import pprint as pp
 import logging
-import importlib
-
-# set global HTTP timeouts to 10 seconds
-import socket
-socket.setdefaulttimeout(10)
+import argparse
+import inflection
+import re
+from pydoc import locate
+from tasks import utils
 
 CONGRESS_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-# name of the task comes first
-task_name = sys.argv[1]
 
-# parse any command line flags off
-options = {}
-for arg in sys.argv[2:]:
-    if arg.startswith("--"):
+def main(task_name, options):
 
-        if "=" in arg:
-            key, value = arg.split('=')
+    # read in an opt-in config file for changing directories and supplying email settings
+    # returns None if it's not there, and this should always be handled gracefully
+    path = options.get('config', 'config.yml')
+    if os.path.exists(path):
+        # Don't use a cached config file, just in case, and direct_yaml_load is not yet defined.
+        import yaml
+        config = yaml.load(open(path))
+    else:
+        config = {}
+
+    # configure logging
+    log_level = 'debug' if options.get('debug', False) else options.get('log', 'warn')
+    if log_level not in ['debug', 'info', 'warn', 'error']:
+        print 'Invalid log level (specify: debug, info, warn, error).'
+        sys.exit(1)
+
+    if options.get('timestamps', False):
+        logging.basicConfig(format='%(asctime)s %(message)s', level=log_level.upper())
+    else:
+        logging.basicConfig(format='%(message)s', level=log_level.upper())
+
+    try:
+        task = locate('tasks.{0}.{1}'.format(task_name, inflection.camelize(task_name)))(options, config)
+        task.run()
+    except Exception as exception:
+        utils.admin(exception)
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Scrapes federal congressional data.')
+    parser.add_argument('task_name', type=str,
+                        help='The task name to run from modules in the "tasks" package.')
+    parser.add_argument('options', type=str, nargs=argparse.REMAINDER,
+                        help='Additional options to supply task in --key=value format.')
+
+    args = parser.parse_args()
+
+    def parse_opt(opt):
+        if re.search(r'^--\w+(=)?\w*', opt):
+            key, value = opt.split('=') if '=' in opt else (opt, True)
+            return key[2:], value
         else:
-            key, value = arg, True
+            raise ValueError('Option input must confirm to pattern of form --option or --option=list[,of[,values]]')
 
-        key = key.split("--")[1]
-        if value == 'True':
-            value = True
-        elif value == 'False':
-            value = False
-        options[key.lower()] = value
-
-
-# configure logging
-if options.get('debug', False):
-    log_level = "debug"
-else:
-    log_level = options.get("log", "warn")
-
-if log_level not in ["debug", "info", "warn", "error"]:
-    print "Invalid log level (specify: debug, info, warn, error)."
-    sys.exit(1)
-
-if options.get('timestamps', False):
-    logging.basicConfig(format='%(asctime)s %(message)s', level=log_level.upper())
-else:
-    logging.basicConfig(format='%(message)s', level=log_level.upper())
-
-
-sys.path.append(os.path.join(CONGRESS_ROOT, "tasks"))
-import utils
-
-try:
-    task_mod = __import__(task_name)
-
-    if 'patch' in options:
-        patch_mod = importlib.import_module(options['patch'])
-        patch_func = getattr(patch_mod, 'patch', None)
-        if patch_func is None:
-            logging.error("You specified a --patch argument but the {} module does not contain a 'patch' function.".format(options['patch']))
-            sys.exit(1)
-        elif not callable(patch_func):
-            logging.error("You specified a --patch argument but {}.patch is not callable".format(options['patch']))
-            sys.exit(1)
-        else:
-            patch_mod.patch(task_name)
-
-    task_mod.run(options)
-except Exception as exception:
-    utils.admin(exception)
+    main(args.task_name, dict([parse_opt(option) for option in args.options]))
