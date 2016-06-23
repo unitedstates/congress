@@ -1197,7 +1197,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         + "(, as amended| \(Amended\))?"
         + " (Passed|Failed|Agreed to|Rejected)?"
         + " ?(by voice vote|without objection|by (the Yeas and Nays|Yea-Nay Vote|recorded vote)"
-        + "((:)? \(2/3 required\))?: \d+ - \d+(, \d+ Present)? [ \)]*\((Roll no\.|Record Vote No:) \d+\))",
+        + "(:? \(2/3 required\))?: (\d+ - \d+(, \d+ Present)? [ \)]*)?\((Roll no\.|Record Vote No:) \d+\))",
         line, re.I)
     if m != None:
         motion, is_override, as_amended, pass_fail, how = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
