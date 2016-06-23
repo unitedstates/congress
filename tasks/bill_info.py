@@ -1261,10 +1261,12 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             status = new_status
 
     # Passed House, not necessarily by an actual vote (think "deem")
-    m = re.search(r"Passed House pursuant to", line, re.I)
+    m = re.search(r"Passed House pursuant to|House agreed to Senate amendment (with amendment )?pursuant to", line, re.I)
     if m != None:
         vote_type = "vote" if (bill_type[0] == "h") else "vote2"
+        if "agreed to Senate amendment" in line: vote_type = "pingpong"
         pass_fail = "pass"
+        as_amended = bool(m.group(1))
 
         action["type"] = "vote"
         action["vote_type"] = vote_type
@@ -1273,7 +1275,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         action["result"] = pass_fail
 
         # get the new status of the bill after this vote
-        new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, False, title, prev_status)
+        new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, as_amended, title, prev_status)
 
         if new_status:
             status = new_status
