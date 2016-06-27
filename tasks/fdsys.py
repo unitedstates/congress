@@ -436,8 +436,6 @@ class Fdsys(Task):
                 'force': True, # decision to cache was made above
                 'to_cache': False,
                 'return_status_code_on_error': True,
-                # an old optimization, but it conflicts with return_status_code_on_error
-                #'needs_content': (file_type == "text" and file_path.endswith(".html")),
             }))
 
             # Download failed?
