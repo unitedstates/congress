@@ -6,6 +6,36 @@ from lxml import html, etree
 import logging
 
 import nomination_info
+from tasks import Task, make_node as parent_make_node, current_congress, format_datetime
+
+
+class Nominations(Task):
+
+    def __init__(self, options=None, config=None):
+        super(Nominations, self).__init__(options, config)
+        self.congress = self.options.get('congress', current_congress())
+        self.nomination_id = self.options.get('nomination_id', None)
+
+    def run(self):
+        if self.nomination_id or self.congress:
+            return self.scrape(self.nomination_id, self.congress)
+        else:
+            # TODO loop counting up nomination until no more nominations for all available congresses
+            # i.e. for congress in range(108, current_congress()+1):
+            #           nom_id = 0
+            #           while not error:
+            #               scrape(nom_id, congress)
+            pass
+
+    @staticmethod
+    def scrape(nomination_id=None, congress=None):
+        # TODO do scrape and output JSON
+        pass
+
+
+
+
+
 
 
 def run(options):
