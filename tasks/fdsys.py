@@ -66,7 +66,7 @@ from tasks import Task, merge, unwrap_text_in_html
 class Fdsys(Task):
 
     NAMESPACES = {'x': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-    SITEMAP_BAESE_URL = 'https://www.gpo.gov/smap/'
+    SITEMAP_BASE_URL = 'https://www.gpo.gov/smap/'
     BULKDATA_BASE_URL = 'https://www.gpo.gov/fdsys/bulkdata/'
     BULK_BILLSTATUS_FILENAME = 'fdsys_billstatus.xml'
 
@@ -109,7 +109,7 @@ class Fdsys(Task):
         # with --bulkdata=False, or not specified
         if self.options.get('bulkdata', None) in (None, False):
             # Process the main sitemap index for all of the document collections.
-            self.update_sitemap(self.SITEMAP_BAESE_URL + "fdsys/sitemap.xml", None, [])
+            self.update_sitemap(self.SITEMAP_BASE_URL + "fdsys/sitemap.xml", None, [])
     
         # with --bulkdata=True, or not specified
         if self.options.get("bulkdata", None) in (None, True):
@@ -128,7 +128,7 @@ class Fdsys(Task):
     
             # Process the bulk data collections sitemaps.
             for collection, timestamp in bulk_data_collections:
-                self.update_sitemap(self.SITEMAP_BAESE_URL + 'bulkdata/{0}/sitemapindex.xml'.format(collection),
+                self.update_sitemap(self.SITEMAP_BASE_URL + 'bulkdata/{0}/sitemapindex.xml'.format(collection),
                     None, [])
     
     def update_sitemap(self, url, current_lastmod, how_we_got_here):
@@ -239,30 +239,30 @@ class Fdsys(Task):
 
     def extract_sitemap_subject_from_url(self, url, how_we_got_here):
         # The root of the main documents collections sitemap.
-        if url == self.SITEMAP_BAESE_URL + "fdsys/sitemap.xml":
+        if url == self.SITEMAP_BASE_URL + "fdsys/sitemap.xml":
             return {}
     
         # A year sitemap under the main documents root.
-        m = re.match(re.escape(self.SITEMAP_BAESE_URL) + r"fdsys/sitemap_(\d+)/sitemap_\d+.xml$", url)
+        m = re.match(re.escape(self.SITEMAP_BASE_URL) + r"fdsys/sitemap_(\d+)/sitemap_\d+.xml$", url)
         if m:
             return {"year": m.group(1)}
     
         # A regular collection sitemap.
-        m = re.match(re.escape(self.SITEMAP_BAESE_URL) + r"fdsys/sitemap_(\d+)/\d+_(.*)_sitemap.xml$", url)
+        m = re.match(re.escape(self.SITEMAP_BASE_URL) + r"fdsys/sitemap_(\d+)/\d+_(.*)_sitemap.xml$", url)
         if m:
             return {"year": m.group(1), "collection": m.group(2)}
     
         # The root of a bulkdata collection. Bulk data sitemaps
         # aren't grouped by year in the same way the regular
         # collections are.
-        m = re.match(re.escape(self.SITEMAP_BAESE_URL) + r"bulkdata/(.*)/sitemapindex.xml$", url)
+        m = re.match(re.escape(self.SITEMAP_BASE_URL) + r"bulkdata/(.*)/sitemapindex.xml$", url)
         if m:
             return {"bulkdata": True, "collection": m.group(1)}
     
         # Bulk data collections have subdivisions, like for BILLS it's
         # subdivided by Congress+bill-type strings (like "113s" for
         # 113th Congress, "S." (senate) bills).
-        m = re.match(re.escape(self.SITEMAP_BAESE_URL) + r"bulkdata/(.*)/([^/]+)/sitemap.xml$", url)
+        m = re.match(re.escape(self.SITEMAP_BASE_URL) + r"bulkdata/(.*)/([^/]+)/sitemap.xml$", url)
         if m:
             return {"bulkdata": True, "collection": m.group(1), "grouping": m.group(2)}
     
