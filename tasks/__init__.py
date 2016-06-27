@@ -22,6 +22,7 @@ import scrapelib
 from lxml import html, etree
 import zipfile
 import fs
+import fs.errors
 import smtplib
 import email.utils
 from email.mime.text import MIMEText
@@ -132,7 +133,7 @@ class Storage:
     def cache_load(self, cache_filename, file_hash):
         try:
             cache_data = self.pickle_load(cache_filename)
-        except IOError:
+        except (IOError, fs.errors.ResourceNotFoundError):
             raise self.CacheError("Could not retrieve potential cache file: {0}".format(cache_filename))
 
         # A cache file has a specific structure.
