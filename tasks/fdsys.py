@@ -36,6 +36,12 @@
 #   with each package. If omitted, stores every file for each
 #   package.
 #
+#   --filter="regex"
+#   Only stores files that match the regex. Regular collections
+#   are matched against the package name (i.e. BILLS-113hconres66ih)
+#   while bulk data items are matched against the their file path
+#   (i.e. 113/1/hconres/BILLS-113hconres66ih.xml).
+#
 #   --granules
 #   Some collections, like STATUTE, have "granules" inside each
 #   package (a package is a volume of the Statutes at Large, while
@@ -214,6 +220,8 @@ class Fdsys(Task):
                     if not m:
                         raise Exception("Unmatched package URL (%s) at %s." % (url, "->".join(how_we_got_here)))
                     package_name = m.group(1)
+                    if self.options.get("filter") and not re.search(self.options["filter"], package_name):
+                        continue
                     self.mirror_package(subject, package_name, lastmod, url)
     
                 else:
@@ -222,6 +230,8 @@ class Fdsys(Task):
                     if not m:
                         raise Exception("Unmatched bulk data file URL (%s) at %s." % (url, "->".join(how_we_got_here)))
                     item_path = m.group(1)
+                    if self.options.get("filter") and not re.search(self.options["filter"], item_path):
+                        continue
                     self.mirror_bulkdata_file(subject, url, item_path, lastmod)
         
         else:
