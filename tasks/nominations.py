@@ -18,7 +18,7 @@ class Nominations(Task):
 
     def run(self):
         if self.nomination_id or self.congress:
-            return self.scrape(self.nomination_id, self.congress)
+            self.scrape(self.nomination_id, self.congress)
         else:
             # TODO loop counting up nomination until no more nominations for all available congresses
             # i.e. for congress in range(108, current_congress()+1):
@@ -27,8 +27,7 @@ class Nominations(Task):
             #               scrape(nom_id, congress)
             pass
 
-    @staticmethod
-    def scrape(nomination_id=None, congress=None):
+    def scrape(self, nomination_id, congress):
         # TODO do scrape and output JSON
         pass
 
