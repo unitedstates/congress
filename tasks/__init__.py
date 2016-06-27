@@ -1,4 +1,5 @@
 import os
+import os.path
 import re
 import errno
 import logging
@@ -191,7 +192,8 @@ class Storage:
         try:
             path = self.options['config']['output']['cache']
         except KeyError:
-            path = 'cache'
+            # The pyfilesystem filesystem requires an absolute path.
+            path = os.path.abspath('cache')
         return path
 
     @property
