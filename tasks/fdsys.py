@@ -31,7 +31,7 @@
 #   apply to bulk data collections which are not divided by
 #   year).
 #
-#   --store mods,pdf,text,xml,premis
+#   --store=mods,pdf,text,xml,premis
 #   Save the MODS, PDF, text, XML, or PREMIS file associated
 #   with each package. If omitted, stores every file for each
 #   package.
@@ -108,7 +108,8 @@ class Fdsys(Task):
         # with --bulkdata=True, or not specified
         if self.options.get("bulkdata", None) in (None, True):
             # Scrape FDSys for a list of the names of the bulk data collections.
-            # We'll also pick up the last modified date from the directory listing.
+            # (The last modified date from the directory listing on this page is
+            # not an indication of the lastmod dates within sitemaps.)
             #
             # Note that "BILLS" appears both as a regular collection and as a
             # bulk data collection - both are bill text.
@@ -120,9 +121,9 @@ class Fdsys(Task):
                 fdsys_bulkdata_list)
     
             # Process the bulk data collections sitemaps.
-            for collection, lastmod in bulk_data_collections:
+            for collection, timestamp in bulk_data_collections:
                 self.update_sitemap(self.SITEMAP_BAESE_URL + 'bulkdata/{0}/sitemapindex.xml'.format(collection),
-                                    lastmod, [])
+                    None, [])
     
     def update_sitemap(self, url, current_lastmod, how_we_got_here):
         """
