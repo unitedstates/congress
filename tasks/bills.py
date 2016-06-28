@@ -94,7 +94,7 @@ class Bills(Task):
 
             'introduced_at': bill_dict.get('introducedDate', ''),
             'by_request': tasks.safeget(bill_dict, None, 'sponsors', 'item', 'byRequestType') is not None,
-            'sponsor': self._build_legacy_sponsor_dict(tasks.safeget(bill_dict, None, 'sponsors', 'item')[0]),
+            'sponsor': self._build_legacy_sponsor_dict(tasks.safeget(bill_dict, None, 'sponsors', 'item', 0)),
             'cosponsors': self._build_legacy_cosponsor_list(tasks.safeget(bill_dict, [], 'cosponsors', 'item')),
 
             'actions': actions,
@@ -112,9 +112,9 @@ class Bills(Task):
                 "date": bill_dict['summaries']['billSummaries']['item'][0]['updateDate'],
                 "as": bill_dict['summaries']['billSummaries']['item'][0]['name'],
                 "text": bill_dict['summaries']['billSummaries']['item'][0]['text'],
-            },
-            'subjects_top_term': bill_dict['primarySubject']['name'],
-            'subjects': [item['name'] for item in bill_dict['subjects']['billSubjects']['otherSubjects']['item']],
+            } if bill_dict['summaries']['billSummaries'] else None,
+            'subjects_top_term': bill_dict['primarySubject']['name'] if bill_dict['primarySubject'] else None,
+            'subjects': [item['name'] for item in bill_dict['subjects']['billSubjects']['otherSubjects']['item']] if bill_dict['subjects']['billSubjects']['otherSubjects'] else [],
 
             'related_bills': self._build_legacy_related_bills_list(tasks.safeget(bill_dict, [], 'relatedBills', 'item')),
             'committees': self._build_legacy_committees_list(tasks.safeget(bill_dict, [], 'committees', 'billCommittees', 'item')),
@@ -134,12 +134,28 @@ class Bills(Task):
         @return:
         @rtype:
         """
-        extract_district_state = re.search(r'\[(\w+)-(\w+)(-\d{1,2})?\]', sponsor_dict['fullName'])
+
+        if sponsor_dict is None:
+            # TODO: This can hopefully be removed. In testing s414-113
+            # was missing sponsor data. But all bills have a sponsor.
+            return None
+
+        # TODO: Don't do regex matching here. Find another way.
+        extract_district_state = re.search(r'\[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large))?\]$',
+            sponsor_dict['fullName'])
+        if extract_district_state.group("district") is None:
+            district = None # a senator
+        elif extract_district_state.group("district") == "At Large":
+            district = 0
+        else:
+            district = int(extract_district_state.group('district'))
+
         return {
             'title': sponsor_dict['fullName'][0:3],
             'name': '{0}, {1}'.format(sponsor_dict['lastName'].capitalize(), sponsor_dict['firstName'].capitalize()),
-            'district': extract_district_state.group(3),
-            'state': extract_district_state.group(2),
+            'district': district,
+            'state': extract_district_state.group('state'),
+            'party': extract_district_state.group('party'),
             # 'thomas_id': None,  # RIP Thomas
             'bioguide_id': sponsor_dict['bioguideId'],
             'type': 'person'
@@ -302,6 +318,10 @@ class Bills(Task):
                 title_type = "official"
             elif "Display Title" in title_type:
                 title_type = "display"
+            elif title_type == "Non-bill-report":
+                # TODO: What kind of title is this? Maybe assign
+                # a better title_type code once we know.
+                title_type = "nonbillreport"
             else:
                 raise Exception("Unknown title type: " + title_type)
 
@@ -338,22 +358,20 @@ class Bills(Task):
     @staticmethod
     def _build_legacy_committees_list(committee_list):
         def build_dict(item):
-            print item
-
             committee_dict = {
-                'activity': [i['name'] for i in item['activities']['item']],
+                'activity': [i['name'] for i in item['activities']['item']] if item['activities'] else [],
                 'committee': item['chamber'] + ' ' + re.sub(" Committee$", "", item['name']),
                 'committee_id': item['systemCode'][0:-2].upper(),
             }
 
             subcommittees_list = []
             if 'subcommittees' in item and item['subcommittees'] is not None:
-                for subcommittee in item['subcommittees']:
+                for subcommittee in item['subcommittees']['item']:
                     subcommittee_dict = copy.deepcopy(committee_dict)
                     subcommittee_dict.update({
                         'subcommittee': subcommittee['name'],  # TODO normalize name
                         'subcommittee_id': subcommittee['systemCode'][-2:],
-                        'activity': [i['name'] for i in subcommittee['activities']]
+                        'activity': [i['name'] for i in subcommittee['activities']['item']]
                     })
                     subcommittees_list.append(subcommittee_dict)
 
@@ -393,8 +411,6 @@ class Bills(Task):
     @staticmethod
     def _action_for(text):
         # strip out links
-        print "actions for"
-        print text
         text = re.sub(r"</?[Aa]( \S.*?)?>", "", text)
 
         # remove and extract references
