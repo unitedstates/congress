@@ -18,7 +18,7 @@
 #   BILLS, you should probably also specify --bulkdata=True/False.
 #   If omitted, downloads files from all collections.
 #
-#   --bulkdata=True|False
+#   --collection-type=regular|bulk-data
 #   Download regular document collections or bulk data collections.
 #   If omitted, downloads all. But there's a problem-
 #   The BILLS collection occurs both as a regular documents
@@ -107,12 +107,12 @@ class Fdsys(Task):
         """
 
         # with --bulkdata=False, or not specified
-        if self.options.get('bulkdata', None) in (None, False):
+        if self.options.get('collection-type', None) in (None, "regular"):
             # Process the main sitemap index for all of the document collections.
             self.update_sitemap(self.SITEMAP_BASE_URL + "fdsys/sitemap.xml", None, [])
     
         # with --bulkdata=True, or not specified
-        if self.options.get("bulkdata", None) in (None, True):
+        if self.options.get("collection-type", None) in (None, "bulk-data"):
             # Scrape FDSys for a list of the names of the bulk data collections.
             # (The last modified date from the directory listing on this page is
             # not an indication of the lastmod dates within sitemaps.)
