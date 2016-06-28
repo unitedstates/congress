@@ -218,7 +218,7 @@ class Bills(Task):
                 'action_code': item.get('actionCode', ''),
                 'committees': [tasks.safeget(item, '', 'committee', 'systemCode')[0:-2].upper()],
                 'references': references,
-                #'type': '',  # TODO see parse_bill_action in bill_info.py this is a mess
+                'type': 'action',  # TODO see parse_bill_action in bill_info.py this is a mess
                 #'status': '',  # TODO see parse_bill_action in bill_info.py this is a mess
                 'text': text,
                 #'where': '', # TODO see parse_bill_action in bill_info.py this is a mess
@@ -241,7 +241,7 @@ class Bills(Task):
 
         house_vote = None
         for action in actions:
-            if (action.get('type') == 'vote') and (action['where'] == 'h') and (action['vote_type'] != "override"):
+            if (action['type'] == 'vote') and (action['where'] == 'h') and (action['vote_type'] != "override"):
                 house_vote = action
         if house_vote:
             history['house_passage_result'] = house_vote['result']
@@ -249,7 +249,7 @@ class Bills(Task):
 
         senate_vote = None
         for action in actions:
-            if (action.get('type') == 'vote') and (action['where'] == 's') and (action['vote_type'] != "override"):
+            if (action['type'] == 'vote') and (action['where'] == 's') and (action['vote_type'] != "override"):
                 senate_vote = action
         if senate_vote:
             history['senate_passage_result'] = senate_vote['result']
@@ -257,7 +257,7 @@ class Bills(Task):
 
         senate_vote = None
         for action in actions:
-            if (action.get('type') == 'vote-aux') and (action['vote_type'] == 'cloture') and (action['where'] == 's') and (action['vote_type'] != "override"):
+            if (action['type'] == 'vote-aux') and (action['vote_type'] == 'cloture') and (action['where'] == 's') and (action['vote_type'] != "override"):
                 senate_vote = action
         if senate_vote:
             history['senate_cloture_result'] = senate_vote['result']
@@ -265,7 +265,7 @@ class Bills(Task):
 
         vetoed = None
         for action in actions:
-            if action.get('type') == 'vetoed':
+            if action['type'] == 'vetoed':
                 vetoed = action
         if vetoed:
             history['vetoed'] = True
@@ -275,7 +275,7 @@ class Bills(Task):
 
         house_override_vote = None
         for action in actions:
-            if (action.get('type') == 'vote') and (action['where'] == 'h') and (action['vote_type'] == "override"):
+            if (action['type'] == 'vote') and (action['where'] == 'h') and (action['vote_type'] == "override"):
                 house_override_vote = action
         if house_override_vote:
             history['house_override_result'] = house_override_vote['result']
@@ -283,7 +283,7 @@ class Bills(Task):
 
         senate_override_vote = None
         for action in actions:
-            if (action.get('type') == 'vote') and (action['where'] == 's') and (action['vote_type'] == "override"):
+            if (action['type'] == 'vote') and (action['where'] == 's') and (action['vote_type'] == "override"):
                 senate_override_vote = action
         if senate_override_vote:
             history['senate_override_result'] = senate_override_vote['result']
@@ -291,7 +291,7 @@ class Bills(Task):
 
         enacted = None
         for action in actions:
-            if action.get('type') == 'enacted':
+            if action['type'] == 'enacted':
                 enacted = action
         if enacted:
             history['enacted'] = True
@@ -301,7 +301,7 @@ class Bills(Task):
 
         topresident = None
         for action in actions:
-            if action.get('type') == 'topresident':
+            if action['type'] == 'topresident':
                 topresident = action
         if topresident and (not history['vetoed']) and (not history['enacted']):
             history['awaiting_signature'] = True
@@ -675,7 +675,7 @@ class Bills(Task):
 
         if first.get('type') in ["referral", "calendar", "action"]:
             for action in actions[1:]:
-                if action.get('type') and (action['type'] != "referral") and (action['type'] != "calendar") and ("Sponsor introductory remarks" not in action['text']):
+                if (action['type'] != "referral") and (action['type'] != "calendar") and ("Sponsor introductory remarks" not in action['text']):
                     return action
             return None
         else:
@@ -693,7 +693,7 @@ class Bills(Task):
     @staticmethod
     def slip_law_from(actions):
         for action in actions:
-            if action.get('type') == "enacted":
+            if action['type'] == "enacted":
                 return {
                     'law_type': action["law"],
                     'congress': action["congress"],
