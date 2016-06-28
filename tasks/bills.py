@@ -46,8 +46,8 @@ class Bills(Task):
         if self.bill_id:
             return self.write_legacy_dict_to_disk(self.bill_id)
         else:
-            for bill_type in self.bill_types:
-                pass # TODO traverse data directory and run convert_bulk_to_legacy_format for the bill_id
+            for bill_id in self.scan_for_bills_to_process():
+                self.write_legacy_dict_to_disk(bill_id)
 
     def _path_to_billstatus_file(self, bill_id):
         bill_type, bill_number, congress = self.split_bill_id(bill_id)
@@ -55,13 +55,22 @@ class Bills(Task):
                             bill_type, bill_type + bill_number, Fdsys.BULK_BILLSTATUS_FILENAME)
 
     def write_legacy_dict_to_disk(self, bill_id):
+        # Read FDSys bulk data file.
         legacy_dict = self.convert_bulk_to_legacy_dict(bill_id)
+
+        # Convert and write out data.json and data.xml.
         path = os.path.dirname(self._path_to_billstatus_file(bill_id))
         logging.info("[%s] Writing to %s..." % (bill_id, path))
         with self.storage.fs.open(path + '/data.json', 'w') as json_file:
             json_file.write(unicode(json.dumps(legacy_dict, indent=2, sort_keys=True)))
         with self.storage.fs.open(path + '/data.xml', 'wb') as xml_file:
             xml_file.write(self._convert_legacy_dict_to_xml(legacy_dict))
+
+        # Mark this bulk data file as processed by saving its lastmod
+        # file under a new path.
+        self.storage.write(
+            self.storage.read(self._path_to_billstatus_file(bill_id).replace(".xml", "-lastmod.txt")),
+            os.path.join(path, "data-fromfdsys-lastmod.txt"))
 
     def convert_bulk_xml_to_dict(self, bill_id):
         with self.storage.fs.open(self._path_to_billstatus_file(bill_id)) as fdsys_billstatus:
@@ -636,3 +645,55 @@ class Bills(Task):
                     'congress': action["congress"],
                     'number': action["number"]
                 }
+
+    def scan_for_bills_to_process(self):
+        # Return a generator over bill_ids that need to be
+        # processed.
+
+        def get_data_path(*args):
+            # Utility function to generate a part of the path
+            # to data/{congress}/bills/{billtype}/{billtypenumber}/fdsys_billstatus.xml
+            # given as many path elements as are provided. args
+            # is a list of zero or more of congress, billtype,
+            # and billtypenumber (in order).
+            args = list(args)
+            if len(args) > 0:
+                args.insert(1, "bills")
+            return os.path.join(self.storage.data_dir, *args)
+
+        def filter_ints(seq):
+            for s in seq:
+                try:
+                    yield int(s)
+                except:
+                    # Not an integer.
+                    continue
+
+        # walk through all congress directories on disk
+        # (filter out non-integer directory names, then sort on the
+        # integer)
+        for congress in sorted(filter_ints(os.listdir(get_data_path()))):
+            # turn this back into a string
+            congress = str(congress)
+
+            # walk through all bill types in that congress
+            # (sort by bill type so that we proceed in a stable order each run)
+            for bill_type in sorted(os.listdir(get_data_path(congress))):
+
+                # walk through each bill in that congress and bill type
+                # (sort by bill number so that we proceed in a normal order)
+                for bill_type_and_number in sorted(
+                    os.listdir(get_data_path(congress, bill_type)),
+                    key = lambda x : int(x.replace(bill_type, ""))
+                    ):
+
+                    fn = get_data_path(congress, bill_type, bill_type_and_number, Fdsys.BULK_BILLSTATUS_FILENAME)
+                    if os.path.exists(fn):
+                        # The FDSys bulk data file exists. Does our JSON data
+                        # file need to be updated?
+                        bulkfile_lastmod = self.storage.read(fn.replace(".xml", "-lastmod.txt"))
+                        parse_lastmod = self.storage.read(get_data_path(congress, bill_type, bill_type_and_number, "data-fromfdsys-lastmod.txt"))
+                        if bulkfile_lastmod != parse_lastmod:
+                            bill_id = bill_type_and_number + "-" + congress
+                            print(bill_id)
+                            yield bill_id
