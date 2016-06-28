@@ -57,11 +57,11 @@ class Bills(Task):
     def write_legacy_dict_to_disk(self, bill_id):
         legacy_dict = self.convert_bulk_to_legacy_dict(bill_id)
         path = os.path.dirname(self._path_to_billstatus_file(bill_id))
+        logging.info("[%s] Writing to %s..." % (bill_id, path))
         with self.storage.fs.open(path + '/data.json', 'w') as json_file:
             json_file.write(unicode(json.dumps(legacy_dict, indent=2, sort_keys=True)))
-        # TODO convert to xml and write
-        #with self.storage.fs.open(path + '/data.xml', 'w') as xml_file:
-        #    xml_file.write(self._convert_legacy_dict_to_xml(legacy_dict))
+        with self.storage.fs.open(path + '/data.xml', 'wb') as xml_file:
+            xml_file.write(self._convert_legacy_dict_to_xml(legacy_dict))
 
     def convert_bulk_xml_to_dict(self, bill_id):
         with self.storage.fs.open(self._path_to_billstatus_file(bill_id)) as fdsys_billstatus:
@@ -99,7 +99,11 @@ class Bills(Task):
             'short_title': Bills.current_title_for(titles, 'short'),
             'popular_title': Bills.current_title_for(titles, 'popular'),
 
-            'summary': bill_dict['summaries']['billSummaries']['item'][0]['text'],
+            'summary': {
+                "date": bill_dict['summaries']['billSummaries']['item'][0]['updateDate'],
+                "as": bill_dict['summaries']['billSummaries']['item'][0]['name'],
+                "text": bill_dict['summaries']['billSummaries']['item'][0]['text'],
+            },
             'subjects_top_term': bill_dict['primarySubject']['name'],
             'subjects': [item['name'] for item in bill_dict['subjects']['billSubjects']['otherSubjects']['item']],
 
@@ -127,7 +131,7 @@ class Bills(Task):
             'name': '{0}, {1}'.format(sponsor_dict['lastName'].capitalize(), sponsor_dict['firstName'].capitalize()),
             'district': extract_district_state.group(3),
             'state': extract_district_state.group(2),
-            'thomas_id': None,  # RIP Thomas
+            # 'thomas_id': None,  # RIP Thomas
             'bioguide_id': sponsor_dict['bioguideId'],
             'type': 'person'
         }
@@ -329,7 +333,7 @@ class Bills(Task):
 
             committee_dict = {
                 'activity': [i['name'] for i in item['activities']['item']],
-                'committee': item['name'],  # TODO normalize name
+                'committee': item['chamber'] + ' ' + re.sub(" Committee$", "", item['name']),
                 'committee_id': item['systemCode'][0:-2].upper(),
             }
 
@@ -346,7 +350,7 @@ class Bills(Task):
 
             return [committee_dict] + subcommittees_list
 
-        return [build_dict(committee) for committee in committee_list]
+        return sum([build_dict(committee) for committee in committee_list], [])
 
     @staticmethod
     def _build_legacy_amendments_list(amendment_list):
@@ -375,11 +379,6 @@ class Bills(Task):
             }
 
         return [build_dict(related_bill) for related_bill in related_bills_list]
-
-    @staticmethod
-    def _convert_legacy_dict_to_xml(legacy_dict):
-        # TODO
-        pass
 
     # clean text, pull out the action type, any other associated metadata with an action
     @staticmethod
@@ -458,16 +457,7 @@ class Bills(Task):
         fn = "data.%s" % format if is_data_dot else format
         return "%s/%s/bills/%s/%s%s/%s" % (self.storage.data_dir, congress, bill_type, bill_type, number, fn)
 
-    def output_bill(self, bill):
-        logging.info("[%s] Writing to disk..." % bill['bill_id'])
-
-        # output JSON - so easy!
-        self.storage.write(
-            json.dumps(bill, sort_keys=True, indent=2, default=format_datetime),
-            self.output_for_bill(bill['bill_id'], "json"),
-            options=self.options,
-        )
-
+    def _convert_legacy_dict_to_xml(self, bill):
         # output XML
         govtrack_type_codes = {'hr': 'h', 's': 's', 'hres': 'hr', 'sres': 'sr', 'hjres': 'hj', 'sjres': 'sj', 'hconres': 'hc', 'sconres': 'sc'}
         root = etree.Element("bill")
@@ -478,16 +468,13 @@ class Bills(Task):
 
         def make_node(parent, tag, text, **attrs):
             if self.options.get("govtrack", False):
-                # Rewrite thomas_id attributes as just id with GovTrack person IDs.
+                # Rewrite bioguide_id attributes as just id with GovTrack person IDs.
                 attrs2 = {}
                 for k,v in attrs.items():
                     if v:
-                        if k == "thomas_id":
-                            pass
-                            # TODO: Govtrack conversion method is very, very complicated.
-                            # remap "thomas_id" attributes to govtrack "id"
-                            #k = "id"
-                            #v = str(utils.get_govtrack_person_id('thomas', v))
+                        if k == "bioguide_id":
+                            k = "id"
+                            v = str(self.lookup_legislator_by_id("bioguide", v)["id"]["govtrack"])
                         attrs2[k] = v
                 attrs = attrs2
 
@@ -522,13 +509,13 @@ class Bills(Task):
 
         if bill['sponsor']:
             # TODO: Sponsored by committee?
-            make_node(root, "sponsor", None, thomas_id=bill['sponsor']['thomas_id'])
+            make_node(root, "sponsor", None, bioguide_id=bill['sponsor']['bioguide_id'])
         else:
             make_node(root, "sponsor", None)
 
         cosponsors = make_node(root, "cosponsors", None)
         for cosp in bill['cosponsors']:
-            n = make_node(cosponsors, "cosponsor", None, thomas_id=cosp["thomas_id"])
+            n = make_node(cosponsors, "cosponsor", None, bioguide_id=cosp["bioguide_id"])
             if cosp["sponsored_at"]:
                 n.set("joined", cosp["sponsored_at"])
             if cosp["withdrawn_at"]:
@@ -600,13 +587,9 @@ class Bills(Task):
             make_node(amendments, "amendment", None, number=amd["chamber"] + str(amd["number"]))
 
         if bill.get('summary'):
-            make_node(root, "summary", re.sub(r"^0|(/)0", lambda m: m.group(1), datetime.strftime(datetime.strptime(bill['summary']['date'], "%Y-%m-%d"), "%m/%d/%Y")) + "--" + bill['summary'].get('as', '?') + ".\n" + bill['summary']['text'])  # , date=bill['summary'].get('date'), status=bill['summary'].get('as'))
+            make_node(root, "summary", bill['summary']['text'], date=bill['summary']['date'], as_of_status=bill['summary']['as'])
 
-        self.storage.write(
-            etree.tostring(root, pretty_print=True),
-            self.output_for_bill(bill['bill_id'], "xml"),
-            options=self.options
-        )
+        return etree.tostring(root, pretty_print=True)
 
     # find the first action beyond the standard actions every bill gets.
     # - if the bill's first action is "referral" then the first action not those

@@ -27,7 +27,6 @@ import smtplib
 import email.utils
 from email.mime.text import MIMEText
 
-
 class Storage:
 
     class CacheError(LookupError):
@@ -215,6 +214,7 @@ class Task:
 
     HAS_CONGRESS_LEGISLATORS_REPO = False
     LOOKUP_LEGISLATOR_CACHE = {}
+    LOOKUP_LEGISLATOR_BY_ID_CACHE = {}
     COMMITTEE_NAMES = {}
     EASTERN_TIME_ZONE = timezone('US/Eastern')
 
@@ -527,6 +527,25 @@ class Task:
             body = unescape(body)
 
         return body
+
+    def lookup_legislator_by_id(self, id_type, id):
+        # Look up a legislator by their id.
+
+        # On the first load, cache all of the legislators' ids in memory.
+        if not self.LOOKUP_LEGISLATOR_BY_ID_CACHE:
+            self.require_congress_legislators_repo()
+            for filename in ("legislators-historical", "legislators-current"):
+                for moc in self.storage.yaml_load("congress-legislators/%s.yaml" % (filename)):
+                    for k, v in moc["id"].items():
+                        try:
+                            self.LOOKUP_LEGISLATOR_BY_ID_CACHE[(k, v)] = moc
+                        except TypeError:
+                            # The 'fec' id is a list which is not hashable
+                            # and so cannot go in the key of LOOKUP_LEGISLATOR_BY_ID_CACHE.
+                            pass
+
+        # Get from mapping.
+        return self.LOOKUP_LEGISLATOR_BY_ID_CACHE[(id_type, id)]
 
     def lookup_legislator(self, congress, role_type, name, state, party, when, id_requested, exclude=set()):
         # This is a basic lookup function given the legislator's name, state, party,
