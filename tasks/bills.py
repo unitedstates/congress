@@ -111,10 +111,18 @@ class Bills(Task):
             'summary': {
                 "date": bill_dict['summaries']['billSummaries']['item'][0]['updateDate'],
                 "as": bill_dict['summaries']['billSummaries']['item'][0]['name'],
-                "text": bill_dict['summaries']['billSummaries']['item'][0]['text'],
+                "text": Bills.strip_tags(bill_dict['summaries']['billSummaries']['item'][0]['text']),
             } if bill_dict['summaries']['billSummaries'] else None,
-            'subjects_top_term': bill_dict['primarySubject']['name'] if bill_dict['primarySubject'] else None,
-            'subjects': [item['name'] for item in bill_dict['subjects']['billSubjects']['otherSubjects']['item']] if bill_dict['subjects']['billSubjects']['otherSubjects'] else [],
+
+            # The top term's case has changed with the new bulk data. It's now in
+            # Title Case. For backwards compatibility, the top term is run through
+            # '.capitalize()' so it matches the old string. TODO: Remove one day?
+            'subjects_top_term': bill_dict['primarySubject']['name'].capitalize() if bill_dict['primarySubject'] else None,
+            'subjects':
+                sorted(
+                    ([bill_dict['primarySubject']['name'].capitalize()] if bill_dict['primarySubject'] else []) +
+                    ([item['name'] for item in bill_dict['subjects']['billSubjects']['otherSubjects']['item']] if bill_dict['subjects']['billSubjects']['otherSubjects'] else [])
+                ),
 
             'related_bills': self._build_legacy_related_bills_list(tasks.safeget(bill_dict, [], 'relatedBills', 'item')),
             'committees': self._build_legacy_committees_list(tasks.safeget(bill_dict, [], 'committees', 'billCommittees', 'item')),
@@ -125,8 +133,7 @@ class Bills(Task):
 
         return legacy_json
 
-    @staticmethod
-    def _build_legacy_sponsor_dict(sponsor_dict):
+    def _build_legacy_sponsor_dict(self, sponsor_dict):
         """
 
         @param sponsor_dict:
@@ -141,28 +148,29 @@ class Bills(Task):
             return None
 
         # TODO: Don't do regex matching here. Find another way.
-        extract_district_state = re.search(r'\[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large))?\]$',
+        m = re.match(r'(?P<title>(Rep|Sen))\. (?P<name>.*) \[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large))?\]$',
             sponsor_dict['fullName'])
-        if extract_district_state.group("district") is None:
+        
+        if m.group("district") is None:
             district = None # a senator
-        elif extract_district_state.group("district") == "At Large":
-            district = 0
+        elif m.group("district") == "At Large":
+            district = None # TODO: For backwards compatibility, we're returning None, but 0 would be better.
         else:
-            district = int(extract_district_state.group('district'))
+            # TODO: For backwards compatibility, we're returning a string, but an int would be better.
+            district = m.group('district')
 
         return {
-            'title': sponsor_dict['fullName'][0:3],
-            'name': '{0}, {1}'.format(sponsor_dict['lastName'].capitalize(), sponsor_dict['firstName'].capitalize()),
+            'title': m.group("title"),
+            'name': m.group("name"), # the firstName, middleName, lastName fields have inconsistent capitalization - some are all uppercase
             'district': district,
-            'state': extract_district_state.group('state'),
-            'party': extract_district_state.group('party'),
-            # 'thomas_id': None,  # RIP Thomas
+            'state': m.group('state'),
+            #'party': m.group('party'),
+            'thomas_id': self.lookup_legislator_by_id('bioguide', sponsor_dict['bioguideId'])['id']['thomas'],  # TODO: Remove.
             'bioguide_id': sponsor_dict['bioguideId'],
             'type': 'person'
         }
 
-    @staticmethod
-    def _build_legacy_cosponsor_list(cosponsors_list):
+    def _build_legacy_cosponsor_list(self, cosponsors_list):
         """
 
         @param cosponsors_list:
@@ -171,7 +179,8 @@ class Bills(Task):
         @rtype:
         """
         def build_dict(item):
-            cosponsor_dict = Bills._build_legacy_sponsor_dict(item)
+            cosponsor_dict = self._build_legacy_sponsor_dict(item)
+            del cosponsor_dict["type"] # always 'person'
             cosponsor_dict.update({
                 'sponsored_at': item['sponsorshipDate'],
                 'withdrawn_at': item['sponsorshipWithdrawnDate'],
@@ -179,25 +188,29 @@ class Bills(Task):
             })
             return cosponsor_dict
 
-        return [build_dict(cosponsor) for cosponsor in cosponsors_list]
+        cosponsors = [build_dict(cosponsor) for cosponsor in cosponsors_list]
+
+        # TODO: Can remove. Sort like the old order to make diffs easier.
+        cosponsors.sort(key = lambda c : c['name'].lower())
+
+        return cosponsors
 
     @staticmethod
     def _build_legacy_actions_list(action_list):
         def build_dict(item):
             action_dict = {
-                'acted_at': item.get('actionDate', ''),
-                'acted_time': item.get('actionTime', ''),
+                'acted_at': item.get('actionDate', '') + (("T" + item['actionTime']) if item.get('actionTime') else ""),
                 'action_code': item.get('actionCode', ''),
                 'committees': [tasks.safeget(item, '', 'committee', 'systemCode')[0:-2].upper()],
                 'references': Bills._action_for(item.get('text', ''))[1] if item.get('text') is not None else '',
-                'type': '',  # TODO see parse_bill_action in bill_info.py this is a mess
-                'status': '',  # TODO see parse_bill_action in bill_info.py this is a mess
+                #'type': '',  # TODO see parse_bill_action in bill_info.py this is a mess
+                #'status': '',  # TODO see parse_bill_action in bill_info.py this is a mess
                 'text': item.get('text', ''),
-                'where': '', # TODO see parse_bill_action in bill_info.py this is a mess
+                #'where': '', # TODO see parse_bill_action in bill_info.py this is a mess
             }
             return action_dict
 
-        return [build_dict(action) for action in action_list]
+        return [build_dict(action) for action in reversed(action_list)]
 
     @staticmethod
     def _build_legacy_history(actions):
@@ -213,7 +226,7 @@ class Bills(Task):
 
         house_vote = None
         for action in actions:
-            if (action['type'] == 'vote') and (action['where'] == 'h') and (action['vote_type'] != "override"):
+            if (action.get('type') == 'vote') and (action['where'] == 'h') and (action['vote_type'] != "override"):
                 house_vote = action
         if house_vote:
             history['house_passage_result'] = house_vote['result']
@@ -221,7 +234,7 @@ class Bills(Task):
 
         senate_vote = None
         for action in actions:
-            if (action['type'] == 'vote') and (action['where'] == 's') and (action['vote_type'] != "override"):
+            if (action.get('type') == 'vote') and (action['where'] == 's') and (action['vote_type'] != "override"):
                 senate_vote = action
         if senate_vote:
             history['senate_passage_result'] = senate_vote['result']
@@ -229,7 +242,7 @@ class Bills(Task):
 
         senate_vote = None
         for action in actions:
-            if (action['type'] == 'vote-aux') and (action['vote_type'] == 'cloture') and (action['where'] == 's') and (action['vote_type'] != "override"):
+            if (action.get('type') == 'vote-aux') and (action['vote_type'] == 'cloture') and (action['where'] == 's') and (action['vote_type'] != "override"):
                 senate_vote = action
         if senate_vote:
             history['senate_cloture_result'] = senate_vote['result']
@@ -237,7 +250,7 @@ class Bills(Task):
 
         vetoed = None
         for action in actions:
-            if action['type'] == 'vetoed':
+            if action.get('type') == 'vetoed':
                 vetoed = action
         if vetoed:
             history['vetoed'] = True
@@ -247,7 +260,7 @@ class Bills(Task):
 
         house_override_vote = None
         for action in actions:
-            if (action['type'] == 'vote') and (action['where'] == 'h') and (action['vote_type'] == "override"):
+            if (action.get('type') == 'vote') and (action['where'] == 'h') and (action['vote_type'] == "override"):
                 house_override_vote = action
         if house_override_vote:
             history['house_override_result'] = house_override_vote['result']
@@ -255,7 +268,7 @@ class Bills(Task):
 
         senate_override_vote = None
         for action in actions:
-            if (action['type'] == 'vote') and (action['where'] == 's') and (action['vote_type'] == "override"):
+            if (action.get('type') == 'vote') and (action['where'] == 's') and (action['vote_type'] == "override"):
                 senate_override_vote = action
         if senate_override_vote:
             history['senate_override_result'] = senate_override_vote['result']
@@ -263,7 +276,7 @@ class Bills(Task):
 
         enacted = None
         for action in actions:
-            if action['type'] == 'enacted':
+            if action.get('type') == 'enacted':
                 enacted = action
         if enacted:
             history['enacted'] = True
@@ -273,7 +286,7 @@ class Bills(Task):
 
         topresident = None
         for action in actions:
-            if action['type'] == 'topresident':
+            if action.get('type') == 'topresident':
                 topresident = action
         if topresident and (not history['vetoed']) and (not history['enacted']):
             history['awaiting_signature'] = True
@@ -357,9 +370,19 @@ class Bills(Task):
 
     @staticmethod
     def _build_legacy_committees_list(committee_list):
+        def map_activity_name(activity):
+            if activity == "Referred to":
+                return "referral"
+            return activity
+
+        def fix_subcommittee_name(name):
+            return re.sub("(.*) Subcommittee$",
+                lambda m : "Subcommittee on " + m.group(1),
+                name)
+
         def build_dict(item):
             committee_dict = {
-                'activity': [i['name'] for i in item['activities']['item']] if item['activities'] else [],
+                'activity': [map_activity_name(i['name']) for i in item['activities']['item']] if item['activities'] else [],
                 'committee': item['chamber'] + ' ' + re.sub(" Committee$", "", item['name']),
                 'committee_id': item['systemCode'][0:-2].upper(),
             }
@@ -369,9 +392,9 @@ class Bills(Task):
                 for subcommittee in item['subcommittees']['item']:
                     subcommittee_dict = copy.deepcopy(committee_dict)
                     subcommittee_dict.update({
-                        'subcommittee': subcommittee['name'],  # TODO normalize name
+                        'subcommittee': fix_subcommittee_name(subcommittee['name']),
                         'subcommittee_id': subcommittee['systemCode'][-2:],
-                        'activity': [i['name'] for i in subcommittee['activities']['item']]
+                        'activity': [map_activity_name(i['name']) for i in subcommittee['activities']['item']]
                     })
                     subcommittees_list.append(subcommittee_dict)
 
@@ -635,9 +658,9 @@ class Bills(Task):
 
         first = actions[0]
 
-        if first['type'] in ["referral", "calendar", "action"]:
+        if first.get('type') in ["referral", "calendar", "action"]:
             for action in actions[1:]:
-                if (action['type'] != "referral") and (action['type'] != "calendar") and ("Sponsor introductory remarks" not in action['text']):
+                if action.get('type') and (action['type'] != "referral") and (action['type'] != "calendar") and ("Sponsor introductory remarks" not in action['text']):
                     return action
             return None
         else:
@@ -655,12 +678,25 @@ class Bills(Task):
     @staticmethod
     def slip_law_from(actions):
         for action in actions:
-            if action["type"] == "enacted":
+            if action.get('type') == "enacted":
                 return {
                     'law_type': action["law"],
                     'congress': action["congress"],
                     'number': action["number"]
                 }
+
+    @staticmethod
+    def strip_tags(text):
+        # Preserve paragraph breaks. Convert closing p tags (and surrounding whitespace) into two newlines. Strip trailing whitespace
+        text = re.sub("\s*</\s*p\s*>\s*", "\n\n", text).strip()
+
+        # naive stripping of tags, should work okay in this limited context
+        text = re.sub("<[^>]+>", "", text)
+
+        # compress and strip whitespace artifacts, except for the paragraph breaks
+        text = re.sub("[ \t\r\f\v]{2,}", " ", text).strip()
+
+        return text
 
     def scan_for_bills_to_process(self):
         # Return a generator over bill_ids that need to be
