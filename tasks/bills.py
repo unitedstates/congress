@@ -44,19 +44,20 @@ class Bills(Task):
 
     def run(self):
         if self.bill_id:
-            return self.write_legacy_dict_to_disk(self.bill_id)
+            return self.write_legacy_dict_to_disk(self.bill_id, self.options.get('amendments', True))
         else:
             for bill_id in self.scan_for_bills_to_process():
-                self.write_legacy_dict_to_disk(bill_id)
+                self.write_legacy_dict_to_disk(bill_id, self.options.get('amendments', True))
 
     def _path_to_billstatus_file(self, bill_id):
         bill_type, bill_number, congress = self.split_bill_id(bill_id)
         return os.path.join(self.storage.data_dir, congress, 'bills',
                             bill_type, bill_type + bill_number, Fdsys.BULK_BILLSTATUS_FILENAME)
 
-    def write_legacy_dict_to_disk(self, bill_id):
+    def write_legacy_dict_to_disk(self, bill_id, amendments=True):
         # Read FDSys bulk data file.
-        legacy_dict = self.convert_bulk_to_legacy_dict(bill_id)
+        xml_as_dict = self.convert_bulk_xml_to_dict(bill_id)
+        legacy_dict = self.convert_bulk_to_legacy_dict(xml_as_dict)
 
         # Convert and write out data.json and data.xml.
         path = os.path.dirname(self._path_to_billstatus_file(bill_id))
@@ -64,7 +65,12 @@ class Bills(Task):
         with self.storage.fs.open(path + '/data.json', 'w') as json_file:
             json_file.write(unicode(json.dumps(legacy_dict, indent=2, sort_keys=True)))
         with self.storage.fs.open(path + '/data.xml', 'wb') as xml_file:
-            xml_file.write(self._convert_legacy_dict_to_xml(legacy_dict))
+            pass
+            # xml_file.write(self._convert_legacy_dict_to_xml(legacy_dict))
+
+        if amendments:
+            from tasks.amendments import Amendments
+            Amendments(self.options, self.config).extract_all_amendments(xml_as_dict)
 
         # Mark this bulk data file as processed by saving its lastmod
         # file under a new path.
@@ -76,19 +82,27 @@ class Bills(Task):
         with self.storage.fs.open(self._path_to_billstatus_file(bill_id)) as fdsys_billstatus:
             return xmltodict.parse(fdsys_billstatus.read(), force_list=('item', 'amendment',))
 
-    def convert_bulk_to_legacy_dict(self, bill_id):
-        bill_type, bill_number, congress = self.split_bill_id(bill_id)
-        complete_xml_as_dict = self.convert_bulk_xml_to_dict(bill_id)
-        bill_dict = complete_xml_as_dict['billStatus']['bill']
-        actions = self._build_legacy_actions_list(bill_dict['actions']['item'])
+    def convert_bulk_to_legacy_dict(self, xml_as_dict):
+        """
+        Handles converting a government bulk XML file to legacy dictionary form.
+
+        @param bill_id: id of the bill in format [type][number]-[congress] e.x. s934-113
+        @type bill_id: str
+        @return: dictionary of bill attributes
+        @rtype: dict
+        """
+
+        bill_dict = xml_as_dict['billStatus']['bill']
+        bill_id = self.build_bill_id(bill_dict['billType'].lower(), bill_dict['billNumber'], bill_dict['congress'])
+        actions = self.build_legacy_actions_list(bill_dict['actions']['item'])
         status, status_date = self.latest_status(actions)
         titles = self._build_legacy_titles(bill_dict['titles']['item'])
 
-        legacy_json = {
+        legacy_dict = {
             'bill_id': bill_id,
-            'bill_type': bill_type,
-            'number': bill_number,
-            'congress': congress,
+            'bill_type': bill_dict.get('billType').lower(),
+            'number': bill_dict.get('billNumber'),
+            'congress': bill_dict.get('congress'),
 
             'url': self.billstatus_url_for(bill_id),
 
@@ -131,7 +145,7 @@ class Bills(Task):
             'updated_at': bill_dict.get('updateDate', ''),
         }
 
-        return legacy_json
+        return legacy_dict
 
     def _build_legacy_sponsor_dict(self, sponsor_dict):
         """
@@ -191,21 +205,22 @@ class Bills(Task):
         cosponsors = [build_dict(cosponsor) for cosponsor in cosponsors_list]
 
         # TODO: Can remove. Sort like the old order to make diffs easier.
-        cosponsors.sort(key = lambda c : c['name'].lower())
+        cosponsors.sort(key = lambda c: c['name'].lower())
 
         return cosponsors
 
     @staticmethod
-    def _build_legacy_actions_list(action_list):
+    def build_legacy_actions_list(action_list):
         def build_dict(item):
+            text, references = Bills.action_for(item['text'] if item['text'] is not None else '' )
             action_dict = {
                 'acted_at': item.get('actionDate', '') + (("T" + item['actionTime']) if item.get('actionTime') else ""),
                 'action_code': item.get('actionCode', ''),
                 'committees': [tasks.safeget(item, '', 'committee', 'systemCode')[0:-2].upper()],
-                'references': Bills._action_for(item.get('text', ''))[1] if item.get('text') is not None else '',
+                'references': references,
                 #'type': '',  # TODO see parse_bill_action in bill_info.py this is a mess
                 #'status': '',  # TODO see parse_bill_action in bill_info.py this is a mess
-                'text': item.get('text', ''),
+                'text': text,
                 #'where': '', # TODO see parse_bill_action in bill_info.py this is a mess
             }
             return action_dict
@@ -432,7 +447,7 @@ class Bills(Task):
 
     # clean text, pull out the action type, any other associated metadata with an action
     @staticmethod
-    def _action_for(text):
+    def action_for(text):
         # strip out links
         text = re.sub(r"</?[Aa]( \S.*?)?>", "", text)
 

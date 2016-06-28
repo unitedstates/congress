@@ -27,6 +27,7 @@ import smtplib
 import email.utils
 from email.mime.text import MIMEText
 
+
 class Storage:
 
     class CacheError(LookupError):
