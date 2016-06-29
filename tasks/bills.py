@@ -327,9 +327,17 @@ class Bills(Task):
         def build_dict(item):
 
             full_type = item['titleType']
+            is_for_portion = False
 
-            if " as " in full_type:
-                title_type, state = full_type.split(" as ")
+            # "Official Titles as Introduced", "Short Titles on Conference report"
+            splits = re.split(" as | on ", full_type, 1)
+            if len(splits) == 2:
+                title_type, state = splits
+
+                if state.endswith(" for portions of this bill"):
+                    is_for_portion = True
+                    state = state.replace(" for portions of this bill" ,"")
+
                 state = state.replace(":", "").lower()
             else:
                 title_type, state = full_type, None
@@ -351,12 +359,56 @@ class Bills(Task):
 
             return {
                 'title': item['title'],
-                'is_for_portion': False, # TODO find case where title is for a portion?
+                'is_for_portion': is_for_portion,
                 'as': state,
                 'type': title_type
             }
 
-        return [build_dict(title) for title in title_list]
+        titles = [build_dict(title) for title in title_list]
+
+        # THOMAS used to give us the titles in a particular order:
+        #  short as introduced
+        #  short as introduced (for portion)
+        #  short as some later stage
+        #  short as some later stage (for portion)
+        #  official as introduced
+        #  official as some later stage
+        # The "as" stages (introduced, etc.) were in the order in which actions
+        # actually occurred. This was handy because to get the current title for
+        # a bill, you need to know which action type was most recent. The new
+        # order is reverse-chronological, so we have to turn the order around
+        # for backwards compatibility. Rather than do a simple .reverse(), I'm
+        # adding an explicit sort order here which gets very close to the THOMAS
+        # order.
+        # Unfortunately this can no longer be relied on because the new bulk
+        # data has the "as" stages sometimes in the wrong order: The "reported to
+        # senate" status for House bills seems to be consistently out of place.
+        titles_copy = list(titles) # clone before beginning sort
+        def first_index_of(**kwargs):
+            for i, title in enumerate(titles_copy):
+                for k, v in kwargs.items():
+                    k = k.replace("_", "")
+                    if title.get(k) != v:
+                        break
+                else:
+                    # break not called --- all match
+                    return i
+        titles.sort(key = lambda title: (
+            # keep the same 'short', 'official', 'display' order intact
+            first_index_of(type=title['type']),
+
+            # within each of those categories, reverse the 'as' order
+            -first_index_of(type=title['type'], _as=title.get('as')),
+
+            # put titles for portions last, within the type/as category
+            title['is_for_portion'],
+
+            # and within that, just sort alphabetically, case-insensitively (which is
+            # what it appears THOMAS used to do)
+            title['title'].lower(),
+            ))
+
+        return titles
 
     @staticmethod
     def current_title_for(titles, title_type):
