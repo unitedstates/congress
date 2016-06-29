@@ -743,18 +743,23 @@ class Bills(Task):
                 args.insert(1, "bills")
             return os.path.join(self.storage.data_dir, *args)
 
-        def filter_ints(seq):
-            for s in seq:
-                try:
-                    yield int(s)
-                except:
-                    # Not an integer.
-                    continue
+        if not self.options.get('congress'):
+            # Get a list of all congress directories on disk.
+            # Filter out non-integer directory names, then sort on the
+            # integer.
+            def filter_ints(seq):
+                for s in seq:
+                    try:
+                        yield int(s)
+                    except:
+                        # Not an integer.
+                        continue
+            congresses = sorted(filter_ints(os.listdir(get_data_path())))
+        else:
+            congresses = sorted([int(c) for c in self.options['congress'].split(',')])
 
-        # walk through all congress directories on disk
-        # (filter out non-integer directory names, then sort on the
-        # integer)
-        for congress in sorted(filter_ints(os.listdir(get_data_path()))):
+        # walk through congresses
+        for congress in congresses:
             # turn this back into a string
             congress = str(congress)
 
