@@ -94,9 +94,9 @@ class Bills(Task):
 
         bill_dict = xml_as_dict['billStatus']['bill']
         bill_id = self.build_bill_id(bill_dict['billType'].lower(), bill_dict['billNumber'], bill_dict['congress'])
-        actions = self.build_legacy_actions_list(bill_dict['actions']['item'])
-        status, status_date = self.latest_status(actions)
         titles = self._build_legacy_titles(bill_dict['titles']['item'])
+        actions = self.build_legacy_actions_list(bill_dict['actions']['item'], bill_id, Bills.current_title_for(titles, 'official'))
+        status, status_date = self.latest_status(actions, bill_dict.get('introducedDate', ''))
 
         legacy_dict = {
             'bill_id': bill_id,
@@ -212,22 +212,95 @@ class Bills(Task):
         return cosponsors
 
     @staticmethod
-    def build_legacy_actions_list(action_list):
-        def build_dict(item):
-            text, references = Bills.action_for(item['text'] if item['text'] is not None else '' )
+    def build_legacy_actions_list(action_list, bill_id, title):
+        from bill_info import parse_bill_action
+
+        # The bulk XML data has action history information from multiple sources. For
+        # major actions, the Library of Congress (code 9) action item often duplicates
+        # the information of a House/Senate action item. We have to skip one so that we
+        # don't tag multiple history items with the same parsed action info, which
+        # would imply the action (like a vote) ocurred multiple times. THOMAS appears
+        # to have suppressed the Library of Congress action lines in certain cases
+        # to avoid duplication - they were not in our older data files.
+        #
+        # Also, there are some ghost action items with totally empty text. Remove those.
+        # TODO: When removed from upstream data, we can remove that check.
+        closure = {
+            "prev": None,
+        }
+        def keep_action(item, closure):
+            if item['text'] in (None, ""):
+                return False
+
+            keep = True
+            if closure['prev']:
+                if tasks.safeget(item, None, 'sourceSystem', 'code') == "9":
+                    # Date must match previous action..
+                    # If both this and previous have a time, the times must match.
+                    # The text must approximately match. Sometimes the LOC text has a prefix
+                    #   and different whitespace. And they may drop references -- so we'll
+                    # use our Bills.action_for helper function to drop references from both
+                    # prior to the string comparison.
+                    if   item['actionDate'] == closure["prev"]["actionDate"] \
+                     and (item.get('actionTime') == closure["prev"].get("actionTime") or not item.get('actionTime') or not closure["prev"].get("actionTime")) \
+                     and Bills.action_for(item['text'])[0].replace(" ", "").endswith(Bills.action_for(closure["prev"]["text"])[0].replace(" ", "")):
+
+                        keep = False
+            closure['prev'] = item
+            return keep
+
+        action_list = [item for item in action_list
+            if keep_action(item, closure)]
+
+        # Turn the actions into dicts. The actions are in reverse-chronological
+        # order in the bulk data XML. Process them in chronological order so that
+        # our bill status logic sees the actions in the right order.
+
+        def build_dict(item, closure):
+            text, references = Bills.action_for(item['text'])
+
+            if not item.get('actionTime'):
+                acted_at = item.get('actionDate', '')
+            else:    
+                # Although we get the action date & time in an ISO-ish format (split
+                # across two fields), and although we know it's in local time at the
+                # U.S. Capitol (i.e. U.S. Eastern), we don't know the UTC offset which
+                # is a part of how we used to serialize the time. So parse and then
+                # use pytz (via format_datetime) to re-serialize.
+                acted_at = format_datetime(datetime.strptime(item.get('actionDate', '') + " " + item['actionTime'], "%Y-%m-%d %H:%M:%S"))
+
             action_dict = {
-                'acted_at': item.get('actionDate', '') + (("T" + item['actionTime']) if item.get('actionTime') else ""),
+                'acted_at': acted_at,
                 'action_code': item.get('actionCode', ''),
-                'committees': [tasks.safeget(item, '', 'committee', 'systemCode')[0:-2].upper()],
+                'committees': [item['committee']['systemCode'][0:-2].upper()] if tasks.safeget(item, '', 'committee', 'systemCode') else None,
                 'references': references,
                 'type': 'action',  # TODO see parse_bill_action in bill_info.py this is a mess
                 #'status': '',  # TODO see parse_bill_action in bill_info.py this is a mess
                 'text': text,
                 #'where': '', # TODO see parse_bill_action in bill_info.py this is a mess
             }
+
+            if not action_dict["committees"]:
+                # remove if empty - not present in how we used to generate the file
+                del action_dict["committees"]
+
+            extra_action_info, new_status = parse_bill_action(action_dict, closure['prev_status'], bill_id, title)
+
+            # only change/reflect status change if there was one
+            if new_status:
+                action_dict['status'] = new_status
+                closure['prev_status'] = new_status
+
+            # add additional parsed fields
+            if extra_action_info:
+                action_dict.update(extra_action_info)
+
             return action_dict
 
-        return [build_dict(action) for action in reversed(action_list)]
+        closure = {
+            "prev_status": "INTRODUCED",
+        }
+        return [build_dict(action, closure) for action in reversed(action_list)]
 
     @staticmethod
     def _build_legacy_history(actions):
@@ -522,7 +595,7 @@ class Bills(Task):
 
         # remove and extract references
         references = []
-        match = re.search("\s+\(([^)]+)\)\s*$", text)
+        match = re.search("\s*\(([^)]+)\)\s*$", text)
         if match:
             # remove the matched section
             text = text[0:match.start()] + text[match.end():]
@@ -683,7 +756,6 @@ class Bills(Task):
                 a.set("type", action["vote_type"])
                 if action.get("roll") != None:
                     a.set("roll", action["roll"])
-                a.set("datetime", format_datetime(action['acted_at']))
                 a.set("where", action["where"])
                 a.set("result", action["result"])
                 if action.get("suspension"):
@@ -700,7 +772,6 @@ class Bills(Task):
                 a.clear()  # re-insert date between some of these attributes
                 a.set("number", "%s-%s" % (bill['congress'], action["number"]))
                 a.set("type", action["law"])
-                a.set("datetime", format_datetime(action['acted_at']))
                 if action.get("status"):
                     a.set("state", action["status"])
             if action['type'] == 'vetoed':
@@ -758,7 +829,7 @@ class Bills(Task):
 
         first = actions[0]
 
-        if first.get('type') in ["referral", "calendar", "action"]:
+        if first['type'] in ["referral", "calendar", "action"]:
             for action in actions[1:]:
                 if (action['type'] != "referral") and (action['type'] != "calendar") and ("Sponsor introductory remarks" not in action['text']):
                     return action
@@ -767,8 +838,8 @@ class Bills(Task):
             return first
 
     @staticmethod
-    def latest_status(actions):
-        status, status_date = None, None
+    def latest_status(actions, introduced_date):
+        status, status_date = "INTRODUCED", introduced_date
         for action in actions:
             if action.get('status', None):
                 status = action['status']
