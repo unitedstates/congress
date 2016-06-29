@@ -1471,10 +1471,10 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             pass  # this is a final administrative step
         elif prev_status == "PROV_KILL:VETO" or prev_status.startswith("VETOED:"):
             status = "ENACTED:VETO_OVERRIDE"
-        elif bill_id in ("hr1589-94", "s2527-100", "hr1677-101", "hr2978-101", "hr2126-104", "s1322-104"):
+        elif bill_id in ("s2641-93", "hr1589-94", "s2527-100", "hr1677-101", "hr2978-101", "hr2126-104", "s1322-104"):
             status = "ENACTED:TENDAYRULE"
         else:
-            raise Exception("Missing Signed by President action? If this is a case of the 10-day rule, hard code the bill number here.")
+            raise Exception("Missing Signed by President action? If this is a case of the 10-day rule, hard code the bill id %s here." % bill_id)
 
     # Check for referral type
     m = re.search(r"Referred to (?:the )?(House|Senate)?\s?(?:Committee|Subcommittee)?", line, re.I)
