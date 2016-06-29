@@ -87,7 +87,8 @@ def parse_nomination(nomination_id, body, options):
 	}
 
 	# the markup on these pages is a disaster, so we're going to use a heuristic based on boldface, inline tags followed by text
-	for pair in doc.xpath('//span[@class="elabel"]|//strong'):
+	for pair in doc.xpath('//span[@c'
+						  's="elabel"]|//strong'):
 		if pair.tail:
 			text = pair.text or pair.text_content()
 			label, data = text.replace(':', '').strip(), pair.tail.strip()

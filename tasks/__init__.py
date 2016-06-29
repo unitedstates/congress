@@ -26,6 +26,7 @@ import fs.errors
 import smtplib
 import email.utils
 from email.mime.text import MIMEText
+import fs
 
 
 class Storage:
@@ -194,7 +195,7 @@ class Storage:
             path = self.options['config']['output']['cache']
         except KeyError:
             # The pyfilesystem filesystem requires an absolute path.
-            path = os.path.abspath('cache')
+            path = fs.path.abspath('cache')
         return path
 
     @property
@@ -206,7 +207,8 @@ class Storage:
         try:
             path = self.options['config']['output']['data']
         except KeyError:
-            path = 'data'
+            # The pyfilesystem filesystem requires an absolute path.
+            path = fs.path.abspath('data')
         return path
 
 
@@ -489,7 +491,7 @@ class Task:
                 logging.info("Cached: (%s, %s)" % (cache_path, url))
             if not needs_content:
                 return True
-            with open(cache_path, 'r') as f:
+            with self.storage.fs.open(cache_path, 'r') as f:
                 body = f.read()
             if not is_binary:
                 body = body.decode("utf8")
@@ -642,6 +644,19 @@ class Task:
 
 
 # Utility Functions
+
+def ordinalize(n):
+    """
+    Turns a number into an ordinal representation takenly shamelessly from
+    http://stackoverflow.com/questions/9647202/ordinal-numbers-replacement
+
+    @param n:
+    @type n:
+    @return:
+    @rtype:
+    """
+    return "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4])
+
 
 def safeget(dct, default, *keys):
     """
@@ -850,3 +865,14 @@ def make_node(parent, tag, text, **attrs):
             v = format_datetime(v)
         n.set(k.replace("___", ""), v)
     return n
+
+
+def neighborhood(iterable):
+    iterator = iter(iterable)
+    prev = None
+    item = iterator.next()  # throws StopIteration if empty.
+    for next in iterator:
+        yield (prev,item,next)
+        prev = item
+        item = next
+    yield (prev,item,None)

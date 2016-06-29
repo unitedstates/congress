@@ -1197,7 +1197,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         + "(, as amended| \(Amended\))?"
         + " (Passed|Failed|Agreed to|Rejected)?"
         + " ?(by voice vote|without objection|by (the Yeas and Nays|Yea-Nay Vote|recorded vote)"
-        + "((:)? \(2/3 required\))?: \d+ - \d+(, \d+ Present)? [ \)]*\((Roll no\.|Record Vote No:) \d+\))",
+        + "(:? \(2/3 required\))?: (\d+ - \d+(, \d+ Present)? [ \)]*)?\((Roll no\.|Record Vote No:) \d+\))",
         line, re.I)
     if m != None:
         motion, is_override, as_amended, pass_fail, how = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
@@ -1251,16 +1251,22 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             action["roll"] = roll
         action["suspension"] = suspension
 
+        # correct upstream data error
+        if bill_id == "s2012-114" and "Roll no. 250" in line:
+            as_amended = True
+
         # get the new status of the bill after this vote
         new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, suspension, as_amended, title, prev_status)
         if new_status:
             status = new_status
 
     # Passed House, not necessarily by an actual vote (think "deem")
-    m = re.search(r"Passed House pursuant to", line, re.I)
+    m = re.search(r"Passed House pursuant to|House agreed to Senate amendment (with amendment )?pursuant to", line, re.I)
     if m != None:
         vote_type = "vote" if (bill_type[0] == "h") else "vote2"
+        if "agreed to Senate amendment" in line: vote_type = "pingpong"
         pass_fail = "pass"
+        as_amended = bool(m.group(1))
 
         action["type"] = "vote"
         action["vote_type"] = vote_type
@@ -1269,7 +1275,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         action["result"] = pass_fail
 
         # get the new status of the bill after this vote
-        new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, False, title, prev_status)
+        new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, as_amended, title, prev_status)
 
         if new_status:
             status = new_status
@@ -1465,10 +1471,10 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             pass  # this is a final administrative step
         elif prev_status == "PROV_KILL:VETO" or prev_status.startswith("VETOED:"):
             status = "ENACTED:VETO_OVERRIDE"
-        elif bill_id in ("hr1589-94", "s2527-100", "hr1677-101", "hr2978-101", "hr2126-104", "s1322-104"):
+        elif bill_id in ("s2641-93", "hr1589-94", "s2527-100", "hr1677-101", "hr2978-101", "hr2126-104", "s1322-104"):
             status = "ENACTED:TENDAYRULE"
         else:
-            raise Exception("Missing Signed by President action? If this is a case of the 10-day rule, hard code the bill number here.")
+            raise Exception("Missing Signed by President action? If this is a case of the 10-day rule, hard code the bill id %s here." % bill_id)
 
     # Check for referral type
     m = re.search(r"Referred to (?:the )?(House|Senate)?\s?(?:Committee|Subcommittee)?", line, re.I)
