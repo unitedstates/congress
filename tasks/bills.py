@@ -162,7 +162,7 @@ class Bills(Task):
             return None
 
         # TODO: Don't do regex matching here. Find another way.
-        m = re.match(r'(?P<title>(Rep|Sen))\. (?P<name>.*) \[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large))?\]$',
+        m = re.match(r'(?P<title>(Rep|Sen))\. (?P<name>.*?) +\[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large))?\]$',
             sponsor_dict['fullName'])
         
         if m.group("district") is None:
@@ -385,20 +385,35 @@ class Bills(Task):
 
     @staticmethod
     def _build_legacy_committees_list(committee_list):
-        def map_activity_name(activity):
-            if activity == "Referred to":
-                return "referral"
-            return activity
+        activity_text_map = {
+            "Referred to": ["referral"],
+            "Hearings by": ["hearings"],
+            "Markup by": ["markup"],
+            "Reported by": ["reporting"],
+            "Discharged from": ["discharged"],
+            "Reported original measure": ["origin", "reporting"],
+        }
 
         def fix_subcommittee_name(name):
             return re.sub("(.*) Subcommittee$",
                 lambda m : "Subcommittee on " + m.group(1),
                 name)
 
+        def get_activitiy_list(item):
+            if not item['activities']:
+                return []
+            return sum([activity_text_map.get(i['name'], [i['name']]) for i in item['activities']['item']], [])
+
+        def fixup_committee_name(name):
+            # Preserve backwards compatiblity.
+            if name == "House House Administration":
+                return "House Administration"
+            return name
+
         def build_dict(item):
             committee_dict = {
-                'activity': [map_activity_name(i['name']) for i in item['activities']['item']] if item['activities'] else [],
-                'committee': item['chamber'] + ' ' + re.sub(" Committee$", "", item['name']),
+                'activity': get_activitiy_list(item),
+                'committee': fixup_committee_name(item['chamber'] + ' ' + re.sub(" Committee$", "", item['name'])),
                 'committee_id': item['systemCode'][0:-2].upper(),
             }
 
@@ -409,7 +424,7 @@ class Bills(Task):
                     subcommittee_dict.update({
                         'subcommittee': fix_subcommittee_name(subcommittee['name']),
                         'subcommittee_id': subcommittee['systemCode'][-2:],
-                        'activity': [map_activity_name(i['name']) for i in subcommittee['activities']['item']]
+                        'activity': get_activitiy_list(subcommittee),
                     })
                     subcommittees_list.append(subcommittee_dict)
 
