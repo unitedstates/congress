@@ -568,7 +568,7 @@ class Bills(Task):
                     item[attr] = item[attr][0]
             return {
                 'amendment_id': "{0}{1}-{2}".format(item['type'].lower(), item['number'], item['congress']),
-                'amendment_type': item['type'],
+                'amendment_type': item['type'].lower(),
                 'chamber': item['type'][0].lower(),
                 'number': item['number']
             }

@@ -24,11 +24,10 @@ class Amendments(Task):
         Bills(self.options, self.config).run()
 
     def extract_all_amendments(self, xml_as_dict):
-        amdt_list = xml_as_dict['billStatus']['bill']['amendments']['amendment']
-        print amdt_list
+        amdt_list = xml_as_dict['billStatus']['bill']['amendments']
         if amdt_list is None:  # many bills don't have amendments so let's skip this
             return
-        for amdt in amdt_list:
+        for amdt in amdt_list['amendment']:
             amdt_dict = self.convert_to_legacy_dict(amdt)
             amdt_id = self.build_amendment_id(amdt['type'].lower(), amdt['number'], amdt['congress'])
             path = self._output_path(amdt_id)
@@ -60,7 +59,7 @@ class Amendments(Task):
             'chamber': amdt_dict['type'][0].lower(),
             'congress': amdt_dict['congress'],
             'introduced_at': amdt_dict['submittedDate'],
-            'number': amdt_dict['number'],
+            'number': int(amdt_dict['number']),
             'proposed_at': amdt_dict['proposedDate'],
             'purpose': amdt_dict['purpose'][0] if type(amdt_dict['purpose']) is list else amdt_dict['purpose'],
             'sponsor': self.build_sponsor_dict(tasks.safeget(amdt_dict, None, 'sponsors', 'item', 0)),
@@ -160,9 +159,9 @@ class Amendments(Task):
         amdt_id = Amendments.build_amendment_id(amends_amdt['type'].lower(), amends_amdt['number'], amends_amdt['congress'])
         return {
             'amendment_id': amdt_id,
-            'amendment_type': amends_amdt.get('type',''),
-            'congress': amends_amdt.get('congress',''),
-            'number': amends_amdt.get('number',''),
+            'amendment_type': amends_amdt.get('type','').lower(),
+            'congress': int(amends_amdt.get('congress','')),
+            'number': int(amends_amdt.get('number','')),
             'purpose': amends_amdt.get('purpose', ''),
             'description': amends_amdt.get('description','')
         }
@@ -173,13 +172,13 @@ class Amendments(Task):
         return {
             'bill_id': bill_id,
             'bill_type': amends_bill['type'].lower(),
-            'congress': amends_bill['congress'],
-            'number': amends_bill['number']
+            'congress': int(amends_bill['congress']),
+            'number': int(amends_bill['number'])
         }
 
     def build_sponsor_dict(self, sponsor):
         # check for committee sponsorship
-        if sponsor['bioguideId'] is None:
+        if sponsor.get('bioguideId') is None:
             return {}  # TODO committee lookup
 
         # TODO: Don't do regex matching here. Find another way. Is there a better way?
