@@ -127,10 +127,10 @@ class Bills(Task):
             # The top term's case has changed with the new bulk data. It's now in
             # Title Case. For backwards compatibility, the top term is run through
             # '.capitalize()' so it matches the old string. TODO: Remove one day?
-            'subjects_top_term': bill_dict['primarySubject']['name'].capitalize() if bill_dict['primarySubject'] else None,
+            'subjects_top_term': Bills._fixup_top_term_case(bill_dict['primarySubject']['name']) if bill_dict['primarySubject'] else None,
             'subjects':
                 sorted(
-                    ([bill_dict['primarySubject']['name'].capitalize()] if bill_dict['primarySubject'] else []) +
+                    ([Bills._fixup_top_term_case(bill_dict['primarySubject']['name'])] if bill_dict['primarySubject'] else []) +
                     ([item['name'] for item in bill_dict['subjects']['billSubjects']['otherSubjects']['item']] if bill_dict['subjects']['billSubjects']['otherSubjects'] else [])
                 ),
 
@@ -142,6 +142,12 @@ class Bills(Task):
         }
 
         return legacy_dict
+
+    @staticmethod
+    def _fixup_top_term_case(term):
+        if term in ("Native Americans",):
+            return term
+        return term.capitalize()
 
     def _build_legacy_sponsor_dict(self, sponsor_dict):
         """
