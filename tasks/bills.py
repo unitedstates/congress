@@ -10,7 +10,7 @@ import copy
 from collections import defaultdict
 
 import tasks
-from tasks import Task, make_node as parent_make_node, current_congress, format_datetime
+from tasks import Task, make_node as parent_make_node, current_congress, format_datetime, unescape
 from tasks.fdsys import Fdsys
 
 
@@ -122,11 +122,7 @@ class Bills(Task):
             'short_title': Bills.current_title_for(titles, 'short'),
             'popular_title': Bills.current_title_for(titles, 'popular'),
 
-            'summary': {
-                "date": bill_dict['summaries']['billSummaries']['item'][0]['updateDate'],
-                "as": bill_dict['summaries']['billSummaries']['item'][0]['name'],
-                "text": Bills.strip_tags(bill_dict['summaries']['billSummaries']['item'][0]['text']),
-            } if bill_dict['summaries']['billSummaries'] else None,
+            'summary': self._build_summary_dict(bill_dict['summaries']['billSummaries']),
 
             # The top term's case has changed with the new bulk data. It's now in
             # Title Case. For backwards compatibility, the top term is run through
@@ -509,6 +505,22 @@ class Bills(Task):
             c["subcommittees"] = dict((s["thomas_id"], s) for s in c.get("subcommittees", []))
         return committees
 
+    def _build_summary_dict(self, summaries):
+        # Some bills are missing the summaries entirely?
+        if summaries is None:
+            return None
+
+        # Take the most recent summary, by looking at the lexicographically last updateDate.
+        summaries = summaries['item']
+        summary = sorted(summaries, key = lambda s: s['updateDate'])[-1]
+
+        # Build dict.
+        return {
+            "date": summary['updateDate'],
+            "as": summary['name'],
+            "text": Bills.strip_tags(summary['text']),
+        }
+
     @staticmethod
     def build_bill_version_id(bill_type, bill_number, congress, version_code):
         return "%s%s-%s-%s" % (bill_type, bill_number, congress, version_code)
@@ -725,6 +737,9 @@ class Bills(Task):
 
         # compress and strip whitespace artifacts, except for the paragraph breaks
         text = re.sub("[ \t\r\f\v]{2,}", " ", text).strip()
+
+        # Replace HTML entities with characters.
+        text = unescape(text)
 
         return text
 
