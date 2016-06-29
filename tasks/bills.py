@@ -10,7 +10,7 @@ import copy
 from collections import defaultdict
 
 import tasks
-from tasks import Task, make_node as parent_make_node, current_congress, format_datetime
+from tasks import Task, make_node as parent_make_node, current_congress, format_datetime, unescape
 from tasks.fdsys import Fdsys
 
 
@@ -94,9 +94,9 @@ class Bills(Task):
 
         bill_dict = xml_as_dict['billStatus']['bill']
         bill_id = self.build_bill_id(bill_dict['billType'].lower(), bill_dict['billNumber'], bill_dict['congress'])
-        actions = self.build_legacy_actions_list(bill_dict['actions']['item'])
-        status, status_date = self.latest_status(actions)
         titles = self._build_legacy_titles(bill_dict['titles']['item'])
+        actions = self.build_legacy_actions_list(bill_dict['actions']['item'], bill_id, Bills.current_title_for(titles, 'official'))
+        status, status_date = self.latest_status(actions, bill_dict.get('introducedDate', ''))
 
         legacy_dict = {
             'bill_id': bill_id,
@@ -122,19 +122,15 @@ class Bills(Task):
             'short_title': Bills.current_title_for(titles, 'short'),
             'popular_title': Bills.current_title_for(titles, 'popular'),
 
-            'summary': {
-                "date": bill_dict['summaries']['billSummaries']['item'][0]['updateDate'],
-                "as": bill_dict['summaries']['billSummaries']['item'][0]['name'],
-                "text": Bills.strip_tags(bill_dict['summaries']['billSummaries']['item'][0]['text']),
-            } if bill_dict['summaries']['billSummaries'] else None,
+            'summary': self._build_summary_dict(bill_dict['summaries']['billSummaries']),
 
             # The top term's case has changed with the new bulk data. It's now in
             # Title Case. For backwards compatibility, the top term is run through
             # '.capitalize()' so it matches the old string. TODO: Remove one day?
-            'subjects_top_term': bill_dict['primarySubject']['name'].capitalize() if bill_dict['primarySubject'] else None,
+            'subjects_top_term': Bills._fixup_top_term_case(bill_dict['primarySubject']['name']) if bill_dict['primarySubject'] else None,
             'subjects':
                 sorted(
-                    ([bill_dict['primarySubject']['name'].capitalize()] if bill_dict['primarySubject'] else []) +
+                    ([Bills._fixup_top_term_case(bill_dict['primarySubject']['name'])] if bill_dict['primarySubject'] else []) +
                     ([item['name'] for item in bill_dict['subjects']['billSubjects']['otherSubjects']['item']] if bill_dict['subjects']['billSubjects']['otherSubjects'] else [])
                 ),
 
@@ -146,6 +142,12 @@ class Bills(Task):
         }
 
         return legacy_dict
+
+    @staticmethod
+    def _fixup_top_term_case(term):
+        if term in ("Native Americans",):
+            return term
+        return term.capitalize()
 
     def _build_legacy_sponsor_dict(self, sponsor_dict):
         """
@@ -162,7 +164,7 @@ class Bills(Task):
             return None
 
         # TODO: Don't do regex matching here. Find another way.
-        m = re.match(r'(?P<title>(Rep|Sen))\. (?P<name>.*) \[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large))?\]$',
+        m = re.match(r'(?P<title>(Rep|Sen))\. (?P<name>.*?) +\[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large))?\]$',
             sponsor_dict['fullName'])
         
         if m.group("district") is None:
@@ -210,22 +212,95 @@ class Bills(Task):
         return cosponsors
 
     @staticmethod
-    def build_legacy_actions_list(action_list):
-        def build_dict(item):
-            text, references = Bills.action_for(item['text'] if item['text'] is not None else '' )
+    def build_legacy_actions_list(action_list, bill_id, title):
+        from bill_info import parse_bill_action
+
+        # The bulk XML data has action history information from multiple sources. For
+        # major actions, the Library of Congress (code 9) action item often duplicates
+        # the information of a House/Senate action item. We have to skip one so that we
+        # don't tag multiple history items with the same parsed action info, which
+        # would imply the action (like a vote) ocurred multiple times. THOMAS appears
+        # to have suppressed the Library of Congress action lines in certain cases
+        # to avoid duplication - they were not in our older data files.
+        #
+        # Also, there are some ghost action items with totally empty text. Remove those.
+        # TODO: When removed from upstream data, we can remove that check.
+        closure = {
+            "prev": None,
+        }
+        def keep_action(item, closure):
+            if item['text'] in (None, ""):
+                return False
+
+            keep = True
+            if closure['prev']:
+                if tasks.safeget(item, None, 'sourceSystem', 'code') == "9":
+                    # Date must match previous action..
+                    # If both this and previous have a time, the times must match.
+                    # The text must approximately match. Sometimes the LOC text has a prefix
+                    #   and different whitespace. And they may drop references -- so we'll
+                    # use our Bills.action_for helper function to drop references from both
+                    # prior to the string comparison.
+                    if   item['actionDate'] == closure["prev"]["actionDate"] \
+                     and (item.get('actionTime') == closure["prev"].get("actionTime") or not item.get('actionTime') or not closure["prev"].get("actionTime")) \
+                     and Bills.action_for(item['text'])[0].replace(" ", "").endswith(Bills.action_for(closure["prev"]["text"])[0].replace(" ", "")):
+
+                        keep = False
+            closure['prev'] = item
+            return keep
+
+        action_list = [item for item in action_list
+            if keep_action(item, closure)]
+
+        # Turn the actions into dicts. The actions are in reverse-chronological
+        # order in the bulk data XML. Process them in chronological order so that
+        # our bill status logic sees the actions in the right order.
+
+        def build_dict(item, closure):
+            text, references = Bills.action_for(item['text'])
+
+            if not item.get('actionTime'):
+                acted_at = item.get('actionDate', '')
+            else:    
+                # Although we get the action date & time in an ISO-ish format (split
+                # across two fields), and although we know it's in local time at the
+                # U.S. Capitol (i.e. U.S. Eastern), we don't know the UTC offset which
+                # is a part of how we used to serialize the time. So parse and then
+                # use pytz (via format_datetime) to re-serialize.
+                acted_at = format_datetime(datetime.strptime(item.get('actionDate', '') + " " + item['actionTime'], "%Y-%m-%d %H:%M:%S"))
+
             action_dict = {
-                'acted_at': item.get('actionDate', '') + (("T" + item['actionTime']) if item.get('actionTime') else ""),
+                'acted_at': acted_at,
                 'action_code': item.get('actionCode', ''),
-                'committees': [tasks.safeget(item, '', 'committee', 'systemCode')[0:-2].upper()],
+                'committees': [item['committee']['systemCode'][0:-2].upper()] if tasks.safeget(item, '', 'committee', 'systemCode') else None,
                 'references': references,
-                #'type': '',  # TODO see parse_bill_action in bill_info.py this is a mess
+                'type': 'action',  # TODO see parse_bill_action in bill_info.py this is a mess
                 #'status': '',  # TODO see parse_bill_action in bill_info.py this is a mess
                 'text': text,
                 #'where': '', # TODO see parse_bill_action in bill_info.py this is a mess
             }
+
+            if not action_dict["committees"]:
+                # remove if empty - not present in how we used to generate the file
+                del action_dict["committees"]
+
+            extra_action_info, new_status = parse_bill_action(action_dict, closure['prev_status'], bill_id, title)
+
+            # only change/reflect status change if there was one
+            if new_status:
+                action_dict['status'] = new_status
+                closure['prev_status'] = new_status
+
+            # add additional parsed fields
+            if extra_action_info:
+                action_dict.update(extra_action_info)
+
             return action_dict
 
-        return [build_dict(action) for action in reversed(action_list)]
+        closure = {
+            "prev_status": "INTRODUCED",
+        }
+        return [build_dict(action, closure) for action in reversed(action_list)]
 
     @staticmethod
     def _build_legacy_history(actions):
@@ -241,7 +316,7 @@ class Bills(Task):
 
         house_vote = None
         for action in actions:
-            if (action.get('type') == 'vote') and (action['where'] == 'h') and (action['vote_type'] != "override"):
+            if (action['type'] == 'vote') and (action['where'] == 'h') and (action['vote_type'] != "override"):
                 house_vote = action
         if house_vote:
             history['house_passage_result'] = house_vote['result']
@@ -249,7 +324,7 @@ class Bills(Task):
 
         senate_vote = None
         for action in actions:
-            if (action.get('type') == 'vote') and (action['where'] == 's') and (action['vote_type'] != "override"):
+            if (action['type'] == 'vote') and (action['where'] == 's') and (action['vote_type'] != "override"):
                 senate_vote = action
         if senate_vote:
             history['senate_passage_result'] = senate_vote['result']
@@ -257,7 +332,7 @@ class Bills(Task):
 
         senate_vote = None
         for action in actions:
-            if (action.get('type') == 'vote-aux') and (action['vote_type'] == 'cloture') and (action['where'] == 's') and (action['vote_type'] != "override"):
+            if (action['type'] == 'vote-aux') and (action['vote_type'] == 'cloture') and (action['where'] == 's') and (action['vote_type'] != "override"):
                 senate_vote = action
         if senate_vote:
             history['senate_cloture_result'] = senate_vote['result']
@@ -265,7 +340,7 @@ class Bills(Task):
 
         vetoed = None
         for action in actions:
-            if action.get('type') == 'vetoed':
+            if action['type'] == 'vetoed':
                 vetoed = action
         if vetoed:
             history['vetoed'] = True
@@ -275,7 +350,7 @@ class Bills(Task):
 
         house_override_vote = None
         for action in actions:
-            if (action.get('type') == 'vote') and (action['where'] == 'h') and (action['vote_type'] == "override"):
+            if (action['type'] == 'vote') and (action['where'] == 'h') and (action['vote_type'] == "override"):
                 house_override_vote = action
         if house_override_vote:
             history['house_override_result'] = house_override_vote['result']
@@ -283,7 +358,7 @@ class Bills(Task):
 
         senate_override_vote = None
         for action in actions:
-            if (action.get('type') == 'vote') and (action['where'] == 's') and (action['vote_type'] == "override"):
+            if (action['type'] == 'vote') and (action['where'] == 's') and (action['vote_type'] == "override"):
                 senate_override_vote = action
         if senate_override_vote:
             history['senate_override_result'] = senate_override_vote['result']
@@ -291,7 +366,7 @@ class Bills(Task):
 
         enacted = None
         for action in actions:
-            if action.get('type') == 'enacted':
+            if action['type'] == 'enacted':
                 enacted = action
         if enacted:
             history['enacted'] = True
@@ -301,7 +376,7 @@ class Bills(Task):
 
         topresident = None
         for action in actions:
-            if action.get('type') == 'topresident':
+            if action['type'] == 'topresident':
                 topresident = action
         if topresident and (not history['vetoed']) and (not history['enacted']):
             history['awaiting_signature'] = True
@@ -331,9 +406,17 @@ class Bills(Task):
         def build_dict(item):
 
             full_type = item['titleType']
+            is_for_portion = False
 
-            if " as " in full_type:
-                title_type, state = full_type.split(" as ")
+            # "Official Titles as Introduced", "Short Titles on Conference report"
+            splits = re.split(" as | on ", full_type, 1)
+            if len(splits) == 2:
+                title_type, state = splits
+
+                if state.endswith(" for portions of this bill"):
+                    is_for_portion = True
+                    state = state.replace(" for portions of this bill" ,"")
+
                 state = state.replace(":", "").lower()
             else:
                 title_type, state = full_type, None
@@ -355,12 +438,56 @@ class Bills(Task):
 
             return {
                 'title': item['title'],
-                'is_for_portion': False, # TODO find case where title is for a portion?
+                'is_for_portion': is_for_portion,
                 'as': state,
                 'type': title_type
             }
 
-        return [build_dict(title) for title in title_list]
+        titles = [build_dict(title) for title in title_list]
+
+        # THOMAS used to give us the titles in a particular order:
+        #  short as introduced
+        #  short as introduced (for portion)
+        #  short as some later stage
+        #  short as some later stage (for portion)
+        #  official as introduced
+        #  official as some later stage
+        # The "as" stages (introduced, etc.) were in the order in which actions
+        # actually occurred. This was handy because to get the current title for
+        # a bill, you need to know which action type was most recent. The new
+        # order is reverse-chronological, so we have to turn the order around
+        # for backwards compatibility. Rather than do a simple .reverse(), I'm
+        # adding an explicit sort order here which gets very close to the THOMAS
+        # order.
+        # Unfortunately this can no longer be relied on because the new bulk
+        # data has the "as" stages sometimes in the wrong order: The "reported to
+        # senate" status for House bills seems to be consistently out of place.
+        titles_copy = list(titles) # clone before beginning sort
+        def first_index_of(**kwargs):
+            for i, title in enumerate(titles_copy):
+                for k, v in kwargs.items():
+                    k = k.replace("_", "")
+                    if title.get(k) != v:
+                        break
+                else:
+                    # break not called --- all match
+                    return i
+        titles.sort(key = lambda title: (
+            # keep the same 'short', 'official', 'display' order intact
+            first_index_of(type=title['type']),
+
+            # within each of those categories, reverse the 'as' order
+            -first_index_of(type=title['type'], _as=title.get('as')),
+
+            # put titles for portions last, within the type/as category
+            title['is_for_portion'],
+
+            # and within that, just sort alphabetically, case-insensitively (which is
+            # what it appears THOMAS used to do)
+            title['title'].lower(),
+            ))
+
+        return titles
 
     @staticmethod
     def current_title_for(titles, title_type):
@@ -385,20 +512,35 @@ class Bills(Task):
 
     @staticmethod
     def _build_legacy_committees_list(committee_list):
-        def map_activity_name(activity):
-            if activity == "Referred to":
-                return "referral"
-            return activity
+        activity_text_map = {
+            "Referred to": ["referral"],
+            "Hearings by": ["hearings"],
+            "Markup by": ["markup"],
+            "Reported by": ["reporting"],
+            "Discharged from": ["discharged"],
+            "Reported original measure": ["origin", "reporting"],
+        }
 
         def fix_subcommittee_name(name):
             return re.sub("(.*) Subcommittee$",
                 lambda m : "Subcommittee on " + m.group(1),
                 name)
 
+        def get_activitiy_list(item):
+            if not item['activities']:
+                return []
+            return sum([activity_text_map.get(i['name'], [i['name']]) for i in item['activities']['item']], [])
+
+        def fixup_committee_name(name):
+            # Preserve backwards compatiblity.
+            if name == "House House Administration":
+                return "House Administration"
+            return name
+
         def build_dict(item):
             committee_dict = {
-                'activity': [map_activity_name(i['name']) for i in item['activities']['item']] if item['activities'] else [],
-                'committee': item['chamber'] + ' ' + re.sub(" Committee$", "", item['name']),
+                'activity': get_activitiy_list(item),
+                'committee': fixup_committee_name(item['chamber'] + ' ' + re.sub(" Committee$", "", item['name'])),
                 'committee_id': item['systemCode'][0:-2].upper(),
             }
 
@@ -409,7 +551,7 @@ class Bills(Task):
                     subcommittee_dict.update({
                         'subcommittee': fix_subcommittee_name(subcommittee['name']),
                         'subcommittee_id': subcommittee['systemCode'][-2:],
-                        'activity': [map_activity_name(i['name']) for i in subcommittee['activities']['item']]
+                        'activity': get_activitiy_list(subcommittee),
                     })
                     subcommittees_list.append(subcommittee_dict)
 
@@ -426,7 +568,7 @@ class Bills(Task):
                     item[attr] = item[attr][0]
             return {
                 'amendment_id': "{0}{1}-{2}".format(item['type'].lower(), item['number'], item['congress']),
-                'amendment_type': item['type'],
+                'amendment_type': item['type'].lower(),
                 'chamber': item['type'][0].lower(),
                 'number': item['number']
             }
@@ -453,7 +595,7 @@ class Bills(Task):
 
         # remove and extract references
         references = []
-        match = re.search("\s+\(([^)]+)\)\s*$", text)
+        match = re.search("\s*\(([^)]+)\)\s*$", text)
         if match:
             # remove the matched section
             text = text[0:match.start()] + text[match.end():]
@@ -493,6 +635,22 @@ class Bills(Task):
                 committees[c["house_committee_id"] + "00"] = c
             c["subcommittees"] = dict((s["thomas_id"], s) for s in c.get("subcommittees", []))
         return committees
+
+    def _build_summary_dict(self, summaries):
+        # Some bills are missing the summaries entirely?
+        if summaries is None:
+            return None
+
+        # Take the most recent summary, by looking at the lexicographically last updateDate.
+        summaries = summaries['item']
+        summary = sorted(summaries, key = lambda s: s['updateDate'])[-1]
+
+        # Build dict.
+        return {
+            "date": summary['updateDate'],
+            "as": summary['name'],
+            "text": Bills.strip_tags(summary['text']),
+        }
 
     @staticmethod
     def build_bill_version_id(bill_type, bill_number, congress, version_code):
@@ -598,7 +756,6 @@ class Bills(Task):
                 a.set("type", action["vote_type"])
                 if action.get("roll") != None:
                     a.set("roll", action["roll"])
-                a.set("datetime", format_datetime(action['acted_at']))
                 a.set("where", action["where"])
                 a.set("result", action["result"])
                 if action.get("suspension"):
@@ -615,7 +772,6 @@ class Bills(Task):
                 a.clear()  # re-insert date between some of these attributes
                 a.set("number", "%s-%s" % (bill['congress'], action["number"]))
                 a.set("type", action["law"])
-                a.set("datetime", format_datetime(action['acted_at']))
                 if action.get("status"):
                     a.set("state", action["status"])
             if action['type'] == 'vetoed':
@@ -673,17 +829,17 @@ class Bills(Task):
 
         first = actions[0]
 
-        if first.get('type') in ["referral", "calendar", "action"]:
+        if first['type'] in ["referral", "calendar", "action"]:
             for action in actions[1:]:
-                if action.get('type') and (action['type'] != "referral") and (action['type'] != "calendar") and ("Sponsor introductory remarks" not in action['text']):
+                if (action['type'] != "referral") and (action['type'] != "calendar") and ("Sponsor introductory remarks" not in action['text']):
                     return action
             return None
         else:
             return first
 
     @staticmethod
-    def latest_status(actions):
-        status, status_date = None, None
+    def latest_status(actions, introduced_date):
+        status, status_date = "INTRODUCED", introduced_date
         for action in actions:
             if action.get('status', None):
                 status = action['status']
@@ -693,7 +849,7 @@ class Bills(Task):
     @staticmethod
     def slip_law_from(actions):
         for action in actions:
-            if action.get('type') == "enacted":
+            if action['type'] == "enacted":
                 return {
                     'law_type': action["law"],
                     'congress': action["congress"],
@@ -710,6 +866,9 @@ class Bills(Task):
 
         # compress and strip whitespace artifacts, except for the paragraph breaks
         text = re.sub("[ \t\r\f\v]{2,}", " ", text).strip()
+
+        # Replace HTML entities with characters.
+        text = unescape(text)
 
         return text
 
@@ -728,18 +887,23 @@ class Bills(Task):
                 args.insert(1, "bills")
             return os.path.join(self.storage.data_dir, *args)
 
-        def filter_ints(seq):
-            for s in seq:
-                try:
-                    yield int(s)
-                except:
-                    # Not an integer.
-                    continue
+        if not self.options.get('congress'):
+            # Get a list of all congress directories on disk.
+            # Filter out non-integer directory names, then sort on the
+            # integer.
+            def filter_ints(seq):
+                for s in seq:
+                    try:
+                        yield int(s)
+                    except:
+                        # Not an integer.
+                        continue
+            congresses = sorted(filter_ints(os.listdir(get_data_path())))
+        else:
+            congresses = sorted([int(c) for c in self.options['congress'].split(',')])
 
-        # walk through all congress directories on disk
-        # (filter out non-integer directory names, then sort on the
-        # integer)
-        for congress in sorted(filter_ints(os.listdir(get_data_path()))):
+        # walk through congresses
+        for congress in congresses:
             # turn this back into a string
             congress = str(congress)
 

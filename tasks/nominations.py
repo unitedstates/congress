@@ -195,24 +195,6 @@ class Nominations(Task):
                                 "state": None
                             }]
                         standard_format = False
-                """
-                if data.startswith('For appointment as'):
-                    position = re.search('For appointment as ([a-z. ]+),', data, flags=re.I).group(1)
-                    for name in filter(None, data.split('\n'))[1:]:
-                        info["nominees"] = [{
-                            "name": name,
-                            "position": position,
-                            "state": None
-                        }]
-                elif data.startsiwth('The following-named'):
-                    position = re.search('class indicated: ([a-z., ]+)', data, flags=re.I).group(1)
-                    for name in filter(None, data.split('\n'))[1:]:
-                        info["nominees"] = [{
-                            "name": name,
-                            "position": position,
-                            "state": None
-                        }]
-                """
 
                 if standard_format:
 
