@@ -105,24 +105,8 @@ def update_sitemap_cache(options, listing):
 
     # with --bulkdata=True, or not specified
     if options.get("bulkdata", None) in (None, True):
-        # Scrape FDSys for a list of the names of the bulk data collections.
-        # (The last modified date from the directory listing on this page is
-        # not an indication of the lastmod dates within sitemaps.)
-        #
-        # Note that "BILLS" appears both as a regular collection and as a
-        # bulk data collection - both are bill text.
-        fdsys_bulkdata_list = utils.download(
-            "https://www.gpo.gov/fdsys/bulkdata/",
-            "fdsys/sitemap/bulkdata.html",
-            options)
-        bulk_data_collections = re.findall(
-            r"<a href=\"bulkdata/(\w+)\"\s*>[^<]*</a>[^<]*</td>[^<]*<td>([^<]+)",
-            fdsys_bulkdata_list)
-
-        # Process the bulk data collections sitemaps.
-        for collection, timestamp in bulk_data_collections:
-            update_sitemap("https://www.gpo.gov/smap/bulkdata/%s/sitemapindex.xml" % collection, None, [], options, listing)
-
+        # Process the bulk data sitemap index.
+        update_sitemap(fdsys_baseurl + "bulkdata/sitemapindex.xml", None, [], options, listing)
 
 def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
     """Updates the local cache of a sitemap file."""
@@ -238,6 +222,9 @@ def extract_sitemap_subject_from_url(url, how_we_got_here):
     m = re.match(re.escape(fdsys_baseurl) + r"fdsys/sitemap_(\d+)/\d+_(.*)_sitemap.xml$", url)
     if m:
         return { "year": m.group(1), "collection": m.group(2) }
+
+    if url == fdsys_baseurl + "bulkdata/sitemapindex.xml":
+        return { "bulkdata": True }
 
     # The root of a bulkdata collection. Bulk data sitemaps
     # aren't grouped by year in the same way the regular
