@@ -421,6 +421,7 @@ class Task:
 
         # unescapes HTML encoded characters by default, set this (True) to not do that
         is_binary = options.get('binary', False)
+        cache_read_mode = 'r' if not is_binary else 'rb'
 
         # used by test suite to use special (versioned) test cache dir
         test = options.get('test', False)
@@ -460,7 +461,7 @@ class Task:
                 # load and keep the ZIP file instance in memory because it's slow to instantiate this object
                 zf = self.storage.download_zip_files.get(zfn)
                 if not zf:
-                    zf = zipfile.ZipFile(zfn, "r")
+                    zf = zipfile.ZipFile(zfn, cache_read_mode)
                     self.storage.download_zip_files[zfn] = zf
                     logging.warn("Loaded: %s" % zfn)
 
@@ -489,7 +490,7 @@ class Task:
                 logging.info("Cached: (%s, %s)" % (cache_path, url))
             if not needs_content:
                 return True
-            with self.storage.fs.open(cache_path, 'r') as f:
+            with self.storage.fs.open(cache_path, cache_read_mode) as f:
                 body = f.read()
             if not is_binary:
                 body = body.decode("utf8")
