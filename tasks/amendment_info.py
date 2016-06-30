@@ -7,109 +7,77 @@ from lxml import etree
 
 import utils
 
-from bill_info import sponsor_for, actions_for
+from bill_info import sponsor_for as sponsor_for_bill, action_for
 
+def process_amendment(amdt_data, bill_id, options):
+    amdt = build_amendment_json_dict(amdt_data, options)
+    path = output_for_amdt(amdt['amendment_id'], "json")
 
-# downloads amendment information from THOMAS.gov,
-# parses out basic information, writes JSON to disk
+    logging.info("[%s] Saving %s to %s..." % (bill_id, amdt['amendment_id'], path))
 
-def fetch_amendment(amendment_id, options):
-    logging.info("\n[%s] Fetching..." % amendment_id)
+    # output JSON - so easy!
+    utils.write(
+        json.dumps(amdt, sort_keys=True, indent=2, default=utils.format_datetime),
+        path
+    )
 
-    body = utils.download(
-        amendment_url_for(amendment_id),
-        amendment_cache_for(amendment_id, "information.html"),
-        options)
+    with open(output_for_amdt(amdt['amendment_id'], "xml"), 'wb') as xml_file:
+        xml_file.write(create_govtrack_xml(amdt, options))
 
-    if not body:
-        return {'saved': False, 'ok': False, 'reason': "failed to download"}
-
-    if options.get("download_only", False):
-        return {'saved': False, 'ok': True, 'reason': "requested download only"}
-
-    if "Amends:" not in body:
-        return {'saved': False, 'ok': True, 'reason': "orphaned amendment"}
-
-    amendment_type, number, congress = utils.split_bill_id(amendment_id)
-
-    actions = actions_for(body, amendment_id, is_amendment=True)
-    if actions is None:
-        actions = []
-    parse_amendment_actions(actions)
-
-    chamber = amendment_type[0]
-
+def build_amendment_json_dict(amdt_dict, options):
     # good set of tests for each situation:
     # samdt712-113 - amendment to bill
     # samdt112-113 - amendment to amendment on bill
     # samdt4904-111 - amendment to treaty
     # samdt4922-111 - amendment to amendment to treaty
 
-    amends_bill = amends_bill_for(body)  # almost always present
-    amends_treaty = amends_treaty_for(body)  # present if bill is missing
-    amends_amendment = amends_amendment_for(body)  # sometimes present
+    amendment_id = build_amendment_id(amdt_dict['type'].lower(), amdt_dict['number'], amdt_dict['congress'])
+
+    amends_bill = amends_bill_for(amdt_dict.get('amendedBill'))  # almost always present
+    amends_treaty = None # amends_treaty_for(amdt_dict) # the bulk data does not provide amendments to treaties (THOMAS did)
+    amends_amendment = amends_amendment_for(amdt_dict.get('amendedAmendment'))  # sometimes present
     if not amends_bill and not amends_treaty:
         raise Exception("Choked finding out what bill or treaty the amendment amends.")
 
+    actions = actions_for(amdt_dict['actions']['actions']['item'])
+
     amdt = {
         'amendment_id': amendment_id,
-        'amendment_type': amendment_type,
-        'chamber': chamber,
-        'number': int(number),
-        'congress': congress,
+        'amendment_type': amdt_dict['type'].lower(),
+        'chamber': amdt_dict['type'][0].lower(),
+        'number': int(amdt_dict['number']),
+        'congress': amdt_dict['congress'],
 
         'amends_bill': amends_bill,
         'amends_treaty': amends_treaty,
         'amends_amendment': amends_amendment,
 
-        'sponsor': sponsor_for(body),
+        'sponsor': sponsor_for(amdt_dict['sponsors']['item'][0], amdt_dict['type'].lower()),
 
-        'description': amendment_simple_text_for(body, "description"),
-        'purpose': amendment_simple_text_for(body, "purpose"),
+        'purpose': amdt_dict['purpose'][0] if type(amdt_dict['purpose']) is list else amdt_dict['purpose'],
 
+        'introduced_at': amdt_dict['submittedDate'],
         'actions': actions,
 
-        'updated_at': datetime.datetime.fromtimestamp(time.time()),
+        'updated_at':  amdt_dict['updateDate'],
     }
 
-    if chamber == 'h':
-        amdt['introduced_at'] = offered_at_for(body, 'offered')
-    elif chamber == 's':
-        amdt['introduced_at'] = offered_at_for(body, 'submitted')
-        amdt['proposed_at'] = offered_at_for(body, 'proposed')
+    # duplicate attributes creates lists when parsed, this block deduplicates
+    if 'description' in amdt_dict:
+        amdt['description'] = amdt_dict['description']
+        if type(amdt_dict['description']) is list:
+            amdt['description'] = amdt['description'][0]
 
-    if not amdt.get('introduced_at', None):
-        raise Exception("Couldn't find a reliable introduction date for amendment.")
+    if amdt_dict['type'][0].lower() == 's':
+        amdt['proposed_at'] = amdt_dict['proposedDate']
 
     # needs to come *after* the setting of introduced_at
     amdt['status'], amdt['status_at'] = amendment_status_for(amdt)
 
-    # only set a house_number if it's a House bill -
-    # this lets us choke if it's not found.
-    if amdt['chamber'] == 'h':
-        # numbers found in vote XML
-        # summary = amdt['purpose'] if amdt['purpose'] else amdt['description']
-        # amdt['house_number'] = house_simple_number_for(amdt['amendment_id'], summary)
-
-        if int(amdt['congress']) > 100:
-            # A___-style numbers, present only starting with the 101st Congress
-            amdt['house_number'] = house_number_for(body)
-
-    output_amendment(amdt, options)
-
-    return {'ok': True, 'saved': True}
+    return amdt
 
 
-def output_amendment(amdt, options):
-    logging.info("[%s] Writing to disk..." % amdt['amendment_id'])
-
-    # output JSON - so easy!
-    utils.write(
-        json.dumps(amdt, sort_keys=True, indent=2, default=utils.format_datetime),
-        output_for_amdt(amdt['amendment_id'], "json")
-    )
-
-    # output XML
+def create_govtrack_xml(amdt, options):
     govtrack_type_codes = {'hr': 'h', 's': 's', 'hres': 'hr', 'sres': 'sr', 'hjres': 'hj', 'sjres': 'sj', 'hconres': 'hc', 'sconres': 'sc'}
     root = etree.Element("amendment")
     root.set("session", amdt['congress'])
@@ -136,7 +104,7 @@ def output_amendment(amdt, options):
         if not options.get("govtrack", False):
             make_node(root, "sponsor", None, thomas_id=v)
         else:
-            v = str(utils.get_govtrack_person_id('thomas', v))
+            v = str(utils.translate_legislator_id('thomas', v, 'govtrack'))
             make_node(root, "sponsor", None, id=v)
     elif amdt['sponsor'] and amdt['sponsor']['type'] == 'committee':
         make_node(root, "sponsor", None, committee=amdt['sponsor']['name'])
@@ -167,121 +135,41 @@ def output_amendment(amdt, options):
         for cr in action['references']:
             make_node(a, "reference", None, ref=cr['reference'], label=cr['type'])
 
-    utils.write(
-        etree.tostring(root, pretty_print=True),
-        output_for_amdt(amdt['amendment_id'], "xml")
-    )
+    return etree.tostring(root, pretty_print=True)
 
 
-# assumes this is a House amendment, and it should choke if it doesn't find a number
-def house_number_for(body):
-    match = re.search(r"H.AMDT.\d+</b>\n \(A(\d+)\)", body, re.I)
-    if match:
-        return int(match.group(1))
-    else:
-        raise Exception("Choked finding a House amendment A___ number.")
+def build_amendment_id(amdt_type, amdt_number, congress):
+    return "%s%s-%s" % (amdt_type, amdt_number, congress)
 
-# def house_simple_number_for(amdt_id, purpose):
-# No purpose, so no number.
-#   if purpose is None: return None
+def amends_bill_for(amends_bill):
+    from bills import build_bill_id
+    bill_id = build_bill_id(amends_bill['type'].lower(), amends_bill['number'], amends_bill['congress'])
+    return {
+        'bill_id': bill_id,
+        'bill_type': amends_bill['type'].lower(),
+        'congress': int(amends_bill['congress']),
+        'number': int(amends_bill['number'])
+    }
 
-# Explicitly no number.
-#   if re.match("Pursuant to the provisions of .* the amendment in the nature of a substitute consisting (of )?the text of (the )?Rules Committee Print .* (is|shall be) considered as adopted.", purpose): return None
-#   if re.match("Pursuant to the provisions of .* the .*amendment printed in .* is considered as adopted.", purpose): return None
-#   if re.match(r"An amendment (in the nature of a substitute consisting of the text of Rules Committee Print \d+-\d+ )?printed in (part .* of )?House Report ", purpose, re.I): return None
-
-#   match = re.match(r"(?:An )?(?:substitute )?amendment (?:in the nature of a substitute )?numbered (\d+) printed in (part .* of )?(House Report|the Congressional Record) ", purpose, re.I)
-#   if not match:
-# logging.warn("No number in purpose (%s):\n%s\n" % (amdt_id, purpose))
-#     return
-
-#   return int(match.group(1))
-
-
-def amends_bill_for(body):
-    bill_types = set(utils.thomas_types_2.keys()) - set(['HZ', 'SP', 'SU'])
-    bill_types = str.join("|", list(bill_types))
-    match = re.search(r"Amends: "
-                      + ("<a href=\"/cgi-bin/bdquery/z\?d(\d+):(%s)(\d+):" % bill_types),
-                      body)
-    if match:
-        congress = int(match.group(1))
-        bill_type = utils.thomas_types_2[match.group(2)]
-        bill_number = int(match.group(3))
-        bill_id = "%s%i-%i" % (bill_type, bill_number, congress)
-        return {
-            "bill_id": bill_id,
-            "congress": congress,
-            "bill_type": bill_type,
-            "number": bill_number
-        }
-
-
-def amends_amendment_for(body):
-    amendment_types = str.join("|", ['HZ', 'SP', 'SU'])
-    match = re.search(r"Amends: "
-                      + "(?:.*\n, )?"
-                      + ("<a href=\"/cgi-bin/bdquery/z\?d(\d+):(%s)(\d+):" % amendment_types),
-                      body)
-    if match:
-        congress = int(match.group(1))
-        amendment_type = utils.thomas_types_2[match.group(2)]
-        amendment_number = int(match.group(3))
-        amendment_id = "%s%i-%i" % (amendment_type, amendment_number, congress)
-
-        if amendment_type not in ("samdt", "supamdt", "hamdt"):
-            raise Exception("Choked on a bad detection of an amendment this amends.")
-
-        return {
-            "amendment_id": amendment_id,
-            "congress": congress,
-            "amendment_type": amendment_type,
-            "number": amendment_number
-        }
-
-
-def amends_treaty_for(body):
-    match = re.search(r"Amends: "
-                      + "(?:.*\n, )?"
-                      + "Treaty <a href=\"/cgi-bin/ntquery/z\?trtys:(\d+)TD(\d+?)A?:",
-                      body)
-    # don't know what the "A" is at the end of the url, but it's present in samdt3-100
-    if match:
-        congress = int(match.group(1))
-        treaty_number = int(match.group(2))
-        treaty_id = "treaty%i-%i" % (treaty_number, congress)
-        return {
-            "treaty_id": treaty_id,
-            "congress": congress,
-            "number": treaty_number
-        }
-
-
-def offered_at_for(body, offer_type):
-    match = re.search(r"Sponsor:.*\n.*\(" + offer_type + " (\d+/\d+/\d+)", body, re.I)
-    if match:
-        date = match.group(1)
-        date = datetime.datetime.strptime(date, "%m/%d/%Y")
-        date = datetime.datetime.strftime(date, "%Y-%m-%d")
-        return date
-    else:
-        return None  # not all of offered/submitted/proposed will be present
-
-
-def amendment_simple_text_for(body, heading):
-    match = re.search(r"AMENDMENT " + heading.upper() + ":(<br />| )\n*(.+)", body, re.I)
-    if match:
-        text = match.group(2).strip()
-
-        # naive stripping of tags, should work okay in this limited context
-        text = re.sub("<[^>]+>", "", text)
-
-        if "Purpose will be available when the amendment is proposed for consideration." in text:
-            return None
-        return text
-    else:
+def amends_amendment_for(amends_amdt):
+    if amends_amdt is None:
         return None
 
+    amdt_id = build_amendment_id(amends_amdt['type'].lower(), amends_amdt['number'], amends_amdt['congress'])
+    return {
+        'amendment_id': amdt_id,
+        'amendment_type': amends_amdt.get('type','').lower(),
+        'congress': int(amends_amdt.get('congress','')),
+        'number': int(amends_amdt.get('number','')),
+        'purpose': amends_amdt.get('purpose', ''),
+        'description': amends_amdt.get('description','')
+    }
+
+
+def actions_for(action_list):
+    actions = [action_for(action) for action in action_list]
+    parse_amendment_actions(actions)
+    return actions
 
 def parse_amendment_actions(actions):
     for action in actions:
@@ -343,19 +231,19 @@ def amendment_status_for(amdt):
 
     return status, status_date
 
+def sponsor_for(sponsor, amendment_type):
+    if sponsor.get('bioguideId') is None:
+        # A committee can sponsor an amendment!
+        # Change e.g. "Rules Committee" to "House Rules" for the committee name,
+        # for backwards compatibility.
+        name = re.sub(r"(.*) Committee$", ("House" if (amendment_type[0] == "h") else "Senate" ) + r" \1", sponsor['name'])
+        return {
+            "type": "committee",
+            "name": name,
+            #"committee_id": None, # TODO
+        }
 
-def amendment_url_for(amendment_id):
-    amendment_type, number, congress = utils.split_bill_id(amendment_id)
-    thomas_type = utils.thomas_types[amendment_type][0]
-    congress = int(congress)
-    number = int(number)
-    return "http://thomas.loc.gov/cgi-bin/bdquery/z?d%03d:%s%s:" % (congress, thomas_type, number)
-
-
-def amendment_cache_for(amendment_id, file):
-    amendment_type, number, congress = utils.split_bill_id(amendment_id)
-    return "%s/amendments/%s/%s%s/%s" % (congress, amendment_type, amendment_type, number, file)
-
+    return sponsor_for_bill(sponsor)
 
 def output_for_amdt(amendment_id, format):
     amendment_type, number, congress = utils.split_bill_id(amendment_id)

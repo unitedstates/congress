@@ -1,22 +1,6 @@
 #!/bin/sh
-./run bills --govtrack --congress=93 $@
-./run bills --govtrack --congress=94 $@
-./run bills --govtrack --congress=95 $@
-./run bills --govtrack --congress=96 $@
-./run bills --govtrack --congress=97 $@
-./run bills --govtrack --congress=98 $@
-./run bills --govtrack --congress=99 $@
-./run bills --govtrack --congress=100 $@
-./run bills --govtrack --congress=101 $@
-./run bills --govtrack --congress=102 $@
-./run bills --govtrack --congress=103 $@
-./run bills --govtrack --congress=104 $@
-./run bills --govtrack --congress=105 $@
-./run bills --govtrack --congress=106 $@
-./run bills --govtrack --congress=107 $@
-./run bills --govtrack --congress=108 $@
-./run bills --govtrack --congress=109 $@
-./run bills --govtrack --congress=110 $@
-./run bills --govtrack --congress=111 $@
-./run bills --govtrack --congress=112 $@
-./run bills --govtrack --congress=113 $@
+# Refresh the bulk data collection.
+./run fdsys --bulkdata=True --collections=BILLSTATUS
+
+# Turn into JSON and GovTrack-XML.
+./run bills --govtrack $@

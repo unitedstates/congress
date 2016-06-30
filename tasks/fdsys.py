@@ -60,10 +60,11 @@ import logging
 import os.path
 import zipfile
 import utils
-from bill_info import output_for_bill
 
 # globals
 fdsys_baseurl = "https://www.gpo.gov/smap/"
+BULKDATA_BASE_URL = "https://www.gpo.gov/fdsys/bulkdata/"
+FDSYS_BILLSTATUS_FILENAME = "fdsys_billstatus.xml"
 
 # for xpath
 ns = {"x": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -197,7 +198,7 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
 
             else:
                 # This is a bulk data item. Extract components of the URL.
-                m = re.match("https://www.gpo.gov/fdsys/bulkdata/%s/(.+)" % re.escape(subject["collection"]), url)
+                m = re.match(re.escape(BULKDATA_BASE_URL) + re.escape(subject["collection"]) + "/(.+)", url)
                 if not m:
                     raise Exception("Unmatched bulk data file URL (%s) at %s." % (url, "->".join(how_we_got_here)))
                 item_path = m.group(1)
@@ -463,6 +464,7 @@ def get_output_path(sitemap, package_name, granule_name, options):
         bill_and_ver = get_bill_id_for_package(package_name, with_version=False, restrict_to_congress=options.get("congress"))
         if not bill_and_ver:
             return None  # congress number does not match options["congress"]
+        from bills import output_for_bill
         bill_id, version_code = bill_and_ver
         return output_for_bill(bill_id, "text-versions/" + version_code, is_data_dot=False)
     
@@ -523,8 +525,9 @@ def mirror_bulkdata_file(sitemap, url, item_path, lastmod, options):
     # For BILLSTATUS, store this along with where we store the rest of bill
     # status data.
     if sitemap["collection"] == "BILLSTATUS":
+        from bills import output_for_bill
         bill_id, version_code = get_bill_id_for_package(os.path.splitext(os.path.basename(item_path))[0], with_version=False)
-        path = output_for_bill(bill_id, "fdsys_billstatus.xml", is_data_dot=False)
+        path = output_for_bill(bill_id, FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
 
     # Where should we store the lastmod found in the sitemap so that
     # we can tell later if the file has changed?

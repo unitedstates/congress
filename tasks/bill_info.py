@@ -3,261 +3,11 @@ import logging
 import re
 import json
 from lxml import etree
-import time
+import copy
 import datetime
-from lxml.html import fromstring, HtmlElement
-
-# can be run on its own, just require a bill_id
 
 
-def run(options):
-    bill_id = options.get('bill_id', None)
-
-    if bill_id:
-        result = fetch_bill(bill_id, options)
-        logging.warn("\n%s" % result)
-    else:
-        logging.error("To run this task directly, supply a bill_id.")
-
-
-# download and cache landing page for bill
-# can raise an exception under various conditions
-def fetch_bill(bill_id, options):
-    logging.info("\n[%s] Fetching..." % bill_id)
-
-    # fetch committee name map, if it doesn't already exist
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-    if not utils.committee_names:
-        utils.fetch_committee_names(congress, options)
-
-    # fetch bill details body
-    body = utils.download(
-        bill_url_for(bill_id),
-        bill_cache_for(bill_id, "information.html"),
-        options)
-
-    if not body:
-        return {'saved': False, 'ok': False, 'reason': "failed to download"}
-
-    if options.get("download_only", False):
-        return {'saved': False, 'ok': True, 'reason': "requested download only"}
-
-    if reserved_bill(body):
-        logging.warn("[%s] Reserved bill, not real, skipping..." % bill_id)
-        return {'saved': False, 'ok': True, 'reason': "reserved bill"}
-
-    # conditions where we want to parse the bill from multiple pages instead of one:
-
-    # 1) the all info page is truncated (~5-10 bills a congress)
-    #     e.g. s1867-112, hr2112-112, s3240-112
-    if "</html>" not in body:
-        logging.info("[%s] Main page truncated, fetching many pages..." % bill_id)
-        bill = parse_bill_split(bill_id, body, options)
-
-    # 2) there are > 150 amendments, use undocumented amendments list (~5-10 bills a congress)
-    #     e.g. hr3590-111, sconres13-111, s3240-112
-    elif too_many_amendments(body):
-        logging.info("[%s] Too many amendments, fetching many pages..." % bill_id)
-        bill = parse_bill_split(bill_id, body, options)
-
-    # 3) when I feel like it
-    elif options.get('force_split', False):
-        logging.info("[%s] Forcing a split, fetching many pages..." % bill_id)
-        bill = parse_bill_split(bill_id, body, options)
-
-    # Otherwise, get the bill's data from a single All Information page
-    else:
-        bill = parse_bill(bill_id, body, options)
-
-    output_bill(bill, options)
-
-    # output PDF and/or HTML file if requested
-
-    if not options.get("formats", False):
-        return {'ok': True, 'saved': True}
-
-    status = {'ok': True, 'saved': True}
-
-    options["formats"] = options["formats"].lower()
-
-    if options["formats"].lower() == "all":
-        formats = ["pdf", "html"]
-    else:
-        formats = options["formats"].split(",")
-
-    gpo_urls = get_GPO_url_for_bill(bill_id, options)
-
-    for fmt in formats:
-        if gpo_urls and fmt in gpo_urls:
-            utils.write(utils.download(gpo_urls[fmt], bill_cache_for(bill_id, "bill." + fmt), {'binary': True}), output_for_bill(bill_id, fmt))
-            logging.info("Saving %s format for %s" % (fmt, bill_id))
-            status[fmt] = True
-        else:
-            status[fmt] = False
-
-    return status
-
-
-def parse_bill(bill_id, body, options):
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-
-    # parse everything out of the All Information page
-    introduced_at = introduced_at_for(body)
-    by_request = parse_by_request(body)
-    sponsor = sponsor_for(body)
-    cosponsors = cosponsors_for(body)
-    summary = summary_for(body)
-    titles = titles_for(body)
-    actions = actions_for(body, bill_id)
-    related_bills = related_bills_for(body, congress, bill_id)
-    subjects = subjects_for(body)
-    committees = committees_for(body, bill_id)
-    amendments = amendments_for(body, bill_id)
-
-    return process_bill(bill_id, options, introduced_at, by_request, sponsor, cosponsors,
-                        summary, titles, actions, related_bills, subjects, committees, amendments)
-
-
-# parse information pieced together from various pages
-def parse_bill_split(bill_id, body, options):
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-
-    # get some info out of the All Info page, since we already have it
-    introduced_at = introduced_at_for(body)
-    by_request = parse_by_request(body)
-    sponsor = sponsor_for(body)
-    subjects = subjects_for(body)
-
-    # cosponsors page
-    cosponsors_body = utils.download(
-        bill_url_for(bill_id, "P"),
-        bill_cache_for(bill_id, "cosponsors.html"),
-        options)
-    cosponsors_body = utils.unescape(cosponsors_body)
-    cosponsors = cosponsors_for(cosponsors_body)
-
-    # summary page
-    summary_body = utils.download(
-        bill_url_for(bill_id, "D"),
-        bill_cache_for(bill_id, "summary.html"),
-        options)
-    summary_body = utils.unescape(summary_body)
-    summary = summary_for(summary_body)
-
-    # titles page
-    titles_body = utils.download(
-        bill_url_for(bill_id, "T"),
-        bill_cache_for(bill_id, "titles.html"),
-        options)
-    titles_body = utils.unescape(titles_body)
-    titles = titles_for(titles_body)
-
-    # actions page
-    actions_body = utils.download(
-        bill_url_for(bill_id, "X"),
-        bill_cache_for(bill_id, "actions.html"),
-        options)
-    actions_body = utils.unescape(actions_body)
-    actions = actions_for(actions_body, bill_id)
-
-    related_bills_body = utils.download(
-        bill_url_for(bill_id, "K"),
-        bill_cache_for(bill_id, "related_bills.html"),
-        options)
-    related_bills_body = utils.unescape(related_bills_body)
-    related_bills = related_bills_for(related_bills_body, congress, bill_id)
-
-    amendments_body = utils.download(
-        bill_url_for(bill_id, "A"),
-        bill_cache_for(bill_id, "amendments.html"),
-        options)
-    amendments_body = utils.unescape(amendments_body)
-    amendments = amendments_for_standalone(amendments_body, bill_id)
-
-    committees_body = utils.download(
-        bill_url_for(bill_id, "C"),
-        bill_cache_for(bill_id, "committees.html"),
-        options)
-    committees_body = utils.unescape(committees_body)
-    committees = committees_for(committees_body, bill_id)
-
-    return process_bill(bill_id, options, introduced_at, by_request, sponsor, cosponsors,
-                        summary, titles, actions, related_bills, subjects, committees, amendments)
-
-
-# take the initial parsed content, extract more information, assemble output data
-def process_bill(bill_id, options,
-                 introduced_at, by_request, sponsor, cosponsors,
-                 summary, titles, actions, related_bills, subjects, committees, amendments):
-
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-
-    # for convenience: extract out current title of each type
-    official_title = current_title_for(titles, "official")
-    short_title = current_title_for(titles, "short")
-    popular_title = current_title_for(titles, "popular")
-
-    # add metadata to each action, establish current status
-    actions = process_actions(actions, bill_id, official_title, introduced_at)
-
-    # pull out latest status change and the date of it
-    status, status_date = latest_status(actions)
-    if not status:  # default to introduced
-        status = "INTRODUCED"
-        status_date = introduced_at
-
-    # pull out some very useful history information from the actions
-    history = history_from_actions(actions)
-
-    slip_law = slip_law_from(actions)
-
-    return {
-        'bill_id': bill_id,
-        'bill_type': bill_type,
-        'number': number,
-        'congress': congress,
-        
-        'url': bill_url_for(bill_id),
-
-        'introduced_at': introduced_at,
-        'by_request': by_request,
-        'sponsor': sponsor,
-        'cosponsors': cosponsors,
-
-        'actions': actions,
-        'history': history,
-        'status': status,
-        'status_at': status_date,
-        'enacted_as': slip_law,
-
-        'titles': titles,
-        'official_title': official_title,
-        'short_title': short_title,
-        'popular_title': popular_title,
-
-        'summary': summary,
-        'subjects_top_term': subjects[0],
-        'subjects': subjects[1],
-
-        'related_bills': related_bills,
-        'committees': committees,
-        'amendments': amendments,
-
-        'updated_at': datetime.datetime.fromtimestamp(time.time()),
-    }
-
-
-def output_bill(bill, options):
-    logging.info("[%s] Writing to disk..." % bill['bill_id'])
-
-    # output JSON - so easy!
-    utils.write(
-        json.dumps(bill, sort_keys=True, indent=2, default=utils.format_datetime),
-        output_for_bill(bill['bill_id'], "json"),
-        options=options,
-    )
-
-    # output XML
+def create_govtrack_xml(bill, options):
     govtrack_type_codes = {'hr': 'h', 's': 's', 'hres': 'hr', 'sres': 'sr', 'hjres': 'hj', 'sjres': 'sj', 'hconres': 'hc', 'sconres': 'sc'}
     root = etree.Element("bill")
     root.set("session", bill['congress'])
@@ -274,7 +24,7 @@ def output_bill(bill, options):
                     if k == "thomas_id":
                         # remap "thomas_id" attributes to govtrack "id"
                         k = "id"
-                        v = str(utils.get_govtrack_person_id('thomas', v))
+                        v = str(utils.translate_legislator_id('thomas', v, 'govtrack'))
                     attrs2[k] = v
             attrs = attrs2
 
@@ -387,92 +137,57 @@ def output_bill(bill, options):
         make_node(amendments, "amendment", None, number=amd["chamber"] + str(amd["number"]))
 
     if bill.get('summary'):
-        make_node(root, "summary", re.sub(r"^0|(/)0", lambda m: m.group(1), datetime.datetime.strftime(datetime.datetime.strptime(bill['summary']['date'], "%Y-%m-%d"), "%m/%d/%Y")) + "--" + bill['summary'].get('as', '?') + ".\n" + bill['summary']['text'])  # , date=bill['summary'].get('date'), status=bill['summary'].get('as'))
+        make_node(root, "summary", bill['summary']['text'], date=bill['summary']['date'], status=bill['summary']['as'])
 
-    utils.write(
-        etree.tostring(root, pretty_print=True),
-        output_for_bill(bill['bill_id'], "xml"),
-        options=options
-    )
+    return etree.tostring(root, pretty_print=True)
 
 
-# This routine is also used by amendment processing. One difference is the
-# lack of <b> tags on amendment pages but their presence on bill pages.
-# Also, amendments can be sponsored by committees.
-def sponsor_for(body):
-    match = re.search(r"(?:<b>)?Sponsor: (?:</b>)?(No Sponsor|<a href=[^>]+\+(\d{5}|[hs]...\d\d).*>(.+)</a>(?:\s+\[((\w\w)(-(\d+))?)\])?)", body, re.I)
-    if match:
-        if (match.group(3) == "No Sponsor") or (match.group(1) == "No Sponsor"):
-            return None
-        elif match.group(4):  # has a state/district, so it's a rep
-            if len(match.group(4).split('-')) == 2:
-                state, district = match.group(4).split('-')
-            else:
-                state, district = match.group(4), None
+def sponsor_for(sponsor_dict):
+    if sponsor_dict is None:
+        # TODO: This can hopefully be removed. In testing s414-113
+        # was missing sponsor data. But all bills have a sponsor?
+        return None
 
-            thomas_id = match.group(2)
-            if not re.match(r"\d{5}$", thomas_id):
-                raise Exception("Choked parsing sponsor.")
-
-            # zero-pad and apply corrections
-            thomas_id = "%05d" % int(thomas_id)
-            thomas_id = utils.thomas_corrections(thomas_id)
-
-            name = match.group(3).strip()
-            title, name = re.search("^(Rep|Sen|Del|Com)\.? (.*?)$", name).groups()
-
-            return {
-                'type': 'person',
-                'title': title,
-                'name': name,
-                'thomas_id': thomas_id,
-                'state': state,
-                'district': district
-            }
-        else:  # it's a committee
-            committee_id = match.group(2)
-            name = match.group(3).strip()
-            if not re.match(r"[hs]...\d\d$", committee_id):
-                raise Exception("Choked parsing apparent committee sponsor.")
-            return {
-                'type': 'committee',
-                'name': name,
-                'committee_id': committee_id,
-            }
-
+    # TODO: Don't do regex matching here. Find another way.
+    m = re.match(r'(?P<title>(Rep|Sen))\. (?P<name>.*?) +\[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large))?\]$',
+        sponsor_dict['fullName'])
+    
+    if m.group("district") is None:
+        district = None # a senator
+    elif m.group("district") == "At Large":
+        district = None # TODO: For backwards compatibility, we're returning None, but 0 would be better.
     else:
-        raise Exception("Choked finding sponsor information.")
+        # TODO: For backwards compatibility, we're returning a string, but an int would be better.
+        district = m.group('district')
 
+    return {
+        'title': m.group("title"),
+        'name': m.group("name"), # the firstName, middleName, lastName fields have inconsistent capitalization - some are all uppercase
+        'district': district,
+        'state': m.group('state'),
+        #'party': m.group('party'),
+        'thomas_id': utils.translate_legislator_id('bioguide', sponsor_dict['bioguideId'], 'thomas'),  # TODO: Remove one day.
+        'bioguide_id': sponsor_dict['bioguideId'],
+        'type': 'person'
+    }
 
-def summary_for(body):
-    match = re.search("SUMMARY AS OF:</a></b>(.*?)(?:<hr|<div id=\"footer\">)", body, re.S)
-    if not match:
-        if re.search("<b>SUMMARY:</b><p>\*\*\*NONE\*\*\*", body, re.I):
-            return None  # expected when no summary
-        else:
-            raise Exception("Choked finding summary.")
+def summary_for(summaries):
+    # Some bills are missing the summaries entirely?
+    if summaries is None:
+        return None
 
-    ret = {}
+    # Take the most recent summary, by looking at the lexicographically last updateDate.
+    summaries = summaries['item']
+    summary = sorted(summaries, key = lambda s: s['updateDate'])[-1]
 
-    text = match.group(1).strip()
+    # Build dict.
+    return {
+        "date": summary['updateDate'],
+        "as": summary['name'],
+        "text": strip_tags(summary['text']),
+    }
 
-    # strip out the bold explanation of a new summary, if present
-    text = re.sub("\s*<p><b>\(This measure.*?</b></p>\s*", "", text)
-
-    # strip out the intro date thing
-    sumdate = u"(\d+/\d+/\d+)--([^\s].*?)(\u00a0\u00a0\u00a0\u00a0\(There (is|are) \d+ <a href=\"[^>]+\">other (summary|summaries)</a>\))?(\n|<p>)"
-    m = re.search(sumdate, text)
-    if m:
-        d = m.group(1)
-        if d == "7/11/1794":
-            d = "7/11/1974"  # THOMAS error
-        ret["date"] = datetime.datetime.strptime(d, "%m/%d/%Y")
-        ret["date"] = datetime.datetime.strftime(ret["date"], "%Y-%m-%d")
-        ret["as"] = m.group(2)
-        if ret["as"].endswith("."):
-            ret["as"] = ret["as"][:-1]
-    text = re.sub(sumdate, "", text)
-
+def strip_tags(text):
     # Preserve paragraph breaks. Convert closing p tags (and surrounding whitespace) into two newlines. Strip trailing whitespace
     text = re.sub("\s*</\s*p\s*>\s*", "\n\n", text).strip()
 
@@ -482,161 +197,150 @@ def summary_for(body):
     # compress and strip whitespace artifacts, except for the paragraph breaks
     text = re.sub("[ \t\r\f\v]{2,}", " ", text).strip()
 
-    ret["text"] = text
+    # Replace HTML entities with characters.
+    text = utils.unescape(text)
 
-    return ret
-
-
-def parse_committee_rows(rows, bill_id):
-    # counts on having been loaded already
-    committee_names = utils.committee_names
-
-    committee_info = []
-    top_committee = None
-    for row in rows:
-        # ignore header/end row that contain no committee information
-        match_header = re.search("</?table", row)
-        if match_header:
-            continue
-
-        # identifies and pulls out committee name
-        # Can handle committee names with letters, white space, dashes, slashes, parens, periods, apostrophes, and ampersands.
-        match2 = re.search("(?<=\">)[-.\w\s,()\'&/]+(?=</a>)", row)
-        if match2:
-            committee = match2.group().strip()
-            # remove excess internal spacing
-            committee = re.sub("\\s{2,}", " ", committee)
-        else:
-            raise Exception("Couldn't find committee name. Line was: " + row)
-
-        # identifies and pulls out committee activity
-        match3 = re.search("(?<=<td width=\"65%\">).*?(?=</td>)", row)
-        if match3:
-            activity_string = match3.group().strip().lower()
-
-            # splits string of activities into activity list
-            activity_list = activity_string.split(",")
-
-            # strips white space from each activity in list
-            activity = []
-            for x in activity_list:
-                activity.append(x.strip())
-
-        else:
-            raise Exception("Couldn't find committee activity.")
-
-        # identifies subcommittees by change in table cell width
-        match4 = re.search("<td width=\"5%\">", row)
-        if match4:
-            if not top_committee:
-                # Subcommittees are a little finicky, so don't raise an exception if the subcommittee can't be processed.
-                logging.warn("[%s] Subcommittee specified without a parent committee: %s" % (bill_id, committee))
-                continue
-            committee_info.append({"committee": top_committee, "activity": activity, "subcommittee": committee, "committee_id": committee_names[top_committee]})
-            # Subcommittees are a little finicky, so don't raise an exception if the subcommittee is not found.
-            # Just skip writing the id attribute.
-            try:
-                committee_info[-1]["subcommittee_id"] = committee_names[committee_names[top_committee] + "|" + committee.replace("Subcommittee on ", "")]
-            except KeyError:
-                logging.warn("[%s] Subcommittee not found in %s: %s" % (bill_id, committee_names[top_committee], committee))
-
-        else:
-            top_committee = committee  # saves committee for the next row in case it is a subcommittee
-            committee_info.append({"committee": committee, "activity": activity, "committee_id": committee_names[committee]})
-
-    return committee_info
+    return text
 
 
-def committees_for(body, bill_id):
-    # depends on them already having been loaded
-    committee_names = utils.committee_names
+def committees_for(committee_list):
+    if committee_list is None:
+        return []
 
-    # grabs entire Committee & Subcommittee table
-    match = re.search("COMMITTEE\(S\):<.*?<ul>.*?</table>", body, re.I | re.S)
-    if match:
-        committee_text = match.group().strip()
+    committee_list = committee_list['item']
 
-        # returns empty array for bills not assigned to a committee; e.g. bill_id=hr19-112
-        none_match = re.search("\*\*\*NONE\*\*\*", committee_text)
-        if none_match:
-            committee_info = []
-        else:
-            # splits Committee & Subcommittee table up by table row
-            rows = committee_text.split("</tr>")
-            committee_info = parse_committee_rows(rows, bill_id)
+    activity_text_map = {
+        "Referred to": ["referral"],
+        "Hearings by": ["hearings"],
+        "Markup by": ["markup"],
+        "Reported by": ["reporting"],
+        "Discharged from": ["discharged"],
+        "Reported original measure": ["origin", "reporting"],
+    }
 
-        return committee_info
+    def fix_subcommittee_name(name):
+        return re.sub("(.*) Subcommittee$",
+            lambda m : "Subcommittee on " + m.group(1),
+            name)
 
-    if not match:
-        raise Exception("Couldn't find committees section.")
+    def get_activitiy_list(item):
+        if not item['activities']:
+            return []
+        return sum([activity_text_map.get(i['name'], [i['name']]) for i in item['activities']['item']], [])
+
+    def fixup_committee_name(name):
+        # Preserve backwards compatiblity.
+        if name == "House House Administration":
+            return "House Administration"
+        return name
+
+    def build_dict(item):
+        committee_dict = {
+            'activity': get_activitiy_list(item),
+            'committee': fixup_committee_name(item['chamber'] + ' ' + re.sub(" Committee$", "", item['name'])),
+            'committee_id': item['systemCode'][0:-2].upper(),
+        }
+
+        subcommittees_list = []
+        if 'subcommittees' in item and item['subcommittees'] is not None:
+            for subcommittee in item['subcommittees']['item']:
+                subcommittee_dict = copy.deepcopy(committee_dict)
+                subcommittee_dict.update({
+                    'subcommittee': fix_subcommittee_name(subcommittee['name']),
+                    'subcommittee_id': subcommittee['systemCode'][-2:],
+                    'activity': get_activitiy_list(subcommittee),
+                })
+                subcommittees_list.append(subcommittee_dict)
+
+        return [committee_dict] + subcommittees_list
+
+    return sum([build_dict(committee) for committee in committee_list], [])
 
 
-def titles_for(body):
-    match = re.search("TITLE\(S\):<.*?<ul>.*?<p><li>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
-    if not match:
-        raise Exception("Couldn't find titles section.")
+def titles_for(title_list):
+    def build_dict(item):
 
-    titles = []
+        full_type = item['titleType']
+        is_for_portion = False
 
-    text = match.group(1).strip()
-    sections = text.split("<p><li>")
-    for section in sections:
-        if section.strip() == "":
-            continue
+        # "Official Titles as Introduced", "Short Titles on Conference report"
+        splits = re.split(" as | on ", full_type, 1)
+        if len(splits) == 2:
+            title_type, state = splits
 
-        # move the <I> that indicates subsequent titles are for a portion of the bill
-        # to after the <br> that follows it so that it's associated with the right title.
-        section = re.sub("<I><br ?/>", "<br/><I>", section)
+            if state.endswith(" for portions of this bill"):
+                is_for_portion = True
+                state = state.replace(" for portions of this bill" ,"")
 
-        # ensure single newlines between each title in the section
-        section = re.sub("\n?<br ?/>", "\n", section)
-
-        pieces = section.split("\n")
-
-        full_type, type_titles = pieces[0], pieces[1:]
-        if " AS " in full_type:
-            type, state = full_type.split(" AS ")
             state = state.replace(":", "").lower()
         else:
-            type, state = full_type, None
+            title_type, state = full_type, None
 
-        if "POPULAR TITLE" in type:
-            type = "popular"
-        elif "SHORT TITLE" in type:
-            type = "short"
-        elif "OFFICIAL TITLE" in type:
-            type = "official"
+        if "Popular Title" in title_type:
+            title_type = "popular"
+        elif "Short Title" in title_type:
+            title_type = "short"
+        elif "Official Title" in title_type:
+            title_type = "official"
+        elif "Display Title" in title_type:
+            title_type = "display"
+        elif title_type == "Non-bill-report":
+            # TODO: What kind of title is this? Maybe assign
+            # a better title_type code once we know.
+            title_type = "nonbillreport"
         else:
-            raise Exception("Unknown title type: " + type)
+            raise Exception("Unknown title type: " + title_type)
 
-        is_for_portion = False
-        for title in type_titles:
-            if title.startswith("<I>"):
-                # This and subsequent titles in this piece are all for a portion of the bill.
-                # The <I> tag will be removed below.
-                is_for_portion = True
+        return {
+            'title': item['title'],
+            'is_for_portion': is_for_portion,
+            'as': state,
+            'type': title_type
+        }
 
-            # Strip, remove tabs, and replace whitespace and nonbreaking spaces with spaces,
-            # since occasionally (e.g. s649-113) random \r's etc. appear instead of spaces.
-            title = re.sub("<[^>]+>", "", title)  # strip tags
-            title = re.sub(ur"[\s\u00a0]+", " ", title.strip())  # strip space and normalize spaces
-            if title == "":
-                continue
+    titles = [build_dict(title) for title in title_list]
 
-            if type == "popular":
-                title = re.sub(r" \(identified.+?$", "", title)
+    # THOMAS used to give us the titles in a particular order:
+    #  short as introduced
+    #  short as introduced (for portion)
+    #  short as some later stage
+    #  short as some later stage (for portion)
+    #  official as introduced
+    #  official as some later stage
+    # The "as" stages (introduced, etc.) were in the order in which actions
+    # actually occurred. This was handy because to get the current title for
+    # a bill, you need to know which action type was most recent. The new
+    # order is reverse-chronological, so we have to turn the order around
+    # for backwards compatibility. Rather than do a simple .reverse(), I'm
+    # adding an explicit sort order here which gets very close to the THOMAS
+    # order.
+    # Unfortunately this can no longer be relied on because the new bulk
+    # data has the "as" stages sometimes in the wrong order: The "reported to
+    # senate" status for House bills seems to be consistently out of place.
+    titles_copy = list(titles) # clone before beginning sort
+    def first_index_of(**kwargs):
+        for i, title in enumerate(titles_copy):
+            for k, v in kwargs.items():
+                k = k.replace("_", "")
+                if title.get(k) != v:
+                    break
+            else:
+                # break not called --- all match
+                return i
+    titles.sort(key = lambda title: (
+        # keep the same 'short', 'official', 'display' order intact
+        first_index_of(type=title['type']),
 
-            titles.append({
-                'title': title,
-                'is_for_portion': is_for_portion,
-                'as': state,
-                'type': type,
-            })
+        # within each of those categories, reverse the 'as' order
+        -first_index_of(type=title['type'], _as=title.get('as')),
 
-    return titles
+        # put titles for portions last, within the type/as category
+        title['is_for_portion'],
 
-    if len(titles) == 0:
-        raise Exception("No titles found.")
+        # and within that, just sort alphabetically, case-insensitively (which is
+        # what it appears THOMAS used to do)
+        title['title'].lower(),
+        ))
 
     return titles
 
@@ -646,12 +350,12 @@ def titles_for(body):
 # this logic matches THOMAS/Congress.gov.
 
 
-def current_title_for(titles, type):
+def current_title_for(titles, title_type):
     current_title = None
     current_as = -1  # not None, cause for popular titles, None is a valid 'as'
 
     for title in titles:
-        if title['type'] != type or title['is_for_portion'] == True:
+        if title['type'] != title_type or title['is_for_portion'] == True:
             continue
         if title['as'] == current_as:
             continue
@@ -662,129 +366,95 @@ def current_title_for(titles, type):
     return current_title
 
 
-def actions_for(body, bill_id, is_amendment=False):
-    if not is_amendment:
-        match = re.search(">ALL ACTIONS:<.*?<dl>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
-    else:
-        # This function is also used by amendment_info.py.
-        match = re.search(">STATUS:<.*?<dl>(.*?)(?:<hr|<div id=\"footer\">)", body, re.I | re.S)
-
-        # The Status section is optional for amendments.
-        if not match:
-            return None
-
-    if not match:
-        if re.search("ALL ACTIONS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
-            return []  # no actions, can happen for bills reserved for the Speaker
-        else:
-            raise Exception("Couldn't find action section.")
-
-    actions = []
-    indentation_level = 0
-    last_top_level_action = None
-    last_committee_level_action = None
-
-    text = match.group(1).strip()
-
-    pieces = text.split("\n")
-    for piece in pieces:
-        if re.search("<strong>", piece) is None:
-            continue
-
-        action_pieces = re.search("((?:</?dl>)*)<dt><strong>(.*?):</strong><dd>(.+?)$", piece)
-        if not action_pieces:
-            raise Exception("Choked on parsing an action: %s" % piece)
-
-        indentation_changes, timestamp, text = action_pieces.groups()
-
-        # indentation indicates a committee action, track the indentation level
-        for indentation_change in re.findall("</?dl>", indentation_changes):
-            if indentation_change == "<dl>":
-                indentation_level += 1
-            if indentation_change == "</dl>":
-                indentation_level -= 1
-        if indentation_level < 0 or indentation_level > 2:
-            raise Exception("Action indentation level %d out of bounds." % indentation_level)
-
-        # timestamp of the action
-        if re.search("(am|pm)", timestamp):
-            action_time = datetime.datetime.strptime(timestamp, "%m/%d/%Y %I:%M%p")
-        else:
-            action_time = datetime.datetime.strptime(timestamp, "%m/%d/%Y")
-            action_time = datetime.datetime.strftime(action_time, "%Y-%m-%d")
-
-        cleaned_text, references = action_for(text)
-
-        action = {
-            'text': cleaned_text,
-            'type': "action",
-            'acted_at': action_time,
-            'references': references
-        }
-        actions.append(action)
-
-        # Associate subcommittee actions with the parent committee by including
-        # a reference to the last top-level action line's dict, since we haven't
-        # yet parsed which committee it is in. Likewise for 2nd-level indentation
-        # to the top-level and 1st-level indentation actions. In some cases,
-        # 2nd-level indentation occurs without any preceding 1st-level indentation.
-        if indentation_level == 0:
-            last_top_level_action = action
-            last_committee_level_action = None
-        elif indentation_level == 1:
-            if last_top_level_action:
-                action["committee_action_ref"] = last_top_level_action
-            else:
-                logging.info("[%s] Committee-level action without a preceding top-level action." % bill_id)
-            last_committee_level_action = action
-        elif indentation_level == 2:
-            if last_top_level_action:
-                action["committee_action_ref"] = last_top_level_action
-                if last_committee_level_action:
-                    action["subcommittee_action_ref"] = last_committee_level_action
-                else:
-                    logging.info("[%s] Sub-committee-level action without a preceding committee-level action." % bill_id)
-            else:
-                logging.info("[%s] Sub-committee-level action without a preceding top-level action." % bill_id)
-
-    # THOMAS has a funny way of outputting actions. It is sorted by date,
-    # except that committee events are grouped together. Once we identify
-    # the committees related to events, we should sort the events properly
-    # in time order. But (of course there's a but) not all dates have times,
-    # meaning we will come to having to compare equal dates and dates with
-    # times on those dates. In those cases, preserve the original order
-    # of the events as shown on THOMAS.
+def actions_for(action_list, bill_id, title):
+    # The bulk XML data has action history information from multiple sources. For
+    # major actions, the Library of Congress (code 9) action item often duplicates
+    # the information of a House/Senate action item. We have to skip one so that we
+    # don't tag multiple history items with the same parsed action info, which
+    # would imply the action (like a vote) ocurred multiple times. THOMAS appears
+    # to have suppressed the Library of Congress action lines in certain cases
+    # to avoid duplication - they were not in our older data files.
     #
-    # Note that we do this *before* process actions, since we must get
-    # this in chronological order before running our status finite state machine.
-    def action_comparer(a, b):
-        a = a["acted_at"]
-        b = b["acted_at"]
-        if type(a) == str or type(b) == str:
-            # If either is a plain date without time, compare them only on the
-            # basis of the date parts, meaning the unspecified time is treated
-            # as unknown, rather than treated as midnight.
-            if type(a) == datetime.datetime:
-                a = datetime.datetime.strftime(a, "%Y-%m-%d")
-            if type(b) == datetime.datetime:
-                b = datetime.datetime.strftime(b, "%Y-%m-%d")
-        else:
-            # Otherwise if both are date+time's, do a normal comparison
-            pass
-        return cmp(a, b)
-    actions.sort(action_comparer)  # .sort() is stable, so original order is preserved where cmp == 0
+    # Also, there are some ghost action items with totally empty text. Remove those.
+    # TODO: When removed from upstream data, we can remove that check.
+    closure = {
+        "prev": None,
+    }
+    def keep_action(item, closure):
+        if item['text'] in (None, ""):
+            return False
 
-    return actions
+        keep = True
+        if closure['prev']:
+            if item['sourceSystem']['code'] == "9":
+                # Date must match previous action..
+                # If both this and previous have a time, the times must match.
+                # The text must approximately match. Sometimes the LOC text has a prefix
+                #   and different whitespace. And they may drop references -- so we'll
+                # use our action_for helper function to drop references from both
+                # prior to the string comparison.
+                if   item['actionDate'] == closure["prev"]["actionDate"] \
+                 and (item.get('actionTime') == closure["prev"].get("actionTime") or not item.get('actionTime') or not closure["prev"].get("actionTime")) \
+                 and action_for(item)['text'].replace(" ", "").endswith(action_for(closure["prev"])['text'].replace(" ", "")):
+
+                    keep = False
+        closure['prev'] = item
+        return keep
+
+    action_list = [item for item in action_list
+        if keep_action(item, closure)]
+
+    # Turn the actions into dicts. The actions are in reverse-chronological
+    # order in the bulk data XML. Process them in chronological order so that
+    # our bill status logic sees the actions in the right order.
+
+    def build_dict(item, closure):
+        action_dict = action_for(item)
+
+        extra_action_info, new_status = parse_bill_action(action_dict, closure['prev_status'], bill_id, title)
+
+        # only change/reflect status change if there was one
+        if new_status:
+            action_dict['status'] = new_status
+            closure['prev_status'] = new_status
+
+        # add additional parsed fields
+        if extra_action_info:
+            action_dict.update(extra_action_info)
+
+        return action_dict
+
+    closure = {
+        "prev_status": "INTRODUCED",
+    }
+    return [build_dict(action, closure) for action in reversed(action_list)]
 
 
 # clean text, pull out the action type, any other associated metadata with an action
-def action_for(text):
+def action_for(item):
+    # acted_at
+
+    if not item.get('actionTime'):
+        acted_at = item.get('actionDate', '')
+    else:    
+        # Although we get the action date & time in an ISO-ish format (split
+        # across two fields), and although we know it's in local time at the
+        # U.S. Capitol (i.e. U.S. Eastern), we don't know the UTC offset which
+        # is a part of how we used to serialize the time. So parse and then
+        # use pytz (via format_datetime) to re-serialize.
+        acted_at = utils.format_datetime(datetime.datetime.strptime(item.get('actionDate', '') + " " + item['actionTime'], "%Y-%m-%d %H:%M:%S"))
+
+    # text & references
+    # (amendment actions don't always have text?)
+
+    text = item['text'] if item['text'] is not None else ''
+
     # strip out links
     text = re.sub(r"</?[Aa]( \S.*?)?>", "", text)
 
     # remove and extract references
     references = []
-    match = re.search("\s+\(([^)]+)\)\s*$", text)
+    match = re.search("\s*\(([^)]+)\)\s*$", text)
     if match:
         # remove the matched section
         text = text[0:match.start()] + text[match.end():]
@@ -809,147 +479,64 @@ def action_for(text):
 
             references.append({'type': type, 'reference': reference})
 
-    return text, references
+    # form dict
+
+    action_dict = {
+        'acted_at': acted_at,
+        'action_code': item.get('actionCode', ''),
+        'committees': [item['committee']['systemCode'][0:-2].upper()] if item['committee'] else None,
+        'references': references,
+        'type': 'action', # replaced by parse_bill_action if a regex matches 
+        'text': text,
+    }
+
+    if not action_dict["committees"]:
+        # remove if empty - not present in how we used to generate the file
+        del action_dict["committees"]
+
+    return action_dict
 
 
-def introduced_at_for(body):
-    doc = fromstring(body)
+def cosponsors_for(cosponsors_list):
+    if cosponsors_list is None:
+        return []
 
-    introduced_at = None
-    for meta in doc.cssselect('meta'):
-        if meta.get('name') == 'dc.date':
-            introduced_at = meta.get('content')
+    cosponsors_list = cosponsors_list['item']
 
-    if not introduced_at:
-        raise Exception("Couldn't find an introduction date in the meta tags.")
-
-    # maybe silly to parse and re-serialize, but I'd like to make explicit the format we publish dates in
-    parsed = datetime.datetime.strptime(introduced_at, "%Y-%m-%d")
-    return datetime.datetime.strftime(parsed, "%Y-%m-%d")
-
-
-def parse_by_request(body):
-    """
-    Check whether the bill was introduced by the request.
-
-    Return boolean value.
-    """
-    doc = fromstring(body)
-
-    # Extract all text nodes from the range
-    # <b>Sponsor: </b> .... <br />
-    b_node = doc.xpath('//b[normalize-space(text()) = "Sponsor:"]')[0]
-    text_items = []
-    for node in b_node.xpath('.//following-sibling::node()'):
-        if isinstance(node, HtmlElement):
-            if node.tag == 'br':
-                break
-        if isinstance(node, unicode):
-            text_items.append(unicode(node))
-    text = u' '.join(text_items)
-    return u'by request' in text
-
-
-def cosponsors_for(body):
-    match = re.search("COSPONSORS\((\d+)\).*?<p>(?:</br>)?(.*?)(?:</br>)?(?:<hr|<div id=\"footer\">)", body, re.S)
-    if not match:
-        none = re.search("COSPONSOR\(S\):</b></a><p>\*\*\*NONE\*\*\*", body)
-        if none:
-            return []  # no cosponsors, it happens, nothing to be ashamed of
-        else:
-            raise Exception("Choked finding cosponsors section.")
-
-    count = match.group(1)
-    text = match.group(2)
-
-    # fix some bad line breaks
-    text = re.sub("</br>", "<br/>", text)
-
-    cosponsors = []
-
-    lines = re.compile("<br ?/>").split(text)
-    for line in lines:
-        # can happen on stand-alone cosponsor pages
-        if line.strip() == "</div>":
-            continue
-
-        m = re.search(r"<a href=[^>]+(\d{5}).*>(Rep|Sen) (.+?)</a> \[([A-Z\d\-]+)\]\s*- (\d\d?/\d\d?/\d\d\d\d)(?:\(withdrawn - (\d\d?/\d\d?/\d\d\d\d)\))?", line, re.I)
-        if not m:
-            raise Exception("Choked scanning cosponsor line: %s" % line)
-
-        thomas_id, title, name, district, join_date, withdrawn_date = m.groups()
-
-        # zero-pad thomas ID and apply corrections
-        thomas_id = "%05d" % int(thomas_id)
-        thomas_id = utils.thomas_corrections(thomas_id)
-
-        if len(district.split('-')) == 2:
-            state, district_number = district.split('-')
-        else:
-            state, district_number = district, None
-
-        join_date = datetime.datetime.strptime(join_date, "%m/%d/%Y")
-        join_date = datetime.datetime.strftime(join_date, "%Y-%m-%d")
-        if withdrawn_date:
-            withdrawn_date = datetime.datetime.strptime(withdrawn_date, "%m/%d/%Y")
-            withdrawn_date = datetime.datetime.strftime(withdrawn_date, "%Y-%m-%d")
-
-        cosponsors.append({
-            'thomas_id': thomas_id,
-            'title': title,
-            'name': name,
-            'state': state,
-            'district': district_number,
-            'sponsored_at': join_date,
-            'withdrawn_at': withdrawn_date
+    def build_dict(item):
+        cosponsor_dict = sponsor_for(item)
+        del cosponsor_dict["type"] # always 'person'
+        cosponsor_dict.update({
+            'sponsored_at': item['sponsorshipDate'],
+            'withdrawn_at': item['sponsorshipWithdrawnDate'],
+            'original_cosponsor': item['isOriginalCosponsor'] == 'True'
         })
+        return cosponsor_dict
+
+    cosponsors = [build_dict(cosponsor) for cosponsor in cosponsors_list]
+
+    # TODO: Can remove. Sort like the old THOMAS order to make diffs easier.
+    cosponsors.sort(key = lambda c: c['name'].lower())
 
     return cosponsors
 
 
-def subjects_for(body):
-    doc = fromstring(body)
-    subjects = []
-    top_term = None
-    for meta in doc.cssselect('meta'):
-        if meta.get('name') == 'dc.subject':
-            subjects.append(meta.get('content'))
-            if not top_term:
-                top_term = meta.get('content')
-    subjects.sort()
+def related_bills_for(related_bills_list):
+    if related_bills_list is None:
+        return []
 
-    return top_term, subjects
+    related_bills_list = related_bills_list['item']
 
+    def build_dict(item):
 
-def related_bills_for(body, congress, bill_id):
-    match = re.search("RELATED BILL DETAILS.*?<p>.*?<table border=\"0\">(.*?)(?:<hr|<div id=\"footer\">)", body, re.S)
-    if not match:
-        if re.search("RELATED BILL DETAILS:((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
-            return []
-        else:
-            raise Exception("Couldn't find related bills section.")
+        return {
+            'reason': item['relationshipDetails']['item'][0]['type'].replace('bill', '').strip().lower(),
+            'bill_id': '{0}{1}-{2}'.format(item['type'].replace('.', '').lower(), item['number'], item['congress']),
+            'type': 'bill',
+            'identified_by': item['relationshipDetails']['item'][0]['identifiedBy']
+        }
 
-    text = match.group(1).strip()
-
-    related_bills = []
-
-    for line in re.split("<tr><td", text):
-        if (line.strip() == "") or ("Bill:" in line):
-            continue
-
-        m = re.search("<a[^>]+>(.+?)</a>.*?<td>(.+?)</td>", line)
-        if not m:
-            raise Exception("Choked processing related bill line.")
-
-        bill_code, reason = m.groups()
-
-        related_id = "%s-%s" % (bill_code.lower().replace(".", "").replace(" ", ""), congress)
-
-        if "amdt" in related_id:
-            details = {"type": "amendment", "amendment_id": related_id}
-        else:
-            details = {"type": "bill", "bill_id": related_id}
-
+        # Are these THOMAS related bill relation texts gone from the bulk data?
         reasons = (
             ("Identical bill identified by (CRS|House|Senate)", "identical"),
             ("Companion bill", "identical"),
@@ -967,19 +554,8 @@ def related_bills_for(body, congress, bill_id):
             ("Bill passed by virtue of .* passage in House", "caused-action-by"),
             ("Bill on wich enrollment has been corrected by virtue of .* passage in House", "caused-action"),
         )
-        for reason_re, reason_code in reasons:
-            if re.search(reason_re + "$", reason, re.I):
-                reason = reason_code
-                break
-        else:
-            logging.error("[%s] Unknown bill relation with %s: %s" % (bill_id, related_id, reason.strip()))
-            reason = "unknown"
 
-        details['reason'] = reason
-
-        related_bills.append(details)
-
-    return related_bills
+    return [build_dict(related_bill) for related_bill in related_bills_list]
 
 # get the public or private law number from any enacted action
 
@@ -993,45 +569,11 @@ def slip_law_from(actions):
                 'number': action["number"]
             }
 
-# given the parsed list of actions from actions_for, run each action
-# through metadata extraction and figure out what current status the bill is in
-
-
-def process_actions(actions, bill_id, title, introduced_date):
-
-    status = "INTRODUCED"  # every bill is at least introduced
-    status_date = introduced_date
-    new_actions = []
-
-    for action in actions:
-        new_action, new_status = parse_bill_action(action, status, bill_id, title)
-
-        # only change/reflect status change if there was one
-        if new_status:
-            new_action['status'] = new_status
-            status = new_status
-
-        # an action can opt-out of inclusion altogether
-        if new_action:
-            action.update(new_action)
-            new_actions.append(action)
-
-            if "subcommittee_action_ref" in action:
-                action["in_committee"] = action["committee_action_ref"].get("committee", None)
-                action["in_subcommittee"] = action["subcommittee_action_ref"].get("subcommittee", None)
-                del action["subcommittee_action_ref"]
-                del action["committee_action_ref"]
-            elif "committee_action_ref" in action:
-                action["in_committee"] = action["committee_action_ref"].get("committee", None)
-                del action["committee_action_ref"]
-
-    return new_actions
-
 # find the latest status change in a set of processed actions
 
 
-def latest_status(actions):
-    status, status_date = None, None
+def latest_status(actions, introduced_at):
+    status, status_date = "INTRODUCED", introduced_at
     for action in actions:
         if action.get('status', None):
             status = action['status']
@@ -1156,8 +698,6 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
     """Parse a THOMAS bill action line. Returns attributes to be set in the XML file on the action line."""
 
     bill_type, number, congress = utils.split_bill_id(bill_id)
-    if not utils.committee_names:
-        utils.fetch_committee_names(congress, {})
 
     line = action_dict['text']
 
@@ -1483,76 +1023,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         if prev_status == "INTRODUCED":
             status = "REFERRED"
 
-    # Check for committee name, and store committee ids
-
-    # Build a regex to find mentioned committees in the action line.
-    cmte_names = []
-    for name in utils.committee_names.keys():
-        # excluding subcommittee names (they have pipes),
-        if name.find('|') == -1:
-            # name = re.sub(r"\(.*\)", '', name).strip()
-            name = re.sub(r"^(House|Senate) ", "", name)
-            cmte_names.append(name)
-    cmte_reg = r"(House|Senate)?\s*(?:Committee)?\s*(?:on)?\s*(?:the)?\s*({0})".format("|".join(cmte_names))
-
-    # "Rules" occurs often in "suspend the rules" not referring to a committee, so
-    # wipe that out so that it doesn't get picked up as House Rules and subsequently
-    # generate an error for not, in lowercase?, actually matching a committee name.
-    # Likewise for "budgetary" triggering the budget committees.
-    line_for_cmte_reg = line.replace("suspend the rules", "XXX").replace("suspension of the rules", "XXX").replace("closed rule", "XXX")\
-        .replace("budgetary", "XXX")
-
-    m = re.search(cmte_reg, line_for_cmte_reg, re.I)
-    if m:
-        committees = []
-        chamber = m.groups()[0]  # optional match
-
-        # This could be made to look for multiple committee names.
-        cmte_name_candidates = [" ".join([t for t in m.groups() if t is not None]).replace("House House", "House")]
-
-        for cand in cmte_name_candidates:
-            # many actions just say "Committee on the Judiciary", without a chamber
-            # do our best to assign a chamber if we can be sure
-            if ("House" not in cand) and ("Senate" not in cand):
-                in_house = utils.committee_names.get("House %s" % cand, False)
-                in_senate = utils.committee_names.get("Senate %s" % cand, False)
-                if in_house and not in_senate:
-                    cand = "House %s" % cand
-                elif in_senate and not in_house:
-                    cand = "Senate %s" % cand
-
-                # if this action is a committee-level action (indented on THOMAS), look
-                # at the parent action to infer the chamber
-                elif len(action_dict.get("committee_action_ref", {}).get("committees", [])) > 0:
-                    chamber = action_dict["committee_action_ref"]["committees"][0][0]  # H, S, or J
-                    if chamber == "H":
-                        cand = "House %s" % cand
-                    elif chamber == "S":
-                        cand = "Senate %s" % cand
-
-                # look at other signals on the action line
-                elif re.search("Received in the House|Reported to House", line):
-                    cand = "House %s" % cand
-                elif re.search("Received in the Senate|Reported to Senate", line):
-                    cand = "Senate %s" % cand
-
-                # if a bill is in an early stage where we're pretty sure activity is in the originating
-                # chamber, fall back to the bill's originating chamber
-                elif prev_status in ("INTRODUCED", "REFERRED", "REPORTED") and bill_id.startswith("h"):
-                    cand = "House %s" % cand
-                elif prev_status in ("INTRODUCED", "REFERRED", "REPORTED") and bill_id.startswith("s"):
-                    cand = "Senate %s" % cand
-
-            try:
-                cmte_id = utils.committee_names[cand]
-                committees.append(cmte_id)
-            except KeyError:
-                # pass
-                logging.warn("[%s] Committee id not found for '%s' in action <%s>" % (bill_id, cand, line))
-        if committees:
-            action['committees'] = committees
-
-    # no matter what it is, sweep the action line for bill IDs of related bills
+    # sweep the action line for bill IDs of related bills
     bill_ids = utils.extract_bills(line, congress)
     bill_ids = filter(lambda b: b != bill_id, bill_ids)
     if bill_ids and (len(bill_ids) > 0):
@@ -1643,144 +1114,23 @@ def new_status_after_vote(vote_type, passed, chamber, bill_type, suspension, ame
 
     return None
 
-# parse amendments out of undocumented standalone amendments page
 
-
-def amendments_for_standalone(body, bill_id):
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-
-    amendments = []
-
-    for code, chamber, number in re.findall("<a href=\"/cgi-bin/bdquery/z\?d\d+:(SU|SP|HZ)\d+:\">(S|H)\.(?:UP\.)?AMDT\.(\d+)</a>", body, re.I):
-        chamber = chamber.lower()
-
-        # there are "senate unprinted amendments" for the 97th and 98th Congresses, with their own numbering scheme
-        # make those use 'su' as the type instead of 's'
-        amendment_type = chamber + "amdt"
-        if code == "SU":
-            amendment_type = "supamdt"
-
-        amendments.append({
-            'chamber': chamber,
-            'amendment_type': amendment_type,
-            'number': number,
-            'amendment_id': "%s%s-%s" % (amendment_type, number, congress)
-        })
-
-    if len(amendments) == 0:
-        if not re.search("AMENDMENT\(S\):((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
-            raise Exception("Couldn't find amendments section.")
-
-    return amendments
-
-
-def amendments_for(body, bill_id):
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-
-    # it is possible in older sessions for the amendments section to not appear at all.
-    # if this method is being run, we know the page is not truncated, so if the header
-    # is not at all present, assume the page is missing amendments because there are none.
-    if not re.search("AMENDMENT\(S\):", body):
+def amendments_for(amendment_list):
+    if amendment_list is None:
         return []
 
-    amendments = []
+    amendment_list = amendment_list['amendment']
 
-    for code, chamber, number in re.findall("<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(SU|SP|HZ)\d+:\">(S|H)\.(?:UP\.)?AMDT\.(\d+)\s*</a> to ", body, re.I):
-        chamber = chamber.lower()
+    def build_dict(item):
+        # Malformed XML containing duplicate elements causes attributes to parse as a list
+        for attr in ['type', 'number', 'congress']:
+            if type(item[attr]) is list:
+                item[attr] = item[attr][0]
+        return {
+            'amendment_id': "{0}{1}-{2}".format(item['type'].lower(), item['number'], item['congress']),
+            'amendment_type': item['type'].lower(),
+            'chamber': item['type'][0].lower(),
+            'number': item['number']
+        }
+    return [build_dict(amendment) for amendment in amendment_list]
 
-        # there are "senate unprinted amendments" for the 97th and 98th Congresses, with their own numbering scheme
-        # make those use 'supamdt' as the type instead of 's'
-        amendment_type = chamber + "amdt"
-        if code == "SU":
-            amendment_type = "supamdt"
-
-        amendments.append({
-            'chamber': chamber,
-            'amendment_type': amendment_type,
-            'number': number,
-            'amendment_id': "%s%s-%s" % (amendment_type, number, congress)
-        })
-
-    if len(amendments) == 0:
-        if not re.search("AMENDMENT\(S\):((?:(?!\<hr).)+)\*\*\*NONE\*\*\*", body, re.S):
-            raise Exception("Couldn't find amendments section.")
-
-    return amendments
-
-
-# are there at least 150 amendments listed in this body? a quick tally
-# not the end of the world if it's wrong once in a great while, it just sparks
-# a less efficient way of gathering this bill's data
-def too_many_amendments(body):
-    # example:
-    # "<b>150.</b> <a href="/cgi-bin/bdquery/z?d111:SP02937:">S.AMDT.2937 </a> to <a href="/cgi-bin/bdquery/z?d111:HR03590:">H.R.3590</a>"
-    amendments = re.findall("(<b>\s*\d+\.</b>\s*<a href=\"/cgi-bin/bdquery/z\?d\d+:(SP|HZ)\d+:\">(S|H)\.AMDT\.\d+\s*</a> to )", body, re.I)
-    return (len(amendments) >= 150)
-
-# bills reserved for the Speaker or Minority Leader are not actual legislation,
-# just markers that the number will not be used for ordinary members' bills
-
-
-def reserved_bill(body):
-    if re.search("OFFICIAL TITLE AS INTRODUCED:((?:(?!\<hr).)+)Reserved for the (Speaker|Minority Leader)", body, re.S | re.I):
-        return True
-    else:
-        return False
-
-# fetch GPO URLs for PDF and HTML formats
-
-
-def get_GPO_url_for_bill(bill_id, options):
-    # we need the URL of the pdf on GPO
-    # there may be a way to calculate it, but in the meantime we'll get it the old-fashioned way
-    # first get the THOMAS landing page. This may be duplicating work, but didn't see anything
-    # Maybe TODO -- reconcile with fdsys script (ideally without downloading large sitemaps for a single bill)
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-    thomas_type = utils.thomas_types[bill_type][0]
-    congress = int(congress)
-    landing_url = "http://thomas.loc.gov/cgi-bin/bdquery/D?d%03d:%s:./list/bss/d%03d%s.lst:" % (congress, number, congress, thomas_type)
-    landing_page = utils.download(
-        landing_url,
-        bill_cache_for(bill_id, "landing_page.html"),
-        options)
-    text_landing_page_url = "http://thomas.loc.gov/cgi-bin/query/z" + re.search('href="/cgi-bin/query/z?(.*?)">Text of Legislation', landing_page, re.I | re.S).groups(1)[0]
-    text_landing_page = utils.download(
-        text_landing_page_url,
-        bill_cache_for(bill_id, "text_landing_page.html"),
-        options)
-    gpo_urls = re.findall('http://www.gpo.gov/fdsys/(.*?)\.pdf', text_landing_page, re.I | re.S)
-    if not len(gpo_urls):
-        logging.info("No GPO link discovered")
-        return False
-    # get last url on page, in cases where there are several versions of bill
-    # THOMAS advises us to use the last one (e.g. http://thomas.loc.gov/cgi-bin/query/z?c113:S.CON.RES.1: )
-
-    return {
-        "pdf": "http://www.gpo.gov/fdsys/" + gpo_urls[-1] + ".pdf",
-        "html": "http://www.gpo.gov/fdsys/" + gpo_urls[-1].replace("pdf", "html") + ".htm"
-    }
-
-
-# directory helpers
-
-def output_for_bill(bill_id, format, is_data_dot=True):
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-    if is_data_dot:
-        fn = "data.%s" % format
-    else:
-        fn = format
-    return "%s/%s/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, fn)
-
-# defaults to "All Information" page for a bill
-
-
-def bill_url_for(bill_id, page="L"):
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-    thomas_type = utils.thomas_types[bill_type][0]
-    congress = int(congress)
-    return "http://thomas.loc.gov/cgi-bin/bdquery/z?d%03d:%s%s:@@@%s&summ2=m&" % (congress, thomas_type, number, page)
-
-
-def bill_cache_for(bill_id, file):
-    bill_type, number, congress = utils.split_bill_id(bill_id)
-    return "%s/bills/%s/%s%s/%s" % (congress, bill_type, bill_type, number, file)
