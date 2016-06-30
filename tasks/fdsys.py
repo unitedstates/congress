@@ -59,7 +59,6 @@ import re
 import logging
 import os.path
 import utils
-from bill_info import output_for_bill
 from tasks import Task, merge, unwrap_text_in_html
 
 
@@ -74,6 +73,10 @@ class Fdsys(Task):
         super(Fdsys, self).__init__(options, config)
         self.fetch_collections = filter(None, set(options.get("collections", '').split(","))) or None
         self.listing = []
+
+        # Create a local function named output_for_bill that just calls Bills.output_for_bill.
+        import tasks.bills
+        self.output_for_bill = tasks.bills.Bills(options=options, config=config).output_for_bill
 
     def run(self):
         """
@@ -520,7 +523,7 @@ class Fdsys(Task):
             if not bill_and_ver:
                 return None  # congress number does not match options["congress"]
             bill_id, version_code = bill_and_ver
-            return output_for_bill(bill_id, "text-versions/" + version_code, is_data_dot=False)
+            return self.output_for_bill(bill_id, "text-versions/" + version_code, is_data_dot=False)
         else:
             # Store in fdsys/COLLECTION/YEAR/PKGNAME[/GRANULE_NAME].
             path = "%s/fdsys/%s/%s/%s" % (self.storage.data_dir, sitemap["collection"], sitemap["year"], package_name)
@@ -595,7 +598,7 @@ class Fdsys(Task):
         if sitemap["collection"] == 'BILLSTATUS':
             bill_id, version_code = self.get_bill_id_for_package(os.path.splitext(os.path.basename(item_path))[0],
                                                                  with_version=False)
-            path = output_for_bill(bill_id, self.BULK_BILLSTATUS_FILENAME, is_data_dot=False)
+            path = self.output_for_bill(bill_id, self.BULK_BILLSTATUS_FILENAME, is_data_dot=False)
     
         # Where should we store the lastmod found in the sitemap so that
         # we can tell later if the file has changed?

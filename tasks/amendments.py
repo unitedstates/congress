@@ -5,11 +5,6 @@ import os
 import re
 from datetime import datetime
 
-#from bills import bill_ids_for, save_bill_search_state
-#from bill_info import fetch_bill, output_for_bill
-
-#from amendment_info import fetch_amendment
-
 import tasks
 from tasks import Task, make_node as parent_make_node, current_congress, format_datetime, bills
 from tasks.fdsys import Fdsys

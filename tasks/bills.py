@@ -64,9 +64,10 @@ class Bills(Task):
         logging.info("[%s] Writing to %s..." % (bill_id, path))
         with self.storage.fs.open(path + '/data.json', 'w') as json_file:
             json_file.write(unicode(json.dumps(legacy_dict, indent=2, sort_keys=True)))
+
+        from bill_info import create_govtrack_xml
         with self.storage.fs.open(path + '/data.xml', 'wb') as xml_file:
-            pass
-            # xml_file.write(self._convert_legacy_dict_to_xml(legacy_dict))
+            xml_file.write(create_govtrack_xml(legacy_dict, self, self.options))
 
         if amendments:
             from tasks.amendments import Amendments
@@ -678,138 +679,6 @@ class Bills(Task):
         bill_type, number, congress = self.split_bill_id(bill_id)
         fn = "data.%s" % format if is_data_dot else format
         return "%s/%s/bills/%s/%s%s/%s" % (self.storage.data_dir, congress, bill_type, bill_type, number, fn)
-
-    def _convert_legacy_dict_to_xml(self, bill):
-        # output XML
-        govtrack_type_codes = {'hr': 'h', 's': 's', 'hres': 'hr', 'sres': 'sr', 'hjres': 'hj', 'sjres': 'sj', 'hconres': 'hc', 'sconres': 'sc'}
-        root = etree.Element("bill")
-        root.set("session", bill['congress'])
-        root.set("type", govtrack_type_codes[bill['bill_type']])
-        root.set("number", bill['number'])
-        root.set("updated", format_datetime(bill['updated_at']))
-
-        def make_node(parent, tag, text, **attrs):
-            if self.options.get("govtrack", False):
-                # Rewrite bioguide_id attributes as just id with GovTrack person IDs.
-                attrs2 = {}
-                for k,v in attrs.items():
-                    if v:
-                        if k == "bioguide_id":
-                            k = "id"
-                            v = str(self.lookup_legislator_by_id("bioguide", v)["id"]["govtrack"])
-                        attrs2[k] = v
-                attrs = attrs2
-
-            return parent_make_node(parent, tag, text, **attrs)
-
-        # for American Memory Century of Lawmaking bills...
-        for source in bill.get("sources", []):
-            n = make_node(root, "source", "")
-            for k, v in sorted(source.items()):
-                if k == "source":
-                    n.text = v
-                elif k == "source_url":
-                    n.set("url", v)
-                else:
-                    n.set(k, unicode(v))
-        if "original_bill_number" in bill:
-            make_node(root, "bill-number", bill["original_bill_number"])
-
-        make_node(root, "state", bill['status'], datetime=bill['status_at'])
-        old_status = make_node(root, "status", None)
-        make_node(old_status, "introduced" if bill['status'] in ("INTRODUCED", "REFERRED") else "unknown", None, datetime=bill['status_at'])  # dummy for the sake of comparison
-
-        make_node(root, "introduced", None, datetime=bill['introduced_at'])
-        titles = make_node(root, "titles", None)
-        for title in bill['titles']:
-            n = make_node(titles, "title", title['title'])
-            n.set("type", title['type'])
-            if title['as']:
-                n.set("as", title['as'])
-            if title['is_for_portion']:
-                n.set("partial", "1")
-
-        if bill['sponsor']:
-            # TODO: Sponsored by committee?
-            make_node(root, "sponsor", None, bioguide_id=bill['sponsor']['bioguide_id'])
-        else:
-            make_node(root, "sponsor", None)
-
-        cosponsors = make_node(root, "cosponsors", None)
-        for cosp in bill['cosponsors']:
-            n = make_node(cosponsors, "cosponsor", None, bioguide_id=cosp["bioguide_id"])
-            if cosp["sponsored_at"]:
-                n.set("joined", cosp["sponsored_at"])
-            if cosp["withdrawn_at"]:
-                n.set("withdrawn", cosp["withdrawn_at"])
-
-        actions = make_node(root, "actions", None)
-        for action in bill['actions']:
-            a = make_node(actions,
-                          action['type'] if action['type'] in ("vote", "vote-aux", "calendar", "topresident", "signed", "enacted", "vetoed") else "action",
-                          None,
-                          datetime=action['acted_at'])
-            if action.get("status"):
-                a.set("state", action["status"])
-            if action['type'] in ('vote', 'vote-aux'):
-                a.clear()  # re-insert date between some of these attributes
-                a.set("how", action["how"])
-                a.set("type", action["vote_type"])
-                if action.get("roll") != None:
-                    a.set("roll", action["roll"])
-                a.set("where", action["where"])
-                a.set("result", action["result"])
-                if action.get("suspension"):
-                    a.set("suspension", "1")
-                if action.get("status"):
-                    a.set("state", action["status"])
-            if action['type'] == 'calendar' and "calendar" in action:
-                a.set("calendar", action["calendar"])
-                if action["under"]:
-                    a.set("under", action["under"])
-                if action["number"]:
-                    a.set("number", action["number"])
-            if action['type'] == 'enacted':
-                a.clear()  # re-insert date between some of these attributes
-                a.set("number", "%s-%s" % (bill['congress'], action["number"]))
-                a.set("type", action["law"])
-                if action.get("status"):
-                    a.set("state", action["status"])
-            if action['type'] == 'vetoed':
-                if action.get("pocket"):
-                    a.set("pocket", "1")
-            if action.get('text'):
-                make_node(a, "text", action['text'])
-            if action.get('in_committee'):
-                make_node(a, "committee", None, name=action['in_committee'])
-            for cr in action['references']:
-                make_node(a, "reference", None, ref=cr['reference'], label=cr['type'])
-
-        committees = make_node(root, "committees", None)
-        for cmt in bill['committees']:
-            make_node(committees, "committee", None, code=(cmt["committee_id"] + cmt["subcommittee_id"]) if cmt.get("subcommittee_id", None) else cmt["committee_id"], name=cmt["committee"], subcommittee=cmt.get("subcommittee").replace("Subcommittee on ", "") if cmt.get("subcommittee") else "", activity=", ".join(c.title() for c in cmt["activity"]))
-
-        relatedbills = make_node(root, "relatedbills", None)
-        for rb in bill['related_bills']:
-            if rb['type'] == "bill":
-                rb_bill_type, rb_number, rb_congress = Bills.split_bill_id(rb['bill_id'])
-                make_node(relatedbills, "bill", None, session=rb_congress, type=govtrack_type_codes[rb_bill_type], number=rb_number, relation="unknown" if rb['reason'] == "related" else rb['reason'])
-
-        subjects = make_node(root, "subjects", None)
-        if bill['subjects_top_term']:
-            make_node(subjects, "term", None, name=bill['subjects_top_term'])
-        for s in bill['subjects']:
-            if s != bill['subjects_top_term']:
-                make_node(subjects, "term", None, name=s)
-
-        amendments = make_node(root, "amendments", None)
-        for amd in bill['amendments']:
-            make_node(amendments, "amendment", None, number=amd["chamber"] + str(amd["number"]))
-
-        if bill.get('summary'):
-            make_node(root, "summary", bill['summary']['text'], date=bill['summary']['date'], as_of_status=bill['summary']['as'])
-
-        return etree.tostring(root, pretty_print=True)
 
     # find the first action beyond the standard actions every bill gets.
     # - if the bill's first action is "referral" then the first action not those
