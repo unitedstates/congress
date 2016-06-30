@@ -194,8 +194,7 @@ class Storage:
         try:
             path = self.options['config']['output']['cache']
         except KeyError:
-            # The pyfilesystem filesystem requires an absolute path.
-            path = fs.path.abspath('cache')
+            path = 'cache'
         return path
 
     @property
@@ -207,8 +206,7 @@ class Storage:
         try:
             path = self.options['config']['output']['data']
         except KeyError:
-            # The pyfilesystem filesystem requires an absolute path.
-            path = fs.path.abspath('data')
+            path = 'data'
         return path
 
 
