@@ -3,6 +3,7 @@ import logging
 import json
 import os
 import re
+from datetime import datetime
 
 #from bills import bill_ids_for, save_bill_search_state
 #from bill_info import fetch_bill, output_for_bill
@@ -62,9 +63,13 @@ class Amendments(Task):
             'number': int(amdt_dict['number']),
             'proposed_at': amdt_dict['proposedDate'],
             'purpose': amdt_dict['purpose'][0] if type(amdt_dict['purpose']) is list else amdt_dict['purpose'],
-            'sponsor': self.build_sponsor_dict(tasks.safeget(amdt_dict, None, 'sponsors', 'item', 0)),
+            'sponsor': self.build_sponsor_dict(tasks.safeget(amdt_dict, None, 'sponsors', 'item', 0), amdt_dict['type'].lower()),
             'updated_at': amdt_dict['updateDate']
         }
+
+        if amdt_dict['type'].lower() == "hamdt":
+            # House amendments aren't "proposed".
+            del legacy_dict["proposed_at"]
 
         status, status_at = self.amendment_status_for(legacy_dict)
         legacy_dict.update({'status': status, 'status_at': status_at}) # TODO date instead of datetime
@@ -91,16 +96,23 @@ class Amendments(Task):
         def build_dict(item):
             text, references = Bills.action_for(item['text'] if item['text'] is not None else '' )
 
+            if not item.get('actionTime'):
+                acted_at = item.get('actionDate', '')
+            else:    
+                # Although we get the action date & time in an ISO-ish format (split
+                # across two fields), and although we know it's in local time at the
+                # U.S. Capitol (i.e. U.S. Eastern), we don't know the UTC offset which
+                # is a part of how we used to serialize the time. So parse and then
+                # use pytz (via format_datetime) to re-serialize.
+                acted_at = format_datetime(datetime.strptime(item.get('actionDate', '') + " " + item['actionTime'], "%Y-%m-%d %H:%M:%S"))
+
             return {
-                'acted_at': item.get('actionDate', '') + (("T" + item['actionTime']) if item.get('actionTime') else ""),
+                'acted_at': acted_at,
                 'action_code': item.get('actionCode', ''),
                 'committees': [tasks.safeget(item, '', 'committee', 'systemCode')[0:-2].upper()],
                 'references': references,
                 'type': 'action',
-                #'type': '',  # TODO see parse_bill_action in bill_info.py this is a mess
-                #'status': '',  # TODO see parse_bill_action in bill_info.py this is a mess
                 'text': text,
-                #'where': '', # TODO see parse_bill_action in bill_info.py this is a mess
             }
 
         actions = [build_dict(action) for action in action_list]
@@ -176,32 +188,19 @@ class Amendments(Task):
             'number': int(amends_bill['number'])
         }
 
-    def build_sponsor_dict(self, sponsor):
-        # check for committee sponsorship
+    def build_sponsor_dict(self, sponsor, amendment_type):
         if sponsor.get('bioguideId') is None:
-            return {}  # TODO committee lookup
+            # A committee can sponsor an amendment!
+            # Change e.g. "Rules Committee" to "House Rules" for the committee name,
+            # for backwards compatibility.
+            name = re.sub(r"(.*) Committee$", ("House" if (amendment_type[0] == "h") else "Senate" ) + r" \1", sponsor['name'])
+            return {
+                "type": "committee",
+                "name": name,
+                #"committee_id": None, # TODO
+            }
 
-        # TODO: Don't do regex matching here. Find another way. Is there a better way?
-        m = re.match(r'(?P<title>(Rep|Sen))\. (?P<name>.*) \[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large))?\]$',
-            sponsor['fullName'])
-
-        if m.group("district") is None:
-            district = None # a senator
-        elif m.group("district") == "At Large":
-            district = None # TODO: For backwards compatibility, we're returning None, but 0 would be better.
-        else:
-            # TODO: For backwards compatibility, we're returning a string, but an int would be better.
-            district = m.group('district')
-
-        return {
-            'title': m.group("title"),
-            'name': m.group("name"), # the firstName, middleName, lastName fields have inconsistent capitalization - some are all uppercase
-            'district': district,
-            'state': m.group('state'),
-            'thomas_id': self.lookup_legislator_by_id('bioguide', sponsor['bioguideId'])['id']['thomas'],  # TODO: Remove.
-            'bioguide_id': sponsor['bioguideId'],
-            'type': 'person'
-        }
+        return Bills._build_legacy_sponsor_dict(sponsor, self)
 
     def amendment_status_for(self, amdt_dict):
         status = 'offered'

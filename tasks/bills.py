@@ -108,7 +108,7 @@ class Bills(Task):
 
             'introduced_at': bill_dict.get('introducedDate', ''),
             'by_request': tasks.safeget(bill_dict, None, 'sponsors', 'item', 'byRequestType') is not None,
-            'sponsor': self._build_legacy_sponsor_dict(tasks.safeget(bill_dict, None, 'sponsors', 'item', 0)),
+            'sponsor': self._build_legacy_sponsor_dict(tasks.safeget(bill_dict, None, 'sponsors', 'item', 0), self),
             'cosponsors': self._build_legacy_cosponsor_list(tasks.safeget(bill_dict, [], 'cosponsors', 'item')),
 
             'actions': actions,
@@ -149,7 +149,8 @@ class Bills(Task):
             return term
         return term.capitalize()
 
-    def _build_legacy_sponsor_dict(self, sponsor_dict):
+    @staticmethod
+    def _build_legacy_sponsor_dict(sponsor_dict, task):
         """
 
         @param sponsor_dict:
@@ -181,7 +182,7 @@ class Bills(Task):
             'district': district,
             'state': m.group('state'),
             #'party': m.group('party'),
-            'thomas_id': self.lookup_legislator_by_id('bioguide', sponsor_dict['bioguideId'])['id']['thomas'],  # TODO: Remove.
+            'thomas_id': task.lookup_legislator_by_id('bioguide', sponsor_dict['bioguideId'])['id']['thomas'],  # TODO: Remove.
             'bioguide_id': sponsor_dict['bioguideId'],
             'type': 'person'
         }
@@ -195,7 +196,7 @@ class Bills(Task):
         @rtype:
         """
         def build_dict(item):
-            cosponsor_dict = self._build_legacy_sponsor_dict(item)
+            cosponsor_dict = self._build_legacy_sponsor_dict(item, self)
             del cosponsor_dict["type"] # always 'person'
             cosponsor_dict.update({
                 'sponsored_at': item['sponsorshipDate'],
