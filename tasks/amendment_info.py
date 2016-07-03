@@ -56,7 +56,7 @@ def build_amendment_json_dict(amdt_dict, options):
 
         'purpose': amdt_dict['purpose'][0] if type(amdt_dict['purpose']) is list else amdt_dict['purpose'],
 
-        'introduced_at': amdt_dict['submittedDate'],
+        'introduced_at': amdt_dict['submittedDate'][:10],
         'actions': actions,
 
         'updated_at':  amdt_dict['updateDate'],
