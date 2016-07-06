@@ -147,7 +147,7 @@ def output_vote(vote, options, id_type=None):
             elif not options.get("govtrack", False):
                 n.set("id", str(v["id"]))
             else:
-                n.set("id", str(utils.get_govtrack_person_id(id_type, v["id"])))
+                n.set("id", str(utils.translate_legislator_id(id_type, v["id"], 'govtrack')))
             n.set("vote", option_keys[option])
             n.set("value", option)
             if v != "VP":
