@@ -4,11 +4,13 @@ Public domain code that collects data about the bills, amendments, roll call vot
 
 Includes:
 
-* A scraper for THOMAS.gov, the official source of information on the life and times of legislation and presidential nominations in Congress.
+* A data importing script for the [official bulk bill status data](https://github.com/usgpo/bill-status) from Congress, the official source of information on the life and times of legislation.
 
 * Scrapers for House and Senate roll call votes.
 
 * A scraper for GPO FDSys, the official repository for most legislative documents.
+
+* A defunct THOMAS scraper for presidential nominations in Congress.
 
 Read about the contents and schema in the [documentation](https://github.com/unitedstates/congress/wiki) in the github project wiki.
 
@@ -64,23 +66,22 @@ pip install -r requirements.txt
 
 The general form to start the scraping process is:
 
-    ./run <data-type> [--force] [--fast] [other options]
+    ./run <data-type> [--force] [other options]
 
 where data-type is one of:
 
-* `bills` (see [Bills](https://github.com/unitedstates/congress/wiki/bills))
-* `amendments` (see [Amendments](https://github.com/unitedstates/congress/wiki/amendments))
+* `bills` (see [Bills](https://github.com/unitedstates/congress/wiki/bills)) and [Amendments](https://github.com/unitedstates/congress/wiki/amendments))
 * `votes` (see [Votes](https://github.com/unitedstates/congress/wiki/votes))
 * `nominations` (see [Nominations](https://github.com/unitedstates/congress/wiki/nominations))
 * `committee_meetings` (see [Committee Meetings](https://github.com/unitedstates/congress/wiki/committee-meetings))
 * `fdsys` (see [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
-* `bill_versions` (see [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
 * `deepbills` (see [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
 * `statutes` (see [Bills](https://github.com/unitedstates/congress/wiki/bills) and [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
 
-To scrape bills and resolutions from THOMAS, run:
+To scrape bills, resolutions, and amendments from THOMAS, run:
 
 ```bash
+./run fdsys --collections=BILLSTATUS
 ./run bills
 ```
 
@@ -88,17 +89,11 @@ The bills script will output bulk data into a top-level `data` directory, then o
 
 ### Common options
 
-The scripts will cache all downloaded pages, and it will not re-fetch them from the network unless a force flag is passed:
-
-```bash
-./run bills --force
-```
-
-The --force flag applies to all data types. Since the --force flag forces a download and parse of every object, the --fast flag for bills and votes will attempt to process only objects that are believed to have changed. Always use --fast with --force.
-
 Debugging messages are hidden by default. To include them, run with --log=info or --debug. To hide even warnings, run with --log=error.
 
 To get emailed with errors, copy config.yml.example to config.yml and fill in the SMTP options. The script will automatically use the details when a parsing or execution error occurs.
+
+The --force flag applies to all data types and supresses use of a cache for network-retreived resources.
 
 ### Data Output
 

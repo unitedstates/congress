@@ -1,148 +1,217 @@
-import utils
-import os
-import os.path
-import re
-from lxml import html, etree
+import json
 import logging
+import os
+import re
+import xmltodict
 
 import bill_info
+import amendment_info
+import fdsys
+import utils
 
 
 def run(options):
     bill_id = options.get('bill_id', None)
 
-    search_state = {}
-
     if bill_id:
         bill_type, number, congress = utils.split_bill_id(bill_id)
         to_fetch = [bill_id]
     else:
-        congress = options.get('congress', utils.current_congress())
-        to_fetch = bill_ids_for(congress, options, bill_states=search_state)
+        to_fetch = get_bills_to_process(options)
 
         if not to_fetch:
-            if options.get("fast", False):
-                logging.warn("No bills changed.")
-            else:
-                logging.error("Error figuring out which bills to download, aborting.")
+            logging.warn("No bills changed.")
             return None
 
         limit = options.get('limit', None)
         if limit:
             to_fetch = to_fetch[:int(limit)]
 
-    logging.warn("Going to fetch %i bills from congress #%s" % (len(to_fetch), congress))
-
-    saved_bills = utils.process_set(to_fetch, bill_info.fetch_bill, options)
-
-    save_bill_search_state(saved_bills, search_state)
-
-# page through listings for bills of a particular congress
+    utils.process_set(to_fetch, process_bill, options)
 
 
-def bill_ids_for(congress, options, bill_states={}):
+def get_bills_to_process(options):
+    # Return a generator over bill_ids that need to be processed.
+    # Every time we process a bill we copy the fdsys_billstatus-lastmod.txt
+    # file to data-fromfdsys-lastmod.txt, next to data.json. This way we
+    # know when the FDSys XML file has changed.
 
-    # override if we're actually using this method to get amendments
-    doing_amendments = options.get('amendments', False)
+    def get_data_path(*args):
+        # Utility function to generate a part of the path
+        # to data/{congress}/bills/{billtype}/{billtypenumber}
+        # given as many path elements as are provided. args
+        # is a list of zero or more of congress, billtype,
+        # and billtypenumber (in order).
+        args = list(args)
+        if len(args) > 0:
+            args.insert(1, "bills")
+        return os.path.join(utils.data_dir(), *args)
 
-    bill_ids = []
-
-    bill_type = options.get('amendment_type' if doing_amendments else 'bill_type', None)
-    if bill_type:
-        bill_types = [bill_type]
+    if not options.get('congress'):
+        # Get a list of all congress directories on disk.
+        # Filter out non-integer directory names, then sort on the
+        # integer.
+        def filter_ints(seq):
+            for s in seq:
+                try:
+                    yield int(s)
+                except:
+                    # Not an integer.
+                    continue
+        congresses = sorted(filter_ints(os.listdir(get_data_path())))
     else:
-        bill_types = utils.thomas_types.keys()
+        congresses = sorted([int(c) for c in options['congress'].split(',')])
 
-    for bill_type in bill_types:
+    # walk through congresses
+    for congress in congresses:
+        # turn this back into a string
+        congress = str(congress)
 
-        # This sub is re-used for pulling amendment IDs too.
-        if (bill_type in ('samdt', 'hamdt', 'supamdt')) != doing_amendments:
-            continue
+        # walk through all bill types in that congress
+        # (sort by bill type so that we proceed in a stable order each run)
+        for bill_type in sorted(os.listdir(get_data_path(congress))):
 
-        # match only links to landing pages of this bill type
-        # it shouldn't catch stray links outside of the confines of the 100 on the page,
-        # but if it does, no big deal
-        link_pattern = "^\s*%s\d+\s*$" % utils.thomas_types[bill_type][1]
+            # walk through each bill in that congress and bill type
+            # (sort by bill number so that we proceed in a normal order)
+            for bill_type_and_number in sorted(
+                os.listdir(get_data_path(congress, bill_type)),
+                key = lambda x : int(x.replace(bill_type, ""))
+                ):
 
-        # loop through pages and collect the links on each page until
-        # we hit a page with < 100 results, or no results
-        offset = 0
-        count = 0
-        while True:
-            # download page, find the matching links
-            page = utils.download(
-                page_for(congress, bill_type, offset),
-                page_cache_for(congress, bill_type, offset),
-                options)
+                fn = get_data_path(congress, bill_type, bill_type_and_number, fdsys.FDSYS_BILLSTATUS_FILENAME)
+                if os.path.exists(fn):
+                    # The FDSys bulk data file exists. Does our JSON data
+                    # file need to be updated?
+                    bulkfile_lastmod = utils.read(fn.replace(".xml", "-lastmod.txt"))
+                    parse_lastmod = utils.read(get_data_path(congress, bill_type, bill_type_and_number, "data-fromfdsys-lastmod.txt"))
+                    if bulkfile_lastmod != parse_lastmod:
+                        bill_id = bill_type_and_number + "-" + congress
+                        yield bill_id
 
-            if not page:
-                logging.error("Couldn't download page with offset %i, aborting" % offset)
-                return None
+def process_bill(bill_id, options):
+    fdsys_xml_path = _path_to_billstatus_file(bill_id)
+    logging.info("[%s] Processing %s..." % (bill_id, fdsys_xml_path))
 
-            # extract matching links
-            # (There can be links to related bills inside the search result for a bill, so
-            # only grab the first <a> within the <p> for the search result. Otherwise --fast
-            # will get very confused.)
-            doc = html.document_fromstring(page)
-            links = doc.xpath(
-                "//p/a[1][re:match(text(), '%s')]" % link_pattern,
-                namespaces={"re": "http://exslt.org/regular-expressions"})
+    # Read FDSys bulk data file.
+    xml_as_dict = read_fdsys_bulk_bill_status_file(fdsys_xml_path, bill_id)
+    bill_data = form_bill_json_dict(xml_as_dict)
 
-            # extract the bill ID from each link
-            for link in links:
-                code = link.text.lower().replace(".", "").replace(" ", "")
-                bill_id = "%s-%s" % (code, congress)
-                count += 1
+    # Convert and write out data.json and data.xml.
+    utils.write(
+        unicode(json.dumps(bill_data, indent=2, sort_keys=True)),
+        os.path.dirname(fdsys_xml_path) + '/data.json')
 
-                if options.get("fast", False):
-                    fast_cache_path = utils.cache_dir() + "/" + bill_info.bill_cache_for(bill_id, "search_result.html")
-                    old_state = utils.read(fast_cache_path)
+    from bill_info import create_govtrack_xml
+    with open(os.path.dirname(fdsys_xml_path) + '/data.xml', 'wb') as xml_file:
+        xml_file.write(create_govtrack_xml(bill_data, options))
 
-                    # Compare all of the output in the search result's <p> tag, which
-                    # has last major action, number of cosponsors, etc. to a cache on
-                    # disk to see if any major information about the bill changed.
-                    parent_node = link.getparent()  # the <p> tag containing the whole search hit
-                    parent_node.remove(parent_node.xpath("b")[0])  # remove the <b>###.</b> node that isn't relevant for comparison
-                    new_state = etree.tostring(parent_node)  # serialize this tag
+    if options.get("amendments", True):
+        process_amendments(bill_id, xml_as_dict, options)
 
-                    if old_state == new_state:
-                        logging.info("No change in search result listing: %s" % bill_id)
-                        continue
+    # Mark this bulk data file as processed by saving its lastmod
+    # file under a new path.
+    utils.write(
+        utils.read(_path_to_billstatus_file(bill_id).replace(".xml", "-lastmod.txt")),
+        os.path.join(os.path.dirname(fdsys_xml_path), "data-fromfdsys-lastmod.txt"))
 
-                    bill_states[bill_id] = new_state
+    return {
+        "ok": True,
+        "saved": True,
+    }
 
-                bill_ids.append(bill_id)
+def _path_to_billstatus_file(bill_id):
+    return output_for_bill(bill_id, fdsys.FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
 
-            if len(links) < 100:
-                break
+def read_fdsys_bulk_bill_status_file(fn, bill_id):
+    fdsys_billstatus = utils.read(fn)
+    return xmltodict.parse(fdsys_billstatus, force_list=('item', 'amendment',))
 
-            offset += 100
+def form_bill_json_dict(xml_as_dict):
+    """
+    Handles converting a government bulk XML file to legacy dictionary form.
 
-            # sanity check, while True loops are dangerous
-            if offset > 100000:
-                break
+    @param bill_id: id of the bill in format [type][number]-[congress] e.x. s934-113
+    @type bill_id: str
+    @return: dictionary of bill attributes
+    @rtype: dict
+    """
 
-        logging.info("%s: %d bills" % (bill_type, count))
+    bill_dict = xml_as_dict['billStatus']['bill']
+    bill_id = build_bill_id(bill_dict['billType'].lower(), bill_dict['billNumber'], bill_dict['congress'])
+    titles = bill_info.titles_for(bill_dict['titles']['item'])
+    actions = bill_info.actions_for(bill_dict['actions']['item'], bill_id, bill_info.current_title_for(titles, 'official'))
+    status, status_date = bill_info.latest_status(actions, bill_dict.get('introducedDate', ''))
 
-    return utils.uniq(bill_ids)
+    bill_data = {
+        'bill_id': bill_id,
+        'bill_type': bill_dict.get('billType').lower(),
+        'number': bill_dict.get('billNumber'),
+        'congress': bill_dict.get('congress'),
 
+        'url': billstatus_url_for(bill_id),
 
-def save_bill_search_state(saved_bills, search_state):
-    # For --fast mode, cache the current search result listing (in search_state)
-    # to disk so we can detect major changes to the bill through the search
-    # listing rather than having to parse the bill.
-    for bill_id in saved_bills:
-        if bill_id in search_state:
-            fast_cache_path = utils.cache_dir() + "/" + bill_info.bill_cache_for(bill_id, "search_result.html")
-            new_state = search_state[bill_id]
-            utils.write(new_state, fast_cache_path)
+        'introduced_at': bill_dict.get('introducedDate', ''),
+        'by_request': bill_dict['sponsors']['item'][0]['byRequestType']     is not None,
+        'sponsor': bill_info.sponsor_for(bill_dict['sponsors']['item'][0]),
+        'cosponsors': bill_info.cosponsors_for(bill_dict['cosponsors']),
 
+        'actions': actions,
+        'history': bill_info.history_from_actions(actions),
+        'status': status,
+        'status_at': status_date,
+        'enacted_as': bill_info.slip_law_from(actions),
 
-def page_for(congress, bill_type, offset):
-    thomas_type = utils.thomas_types[bill_type][0]
-    congress = int(congress)
-    return "http://thomas.loc.gov/cgi-bin/bdquery/d?d%03d:%s:./list/bss/d%03d%s.lst:[[o]]" % (congress, offset, congress, thomas_type)
+        'titles': titles,
+        'official_title': bill_info.current_title_for(titles, 'official'),
+        'short_title': bill_info.current_title_for(titles, 'short'),
+        'popular_title': bill_info.current_title_for(titles, 'popular'),
 
+        'summary': bill_info.summary_for(bill_dict['summaries']['billSummaries']),
 
-def page_cache_for(congress, bill_type, offset):
-    return "%s/bills/pages/%s/%i.html" % (congress, bill_type, offset)
+        # The top term's case has changed with the new bulk data. It's now in
+        # Title Case. For backwards compatibility, the top term is run through
+        # '.capitalize()' so it matches the old string. TODO: Remove one day?
+        'subjects_top_term': _fixup_top_term_case(bill_dict['primarySubject']['name']) if bill_dict['primarySubject'] else None,
+        'subjects':
+            sorted(
+                ([_fixup_top_term_case(bill_dict['primarySubject']['name'])] if bill_dict['primarySubject'] else []) +
+                ([item['name'] for item in bill_dict['subjects']['billSubjects']['otherSubjects']['item']] if bill_dict['subjects']['billSubjects']['otherSubjects'] else [])
+            ),
+
+        'related_bills': bill_info.related_bills_for(bill_dict['relatedBills']),
+        'committees': bill_info.committees_for(bill_dict['committees']['billCommittees']),
+        'amendments': bill_info.amendments_for(bill_dict['amendments']),
+
+        'updated_at': bill_dict.get('updateDate', ''),
+    }
+
+    return bill_data
+
+def _fixup_top_term_case(term):
+    if term in ("Native Americans",):
+        return term
+    return term.capitalize()
+
+def build_bill_id(bill_type, bill_number, congress):
+    return "%s%s-%s" % (bill_type, bill_number, congress)
+
+def billstatus_url_for(bill_id):
+    bill_type, bill_number, congress = utils.split_bill_id(bill_id)
+    return fdsys.BULKDATA_BASE_URL + 'BILLSTATUS/{0}/{1}/BILLSTATUS-{0}{1}{2}.xml'.format(congress, bill_type, bill_number)
+
+def output_for_bill(bill_id, format, is_data_dot=True):
+    bill_type, number, congress = utils.split_bill_id(bill_id)
+    if is_data_dot:
+        fn = "data.%s" % format
+    else:
+        fn = format
+    return "%s/%s/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, fn)
+
+def process_amendments(bill_id, bill_amendments, options):
+    amdt_list = bill_amendments['billStatus']['bill']['amendments']
+    if amdt_list is None:  # many bills don't have amendments
+        return
+
+    for amdt in amdt_list['amendment']:
+        amendment_info.process_amendment(amdt, bill_id, options)
+

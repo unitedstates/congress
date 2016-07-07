@@ -346,6 +346,8 @@ def download(url, destination=None, options={}):
                     raise ValueError("Binary content improperly decoded.")
         except scrapelib.HTTPError as e:
             logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
+            if options.get("return_status_code_on_error"):
+                return e.response.status_code
             return None
 
         # don't allow 0-byte files
@@ -586,96 +588,6 @@ def send_email(message):
     logging.info("Sent email to %s" % settings['to'])
 
 
-thomas_types = {
-    'hr': ('HR', 'H.R.'),
-    'hres': ('HE', 'H.RES.'),
-    'hjres': ('HJ', 'H.J.RES.'),
-    'hconres': ('HC', 'H.CON.RES.'),
-    's': ('SN', 'S.'),
-    'sres': ('SE', 'S.RES.'),
-    'sjres': ('SJ', 'S.J.RES.'),
-    'sconres': ('SC', 'S.CON.RES.'),
-    'hamdt': ('HZ', 'H.AMDT.'),
-    'samdt': ('SP', 'S.AMDT.'),
-    'supamdt': ('SU', 'S.UP.AMDT.'),
-}
-thomas_types_2 = dict((v[0], k) for (k, v) in thomas_types.items())  # map e.g. { SE: sres, ...}
-
-# cached committee map to map names to IDs
-committee_names = {}
-
-# get the mapping from THOMAS's committee names to THOMAS's committee IDs
-# found on the advanced search page. committee_names[congress][name] = ID
-# with subcommittee names as the committee name plus a pipe plus the subcommittee
-# name.
-
-
-def fetch_committee_names(congress, options):
-    congress = int(congress)
-
-    # Parse the THOMAS advanced search pages for the names that THOMAS uses for
-    # committees on bill pages, and map those to the IDs for the committees that are
-    # listed on the advanced search pages (but aren't shown on bill pages).
-    if not options.get('test', False):
-        logging.info("[%d] Fetching committee names..." % congress)
-
-    # allow body to be passed in from fixtures
-    if options.has_key('body'):
-        body = options['body']
-    else:
-        body = download(
-            "http://thomas.loc.gov/home/LegislativeData.php?&n=BSS&c=%d" % congress,
-            "%s/meta/thomas_committee_names.html" % congress,
-            options)
-
-    for chamber, options in re.findall('>Choose (House|Senate) Committees</option>(.*?)</select>', body, re.I | re.S):
-        for name, id in re.findall(r'<option value="(.*?)\{(.*?)}">', options, re.I | re.S):
-            id = str(id).upper()
-            name = name.strip().replace("  ", " ")  # weirdness
-            if id.endswith("00"):
-                # Map chamber + committee name to its ID, minus the 00 at the end. On bill pages,
-                # committees appear as e.g. "House Finance." Except the JCSE.
-                if id != "JCSE00":
-                    name = chamber + " " + name
-
-                # Correct for some oddness on THOMAS (but not on Congress.gov): The House Committee
-                # on House Administration appears just as "House Administration" and in the 104th/105th
-                # Congresses appears as "House Oversight" (likewise the full name is House Committee
-                # on House Oversight --- it's the House Administration committee still).
-                if name == "House House Administration":
-                    name = "House Administration"
-                if name == "House House Oversight":
-                    name = "House Oversight"
-
-                committee_names[name] = id[0:-2]
-
-            else:
-                # map committee ID + "|" + subcommittee name to the zero-padded subcommittee numeric ID
-                committee_names[id[0:-2] + "|" + name] = id[-2:]
-
-    # Correct for a limited number of other ways committees appear, owing probably to the
-    # committee name being changed mid-way through a Congress.
-    if congress == 95:
-        committee_names["House Intelligence (Select)"] = committee_names["House Intelligence (Permanent Select)"]
-    if congress == 96:
-        committee_names["Senate Human Resources"] = "SSHR"
-    if congress == 97:
-        committee_names["Senate Small Business (Select)"] = committee_names["Senate Small Business"]
-    if congress == 98:
-        committee_names["Senate Indian Affairs (Select)"] = committee_names["Senate Indian Affairs (Permanent Select)"]
-    if congress == 100:
-        committee_names["HSPO|Hoc Task Force on Presidential Pay Recommendation"] = committee_names["HSPO|Ad Hoc Task Force on Presidential Pay Recommendation"]
-    if congress == 103:
-        committee_names["Senate Indian Affairs (Permanent Select)"] = committee_names["Senate Indian Affairs"]
-    if congress == 108:
-        # This appears to be a mistake, a subcommittee appearing as a full committee. Map it to
-        # the full committee for now.
-        committee_names["House Antitrust (Full Committee Task Force)"] = committee_names["House Judiciary"]
-        committee_names["House Homeland Security"] = committee_names["House Homeland Security (Select)"]
-    if congress in range(108, 113):
-        committee_names["House Intelligence"] = committee_names["House Intelligence (Permanent Select)"]
-
-
 def make_node(parent, tag, text, **attrs):
     """Make a node in an XML document."""
     n = etree.Element(tag)
@@ -816,9 +728,9 @@ def yaml_load(filename):
 
     return yaml_data
 
+
 # Make sure we have the congress-legislators repository available.
 has_congress_legislators_repo = False
-
 
 def require_congress_legislators_repo():
     global has_congress_legislators_repo
@@ -938,242 +850,33 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
         return None
     return matches[0][0]['id'][id_requested]
 
-# Create a map from one piece of legislators data to another.
-# 'map_from' and 'map_to' are plain text terms used for the logging output and the filenames.
-# 'map_function' is the function that actually does the mapping from one value to another.
-# 'filename' is the source of the data to be mapped. (Default: "legislators-current")
-# 'legislators_map' is the base object to build the map on top of; it's primarily used to combine maps using create_combined_legislators_map(). (Default: {})
-
-
-def create_legislators_map(map_from, map_to, map_function, filename="legislators-current", legislators_map={}):
-    # Make sure we have the congress-legislators repo available.
-    require_congress_legislators_repo()
-
-    cache_filename = get_cache_filename("map-%s-%s-%s" % (map_from.lower().replace(" ", "_"), map_to.lower().replace(" ", "_"), filename))
-
-    # Check if the cached pickle file is newer than the original YAML file.
-    if check_cached_file("congress-legislators/%s.yaml" % (filename), cache_filename):
-        # The pickle file is newer, so it's probably safe to use the cached map.
-        logging.info("Using cached map from %s to %s for %s..." % (map_from, map_to, filename))
-        legislators_map = pickle_load(cache_filename)
-    else:
-        # The YAML file is newer, so we have to generate a new map.
-        logging.warn("Generating new map from %s to %s for %s..." % (map_from, map_to, filename))
-
-        # Load the YAML file and create a map based on the provided map function.
-        # Because we'll be caching the YAML file in a pickled file, create the cache
-        # directory where that will be stored.
-        if not os.path.exists("cache/congress-legislators"):
-            os.mkdir("cache/congress-legislators")
-        for item in yaml_load("congress-legislators/%s.yaml" % (filename)):
-            legislators_map = map_function(legislators_map, item)
-
-        # Save the new map to a new pickle file.
-        pickle_write(legislators_map, cache_filename)
-
-    return legislators_map
-
-# Create a legislators map combining data from multiple legislators files.
-# 'map_from', 'map_to', 'map_function' are passed directly to create_legislators_map().
-# 'filenames' is the list of the sources of the data to be mapped. (Default: [ "executive", "legislators-historical", "legislators-current" ])
-
-
-def create_combined_legislators_map(map_from, map_to, map_function, filenames=["executive", "legislators-historical", "legislators-current"]):
-    combined_legislators_map = {}
-
-    for filename in filenames:
-        combined_legislators_map = create_legislators_map(map_from, map_to, map_function, filename, combined_legislators_map)
-
-    return combined_legislators_map
-
-# Generate a map between a person's many IDs.
-person_id_map = {}
-
-
-def generate_person_id_map():
-    def map_function(person_id_map, person):
-        for source_id_type, source_id in person["id"].items():
-            # Instantiate this ID type.
-            if source_id_type not in person_id_map:
-                person_id_map[source_id_type] = {}
-
-            # Certain ID types have multiple IDs.
-            source_ids = source_id if isinstance(source_id, list) else [source_id]
-
-            for source_id in source_ids:
-                # Instantiate this value for this ID type.
-                if source_id not in person_id_map[source_id_type]:
-                    person_id_map[source_id_type][source_id] = {}
-
-                # Loop through all the ID types and values and map them to this ID type.
-                for target_id_type, target_id in person["id"].items():
-                    # Don't map an ID type to itself.
-                    if target_id_type != source_id_type:
-                        person_id_map[source_id_type][source_id][target_id_type] = target_id
-
-        return person_id_map
-
-    # Make the person ID map available in the global space.
-    global person_id_map
-
-    person_id_map = create_combined_legislators_map("person", "ID", map_function)
-
-# Return the map generated by generate_person_id_map().
-
-
-def get_person_id_map():
-    global person_id_map
-
-    # If the person ID map is not available yet, generate it.
-    if not person_id_map:
-        generate_person_id_map()
-
-    return person_id_map
-
-# Get a particular ID for a person from another ID.
-# 'source_id_type' is the ID type provided to identify the person.
-# 'source_id' is the provided ID of the aforementioned type.
-# 'target_id_type' is the desired ID type for the aforementioned person.
-
-
-def get_person_id(source_id_type, source_id, target_id_type):
-    person_id_map = get_person_id_map()
-    if source_id_type not in person_id_map:
-        raise KeyError("'%s' is not a valid ID type." % (source_id_type))
-    if source_id not in person_id_map[source_id_type]:
-        raise KeyError("'%s' is not a valid '%s' ID." % (source_id, source_id_type))
-    if target_id_type not in person_id_map[source_id_type][source_id]:
-        raise KeyError("No corresponding '%s' ID for '%s' ID '%s'." % (target_id_type, source_id_type, source_id))
-    return person_id_map[source_id_type][source_id][target_id_type]
-
-
-# Generate a map from a person to the Congresses they served during.
-person_congresses_map = {}
-
-
-def generate_person_congresses_map():
-    def map_function(person_congresses_map, person):
-        try:
-            bioguide_id = person["id"]["bioguide"]
-        except KeyError:
-            #      print person["id"], person["name"]
-            return person_congresses_map
-
-        if bioguide_id not in person_congresses_map:
-            person_congresses_map[bioguide_id] = []
-
-        for term in person["terms"]:
-            for congress in get_term_congresses(term):
-                person_congresses_map[bioguide_id].append(congress)
-
-        person_congresses_map[bioguide_id].sort()
-
-        return person_congresses_map
-
-    # Make the person congresses map available in the global space.
-    global person_congresses_map
-
-    person_congresses_map = create_combined_legislators_map("person", "Congresses", map_function)
-
-# Return the map generated by generate_person_congresses_map().
-
-
-def get_person_congresses_map():
-    global person_congresses_map
-
-    # If the person Congresses map is not available yet, generate it.
-    if not person_congresses_map:
-        generate_person_congresses_map()
-
-    return person_congresses_map
-
-# Get a list of Congresses that a person served during.
-# 'person_id' is the ID of the desired person.
-# 'person_id_type' is the ID type provided. (Default: "bioguide")
-
-
-def get_person_congresses(person_id, person_id_type="bioguide"):
-    bioguide_id = person_id if person_id_type == "bioguide" else get_person_id(person_id_type, person_id, "bioguide")
-
-    person_congresses_map = get_person_congresses_map()
-
-    if bioguide_id not in person_congresses_map:
-        raise KeyError("No known Congresses for BioGuide ID '%s'." % (bioguide_id))
-
-    return person_congresses_map[bioguide_id]
-
-# Generate a map from a Congress to the persons who served during it.
-congress_persons_map = {}
-
-
-def generate_congress_persons_map():
-    def map_function(congress_persons_map, person):
-        try:
-            bioguide_id = person["id"]["bioguide"]
-        except KeyError:
-            #      print person["id"], person["name"]
-            return congress_persons_map
-
-        for term in person["terms"]:
-            for congress in get_term_congresses(term):
-                if congress not in congress_persons_map:
-                    congress_persons_map[congress] = set()
-
-                congress_persons_map[congress].add(bioguide_id)
-
-        return congress_persons_map
-
-    # Make the person congresses map available in the global space.
-    global congress_persons_map
-
-    congress_persons_map = create_combined_legislators_map("Congress", "persons", map_function)
-
-# Return the map generated by generate_congress_persons_map().
-
-
-def get_congress_persons_map():
-    global congress_persons_map
-
-    # If the Congress persons map is not available yet, generate it.
-    if not congress_persons_map:
-        generate_congress_persons_map()
-
-    return congress_persons_map
-
-# Get a list of persons who served during a particular Congress.
-# 'congress' is the desired Congress.
-
-
-def get_congress_persons(congress):
-    congress_persons_map = get_congress_persons_map()
-
-    if congress not in congress_persons_map:
-        raise KeyError("No known persons for Congress '%s'." % (congress))
-
-    return congress_persons_map[congress]
-
-# XXX: This exception is deprecated. (It has a typo.) Only use in relation to get_govtrack_person_id().
 
 
 class UnmatchedIdentifer(Exception):
 
-    def __init__(self, id_type, id_value, help_url):
-        super(UnmatchedIdentifer, self).__init__("%s=%s %s" % (id_type, str(id_value), help_url))
+    def __init__(self, id_type, id_value, desired_id_type):
+        super(UnmatchedIdentifer, self).__init__("%s=%s => %s" % (id_type, str(id_value), desired_id_type))
 
-# XXX: This function is deprecated. Use get_person_id() instead.
+_translate_legislator_id_cache = None
 
+def translate_legislator_id(source_id_type, source_id, dest_id_type):
+    global _translate_legislator_id_cache
+    # On the first load, cache all of the legislators' ids in memory.
+    if not _translate_legislator_id_cache:
+        require_congress_legislators_repo()
+        _translate_legislator_id_cache = { }
+        for filename in ("legislators-historical", "legislators-current"):
+            for moc in yaml_load("congress-legislators/%s.yaml" % (filename)):
+                for id_type, id_value in moc["id"].items():
+                    try:
+                        _translate_legislator_id_cache[(id_type, id_value)] = moc['id']
+                    except TypeError:
+                        # The 'fec' id is a list which is not hashable
+                        # and so cannot go in the key of a cached entry.
+                        pass
 
-def get_govtrack_person_id(source_id_type, source_id):
+    # Get from mapping.
     try:
-        govtrack_person_id = get_person_id(source_id_type, source_id, "govtrack")
+        return _translate_legislator_id_cache[(source_id_type, source_id)][dest_id_type]
     except KeyError:
-        see_also = ""
-        if source_id_type == "thomas":
-            # Suggest a URL on congress.gov to quickly look up who the ID corresponds to.
-            # We store the IDs as strings with leading zeroes like on THOMAS, but in
-            # Congress.gov URLs it must not be zero-padded.
-            see_also = "http://www.congress.gov/member/xxx/%d" % int(source_id)
-        logging.error("GovTrack ID not known for %s %s. (%s)" % (source_id_type, str(source_id), see_also))
-        raise UnmatchedIdentifer(source_id_type, source_id, see_also)
-
-    return govtrack_person_id
+        raise UnmatchedIdentifer(source_id_type, source_id, dest_id_type)
