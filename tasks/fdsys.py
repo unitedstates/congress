@@ -436,6 +436,12 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
             with open(file_path_text, "w") as f:
                 f.write(unwrap_text_in_html(data))
 
+        if sitemap["collection"] == "BILLS" and file_type == "mods":
+            # When we download bill files, also create the text-versions/data.json file
+            # which extracts commonly used components of the MODS XML, whenever we update
+            # that MODS file.
+            extract_bill_version_metadata(package_name, path)
+
     # Write the current last modified date back to disk so we know the next time whether
     # we need to fetch the files for this sitemap item. Assuming we fetched anything.
     # If nothing new was fetched, then there is no reason to update the file.
@@ -559,3 +565,42 @@ def mirror_bulkdata_file(sitemap, url, item_path, lastmod, options):
     # Write the current last modified date back to disk so we know the next time whether
     # we need to fetch the file again.
     utils.write(lastmod, lastmod_cache_file)
+
+
+def extract_bill_version_metadata(package_name, text_path):
+    bill_version_id = get_bill_id_for_package(package_name)
+
+    bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
+
+    bill_version = {
+        'bill_version_id': bill_version_id,
+        'version_code': version_code,
+        'urls': {},
+    }
+
+    mods_ns = {"mods": "http://www.loc.gov/mods/v3"}
+    doc = etree.parse(os.path.join(text_path, "mods.xml"))
+    locations = doc.xpath("//mods:location/mods:url", namespaces=mods_ns)
+
+    for location in locations:
+        label = location.attrib['displayLabel']
+        if "HTML" in label:
+            format = "html"
+        elif "PDF" in label:
+            format = "pdf"
+        elif "XML" in label:
+            format = "xml"
+        else:
+            format = "unknown"
+        bill_version["urls"][format] = location.text
+
+    bill_version["issued_on"] = doc.xpath("string(//mods:dateIssued)", namespaces=mods_ns)
+
+    utils.write(
+        json.dumps(bill_version, sort_keys=True, indent=2, default=utils.format_datetime),
+        output_for_bill_version(bill_version_id)
+    )
+
+def output_for_bill_version(bill_version_id):
+    bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
+    return "%s/%s/bills/%s/%s%s/text-versions/%s/data.json" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code)
