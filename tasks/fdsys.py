@@ -368,6 +368,7 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
         return  # should skip
 
     # Get the lastmod times of the files previously saved for this package.
+    file_lastmod_changed = False
     file_lastmod = { }
     lastmod_cache_file = path + "/lastmod.json"
     if os.path.exists(lastmod_cache_file):
@@ -424,6 +425,7 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
         # because of a 404, we still update this to indicate that the file
         # definitively does not exist. We won't try fetcihng it again.
         file_lastmod[file_type] = lastmod
+        file_lastmod_changed = True
 
         # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
         # TODO: Encoding? The HTTP content-type header says UTF-8, but do we trust it?
@@ -436,7 +438,8 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
 
     # Write the current last modified date back to disk so we know the next time whether
     # we need to fetch the files for this sitemap item. Assuming we fetched anything.
-    if file_lastmod:
+    # If nothing new was fetched, then there is no reason to update the file.
+    if file_lastmod and file_lastmod_changed:
         utils.write(json.dumps(file_lastmod), lastmod_cache_file)
 
 
