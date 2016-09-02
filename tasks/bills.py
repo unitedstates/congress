@@ -171,11 +171,11 @@ def form_bill_json_dict(xml_as_dict):
         # The top term's case has changed with the new bulk data. It's now in
         # Title Case. For backwards compatibility, the top term is run through
         # '.capitalize()' so it matches the old string. TODO: Remove one day?
-        'subjects_top_term': _fixup_top_term_case(bill_dict['primarySubject']['name']) if bill_dict['primarySubject'] else None,
+        'subjects_top_term': _fixup_top_term_case(bill_dict['policyArea']['name']) if bill_dict['policyArea'] else None,
         'subjects':
             sorted(
-                ([_fixup_top_term_case(bill_dict['primarySubject']['name'])] if bill_dict['primarySubject'] else []) +
-                ([item['name'] for item in bill_dict['subjects']['billSubjects']['otherSubjects']['item']] if bill_dict['subjects']['billSubjects']['otherSubjects'] else [])
+                ([_fixup_top_term_case(bill_dict['policyArea']['name'])] if bill_dict['policyArea'] else []) +
+                ([item['name'] for item in bill_dict['subjects']['billSubjects']['legislativeSubjects']['item']] if bill_dict['subjects']['billSubjects']['legislativeSubjects'] else [])
             ),
 
         'related_bills': bill_info.related_bills_for(bill_dict['relatedBills']),
