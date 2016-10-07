@@ -1007,9 +1007,10 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         action["congress"] = pieces[0]
         action["number"] = pieces[1]
         action["type"] = "enacted"
-        if prev_status == "ENACTED:SIGNED":
+        if prev_status in ("ENACTED:SIGNED", "ENACTED:VETO_OVERRIDE"):
             pass  # this is a final administrative step
         elif prev_status == "PROV_KILL:VETO" or prev_status.startswith("VETOED:"):
+            # somehow missed the override steps
             status = "ENACTED:VETO_OVERRIDE"
         elif bill_id in ("s2641-93", "hr1589-94", "s2527-100", "hr1677-101", "hr2978-101", "hr2126-104", "s1322-104"):
             status = "ENACTED:TENDAYRULE"
@@ -1095,7 +1096,8 @@ def new_status_after_vote(vote_type, passed, chamber, bill_type, suspension, ame
                 else:
                     return 'VETOED:OVERRIDE_PASS_OVER:SENATE'
             else:
-                return None  # just wait for the enacted line
+                # The override passed both chambers -- the veto is overridden.
+                return "ENACTED:VETO_OVERRIDE"
     if vote_type == "conference":
         # This is tricky to integrate into status because we have to wait for both
         # chambers to pass the conference report.
