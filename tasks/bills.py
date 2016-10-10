@@ -142,16 +142,6 @@ def form_bill_json_dict(xml_as_dict):
     actions = bill_info.actions_for(bill_dict['actions']['item'], bill_id, bill_info.current_title_for(titles, 'official'))
     status, status_date = bill_info.latest_status(actions, bill_dict.get('introducedDate', ''))
 
-    policy_area = None
-    policy_areas = []
-    if bill_dict.has_key('policyArea') and bill_dict['policyArea']:
-        policy_area = _fixup_top_term_case(bill_dict['policyArea']['name'])
-        policy_areas = [policy_area]
-
-    subjects_list=[]
-    if bill_dict['subjects']['billSubjects'].has_key('legislativeSubjects') and bill_dict['subjects']['billSubjects']['legislativeSubjects']:
-        subjects_list = [item['name'] for item in bill_dict['subjects']['billSubjects']['legislativeSubjects']['item']]
-
     bill_data = {
         'bill_id': bill_id,
         'bill_type': bill_dict.get('billType').lower(),
@@ -181,10 +171,11 @@ def form_bill_json_dict(xml_as_dict):
         # The top term's case has changed with the new bulk data. It's now in
         # Title Case. For backwards compatibility, the top term is run through
         # '.capitalize()' so it matches the old string. TODO: Remove one day?
-        'subjects_top_term': policy_area,
+        'subjects_top_term': _fixup_top_term_case(bill_dict['policyArea']['name']) if bill_dict['policyArea'] else None,
         'subjects':
             sorted(
-                (policy_areas) + (subjects_list)
+                ([_fixup_top_term_case(bill_dict['policyArea']['name'])] if bill_dict['policyArea'] else []) +
+                ([item['name'] for item in bill_dict['subjects']['billSubjects']['legislativeSubjects']['item']] if bill_dict['subjects']['billSubjects']['legislativeSubjects'] else [])
             ),
 
         'related_bills': bill_info.related_bills_for(bill_dict['relatedBills']),
