@@ -31,6 +31,15 @@
 #   apply to bulk data collections which are not divided by
 #   year).
 #
+#   --congress=113[,114]
+#   Comma-separated list of congresses to download from (does not
+#   apply to bulk data collections which are not divided by
+#   congress). Alternate format:
+#
+#   --congress=">113"
+#   Specify a number to get all congresses *after* the value. The
+#   quotes are necessary for this format.
+#
 #   --store=mods,pdf,text,xml,premis
 #   Save the MODS, PDF, text, XML, or PREMIS file associated
 #   with each package. If omitted, stores every file for each
@@ -239,7 +248,12 @@ def extract_sitemap_subject_from_url(url, how_we_got_here):
     # 113th Congress, "S." (senate) bills).
     m = re.match(re.escape(fdsys_baseurl) + r"bulkdata/(.*)/([^/]+)/sitemap.xml$", url)
     if m:
-        return { "bulkdata": True, "collection": m.group(1), "grouping": m.group(2) }
+        return_data = { "bulkdata": True, "collection": m.group(1), "grouping": m.group(2) }
+        congress_match = re.match(r"^([0-9]+)", m.group(2))
+        if congress_match:
+            return_data['congress'] = congress_match.group(1)
+
+        return return_data
 
     raise ValueError("Unrecognized sitemap URL: " + url + " (" + "->".join(how_we_got_here) + ")")
 
@@ -256,6 +270,17 @@ def skip_sitemap(subject, options):
         only_collections = set(options.get("collections").split(","))
         if subject["collection"] not in only_collections:
             return True
+
+    # Which congresses should we download? All if none is specified.
+    if "congress" in subject and options.get("congress", "").strip() != "":
+        # If we're looking for congresses after a certain one.
+        if options.get("congress")[0] == '>':
+            if int(subject["congress"]) <= int(options.get("congress")[1:]):
+                return True
+        else:
+            only_congress = set(options.get("congress").split(","))
+            if subject["congress"] not in only_congress:
+                return True
 
     return False
 
