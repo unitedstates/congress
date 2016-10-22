@@ -32,13 +32,12 @@
 #   year).
 #
 #   --congress=113[,114]
-#   Comma-separated list of congresses to download from (does not
-#   apply to bulk data collections which are not divided by
-#   congress). Alternate format:
+#   Comma-separated list of congresses to download from (only for
+#   BILLSTATUS). Alternate format:
 #
 #   --congress=">113"
-#   Specify a number to get all congresses *after* the value. The
-#   quotes are necessary for this format.
+#   Specify a number to get all congresses *after* the value (only for
+#   BILLSTATUS) The quotes are necessary for this format.
 #
 #   --store=mods,pdf,text,xml,premis
 #   Save the MODS, PDF, text, XML, or PREMIS file associated
@@ -250,7 +249,7 @@ def extract_sitemap_subject_from_url(url, how_we_got_here):
     if m:
         return_data = { "bulkdata": True, "collection": m.group(1), "grouping": m.group(2) }
         congress_match = re.match(r"^([0-9]+)", m.group(2))
-        if congress_match:
+        if return_data["collection"] == "BILLSTATUS" and congress_match:
             return_data['congress'] = congress_match.group(1)
 
         return return_data
