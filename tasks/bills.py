@@ -69,12 +69,17 @@ def get_bills_to_process(options):
 
         # walk through all bill types in that congress
         # (sort by bill type so that we proceed in a stable order each run)
-        for bill_type in sorted(os.listdir(get_data_path(congress))):
+
+        bill_types = [bill_type for bill_type in os.listdir(get_data_path(congress)) if not bill_type.startswith(".")]
+
+        for bill_type in sorted(bill_types):
 
             # walk through each bill in that congress and bill type
             # (sort by bill number so that we proceed in a normal order)
+
+            bills = [bill for bill in os.listdir(get_data_path(congress, bill_type)) if not bill.startswith(".")]
             for bill_type_and_number in sorted(
-                os.listdir(get_data_path(congress, bill_type)),
+                bills,
                 key = lambda x : int(x.replace(bill_type, ""))
                 ):
 
