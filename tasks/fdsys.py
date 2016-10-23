@@ -120,6 +120,9 @@ def update_sitemap_cache(options, listing):
 def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
     """Updates the local cache of a sitemap file."""
 
+    # Return a list of files we downloaded.
+    results = []
+
     # What is this sitemap for?
     subject = extract_sitemap_subject_from_url(url, how_we_got_here)
 
@@ -175,8 +178,10 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
             # Get URL and lastmod date of the sitemap.
             url = str(node.xpath("string(x:loc)", namespaces=ns))
             lastmod = str(node.xpath("string(x:lastmod)", namespaces=ns))
-            update_sitemap(url, lastmod, how_we_got_here, options, listing)
-    
+            sitemap_results = update_sitemap(url, lastmod, how_we_got_here, options, listing)
+            if sitemap_results is not None:
+                results = results + sitemap_results
+
     elif sitemap.tag == "{http://www.sitemaps.org/schemas/sitemap/0.9}urlset":
 
         # This is a regular sitemap with content items listed.
@@ -202,7 +207,7 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
                     raise Exception("Unmatched package URL (%s) at %s." % (url, "->".join(how_we_got_here)))
                 package_name = m.group(1)
                 if options.get("filter") and not re.search(options["filter"], package_name): continue
-                mirror_package(subject, package_name, lastmod, url, options)
+                results = mirror_package(subject, package_name, lastmod, url, options)
 
             else:
                 # This is a bulk data item. Extract components of the URL.
@@ -211,10 +216,12 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
                     raise Exception("Unmatched bulk data file URL (%s) at %s." % (url, "->".join(how_we_got_here)))
                 item_path = m.group(1)
                 if options.get("filter") and not re.search(options["filter"], item_path): continue
-                mirror_bulkdata_file(subject, url, item_path, lastmod, options)
-    
+                results = mirror_bulkdata_file(subject, url, item_path, lastmod, options)
+
     else:
         raise Exception("Unknown sitemap type (%s) at the root sitemap of %s." % (sitemap.tag, url))
+
+    return results
 
 
 def extract_sitemap_subject_from_url(url, how_we_got_here):
@@ -357,9 +364,12 @@ def format_item_for_listing(item):
 def mirror_package(sitemap, package_name, lastmod, content_detail_url, options):
     """Create a local mirror of a FDSys package."""
 
+    # Return a list of files we downloaded.
+    results = []
+
     if not options.get("granules", False):
         # Most packages are just a package. This is the usual case.
-        mirror_package_or_granule(sitemap, package_name, None, lastmod, options)
+        results = mirror_package_or_granule(sitemap, package_name, None, lastmod, options)
 
     else:
         # In some collections, like STATUTE, each document has subparts which are not
@@ -380,10 +390,15 @@ def mirror_package(sitemap, package_name, lastmod, content_detail_url, options):
                 if not m or m.group(1) != package_name:
                     raise Exception("Unmatched granule URL %s" % link.get("href"))
                 granule_name = m.group(2)
-                mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, options)
+                results = mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, options)
+
+    return results
 
 
 def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, options):
+    # Return a list of files we downloaded.
+    results = []
+
     # Where should we store the file? Each collection has a different
     # file system layout (for BILLS, we put bill text along where the
     # bills scraper puts bills).
@@ -428,6 +443,7 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
             'return_status_code_on_error': True,
             'needs_content': (file_type == "text" and file_path.endswith(".html")),
         }))
+        results.append(file_path)
 
         # Download failed?
         if data == 404:
@@ -470,6 +486,8 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
     # If nothing new was fetched, then there is no reason to update the file.
     if file_lastmod and file_lastmod_changed:
         utils.write(json.dumps(file_lastmod), lastmod_cache_file)
+
+    return results
 
 
 def get_bill_id_for_package(package_name, with_version=True, restrict_to_congress=None):
@@ -551,6 +569,9 @@ def unwrap_text_in_html(data):
 
 
 def mirror_bulkdata_file(sitemap, url, item_path, lastmod, options):
+    # Return a list of files we downloaded.
+    results = []
+
     # Where should we store the file?
     path = "%s/fdsys/%s/%s" % (utils.data_dir(), sitemap["collection"], item_path)
 
@@ -581,6 +602,8 @@ def mirror_bulkdata_file(sitemap, url, item_path, lastmod, options):
         'force': True, # decision to cache was made above
         'to_cache': False,
     }))
+    results.append(path)
+
     if not data:
         # Something failed.
         return
@@ -588,6 +611,8 @@ def mirror_bulkdata_file(sitemap, url, item_path, lastmod, options):
     # Write the current last modified date back to disk so we know the next time whether
     # we need to fetch the file again.
     utils.write(lastmod, lastmod_cache_file)
+
+    return results
 
 
 def extract_bill_version_metadata(package_name, text_path):
