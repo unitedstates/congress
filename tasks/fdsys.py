@@ -455,6 +455,12 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
             elif sitemap["collection"] == "BILLS" and file_type in ("text", "mods"):
                 # expected to be present for bills
                 raise Exception("Failed to download %s %s (404)" % (package_name, file_type))
+        elif data is True:
+            # Download was successful but needs_content was False so we don't have the
+            # file content. Instead, True is returned. Strangely isintance(True, int) is
+            # True (!!!) so we have to test for True separately from testing if we got a
+            # return code integer.
+            pass
         elif not data or isinstance(data, int):
             # There was some other error - skip the rest. Don't
             # update file_lastmod!
