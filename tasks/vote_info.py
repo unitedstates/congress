@@ -483,7 +483,7 @@ def get_vote_category(vote_question):
         # common
         (r"^On Overriding the Veto", "veto-override"),
         (r"^On Presidential Veto", "veto-override"),
-        (r"Objections of the President Not ?Withstanding", "veto-override"),  # order matters so must go before bill passage
+        (r"Objections of the President (To The Contrary )?Not ?Withstanding", "veto-override"),  # order matters so must go before bill passage
         (r"^On Passage", "passage"),
         (r"^On the Resolution of Ratification.*", "treaty"), # order matters so must go before other resolutions
         (r"^On (Agreeing to )?the (Joint |Concurrent )?Resolution", "passage"),
@@ -498,7 +498,7 @@ def get_vote_category(vote_question):
         (r"^On the Motion \(Motion to Concur", "passage"),
 
         # house only
-        (r"^(On Motion (to|that the House) )?(Concur in|Concurring|Concurring in|On Concurring|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "passage"),
+        (r"^(On Motion (to|that the House) )?(Concur in|Concurring|Concurring in|On Concurring|On Concurring in|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "passage"),
         (r"^(On Motion to )?Suspend (the )?Rules and (Agree|Concur|Pass)", "passage-suspension"),
         (r"^Call of the House$", "quorum"),
         (r"^Call by States$", "quorum"),
@@ -515,6 +515,7 @@ def get_vote_category(vote_question):
         (r"^On .*Motion ", "procedural"),  # $1 is a name like "Broun of Georgia"
         (r"^On the Decision of the Chair", "procedural"),
         (r"^Whether the Amendment is Germane", "procedural"),
+        (r"^Table Appeal of the Ruling of the Chair", "procedural"),
     )
 
     for regex, category in mapping:
