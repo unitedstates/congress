@@ -5,8 +5,14 @@ python:
 os:
   - linux
 
-install: pip install -r requirements.txt
-script: python test/run
+install:
+  - "pip install -r requirements.txt"
+  - "pip install check-manifest"
+script:
+  - python setup.py clean
+  - python setup.py build_ext --inplace
+  - check-manifest -u -v
+  - python test/run
 
 after_success:
  - pip install pyflakes
