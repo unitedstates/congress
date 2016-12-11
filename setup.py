@@ -1,4 +1,4 @@
-# Always prefer setuptools over distutils
+ # Alwaysprefe over distutils
 from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
@@ -21,7 +21,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.0.4',
+    version='0.0.5',
 
     description='Public domain data collectors for the work of Congress, including legislation, amendments, and votes.',
     long_description=long_description,
@@ -71,7 +71,9 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=requirements
+    install_requires=requirements,
+
+    dependency_links=['https://pypi.python.org/pypi/iso8601'],
 
     # TODO: maybe in teh future?
     # To provide executable scripts, use entry points in preference to the
