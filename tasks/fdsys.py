@@ -516,13 +516,23 @@ def get_output_path(sitemap, package_name, granule_name, options):
 
     # The path will depend a bit on the collection.
     if sitemap["collection"] == "BILLS":
-        # Store with the other bill data.
+        # Store with the other bill data ([congress]/bills/[billtype]/[billtype][billnumber]).
         bill_and_ver = get_bill_id_for_package(package_name, with_version=False, restrict_to_congress=options.get("congress"))
         if not bill_and_ver:
             return None  # congress number does not match options["congress"]
         from bills import output_for_bill
         bill_id, version_code = bill_and_ver
         return output_for_bill(bill_id, "text-versions/" + version_code, is_data_dot=False)
+
+    elif sitemap["collection"] == "CRPT":
+        # Store committee reports in [congress]/crpt/[reporttype].
+        m = re.match(r"CRPT-(\d+)([hse]rpt)(\d+)$", package_name)
+        if not m:
+            raise ValueError(package_name)
+        congress, report_type, report_number = m.groups()
+        if options.get("congress") and congress != options.get("congress"):
+            return None  # congress number does not match options["congress"]
+        return "%s/%s/%s/%s/%s" % (utils.data_dir(), congress, sitemap["collection"].lower(), report_type, report_type + report_number)
     
     else:
         # Store in fdsys/COLLECTION/YEAR/PKGNAME[/GRANULE_NAME].
