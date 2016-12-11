@@ -89,7 +89,7 @@ def get_bills_to_process(options):
                     # file need to be updated?
                     bulkfile_lastmod = utils.read(fn.replace(".xml", "-lastmod.txt"))
                     parse_lastmod = utils.read(get_data_path(congress, bill_type, bill_type_and_number, "data-fromfdsys-lastmod.txt"))
-                    if bulkfile_lastmod != parse_lastmod:
+                    if bulkfile_lastmod != parse_lastmod or options.get("force"):
                         bill_id = bill_type_and_number + "-" + congress
                         yield bill_id
 
