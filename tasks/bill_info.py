@@ -139,6 +139,10 @@ def create_govtrack_xml(bill, options):
     if bill.get('summary'):
         make_node(root, "summary", bill['summary']['text'], date=bill['summary']['date'], status=bill['summary']['as'])
 
+    committee_reports = make_node(root, "committee-reports", None)
+    for report in bill['committee_reports']:
+        make_node(committee_reports, "report", report)
+
     return etree.tostring(root, pretty_print=True)
 
 
@@ -1135,3 +1139,8 @@ def amendments_for(amendment_list):
         }
     return [build_dict(amendment) for amendment in amendment_list]
 
+def committee_reports_for(committeeReports):
+    ret = []
+    for report in (committeeReports or {}).get("committeeReport", []):
+        ret.append( report["citation"] )
+    return ret
