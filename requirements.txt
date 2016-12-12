@@ -1,4 +1,3 @@
--e git+https://bitbucket.org/micktwomey/pyiso8601@0.1.10#egg=iso8601
 -e hg+https://bitbucket.org/micktwomey/pyiso8601/commits/tag/0.1.10#egg=iso8601
 -e git+http://github.com/minrk/appnope/releases/0.1.0#egg=appnope
 -e git+http://github.com/pypa/twine/releases/1.8.0#egg=twine
