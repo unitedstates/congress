@@ -21,7 +21,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.0.5',
+    version='0.0.6',
 
     description='Public domain data collectors for the work of Congress, including legislation, amendments, and votes.',
     long_description=long_description,
@@ -73,7 +73,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=requirements,
 
-    dependency_links=['https://pypi.python.org/pypi/iso8601'],
+    dependency_links=['https://pypi.python.org/pypi/iso8601', 'https://github.com/pypa/twine'],
 
     # TODO: maybe in teh future?
     # To provide executable scripts, use entry points in preference to the
