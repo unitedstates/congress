@@ -1,4 +1,6 @@
-appnope==0.1.0
+-e git+git://bitbucket.org/micktwomey/pyiso8601@0.1.10#egg=iso8601
+-e git+git://github.com/minrk/appnope/releases/0.1.0#egg=appnope
+-e git+git://github.com/pypa/twine/releases/1.8.0#egg=twine
 args==0.1.0
 backports.shutil-get-terminal-size==1.0.0
 clint==0.5.1
