@@ -17,14 +17,14 @@ def create_govtrack_xml(bill, options):
 
     def make_node(parent, tag, text, **attrs):
         if options.get("govtrack", False):
-            # Rewrite thomas_id attributes as just id with GovTrack person IDs.
+            # Rewrite bioguide_id attributes as just id with GovTrack person IDs.
             attrs2 = {}
             for k, v in attrs.items():
                 if v:
-                    if k == "thomas_id":
-                        # remap "thomas_id" attributes to govtrack "id"
+                    if k == "bioguide_id":
+                        # remap "bioguide_id" attributes to govtrack "id"
                         k = "id"
-                        v = str(utils.translate_legislator_id('thomas', v, 'govtrack'))
+                        v = str(utils.translate_legislator_id('bioguide', v, 'govtrack'))
                     attrs2[k] = v
             attrs = attrs2
 
@@ -59,13 +59,13 @@ def create_govtrack_xml(bill, options):
 
     if bill['sponsor']:
         # TODO: Sponsored by committee?
-        make_node(root, "sponsor", None, thomas_id=bill['sponsor']['thomas_id'])
+        make_node(root, "sponsor", None, bioguide_id=bill['sponsor']['bioguide_id'])
     else:
         make_node(root, "sponsor", None)
 
     cosponsors = make_node(root, "cosponsors", None)
     for cosp in bill['cosponsors']:
-        n = make_node(cosponsors, "cosponsor", None, thomas_id=cosp["thomas_id"])
+        n = make_node(cosponsors, "cosponsor", None, bioguide_id=cosp["bioguide_id"])
         if cosp["sponsored_at"]:
             n.set("joined", cosp["sponsored_at"])
         if cosp["withdrawn_at"]:
@@ -166,7 +166,6 @@ def sponsor_for(sponsor_dict):
         'district': district,
         'state': m.group('state'),
         #'party': m.group('party'),
-        'thomas_id': utils.translate_legislator_id('bioguide', sponsor_dict['bioguideId'], 'thomas'),  # TODO: Remove one day.
         'bioguide_id': sponsor_dict['bioguideId'],
         'type': 'person'
     }

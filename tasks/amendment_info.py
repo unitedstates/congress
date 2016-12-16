@@ -100,11 +100,11 @@ def create_govtrack_xml(amdt, options):
     make_node(root, "status", amdt['status'], datetime=amdt['status_at'])
 
     if amdt['sponsor'] and amdt['sponsor']['type'] == 'person':
-        v = amdt['sponsor']['thomas_id']
+        v = amdt['sponsor']['bioguide_id']
         if not options.get("govtrack", False):
-            make_node(root, "sponsor", None, thomas_id=v)
+            make_node(root, "sponsor", None, bioguide_id=v)
         else:
-            v = str(utils.translate_legislator_id('thomas', v, 'govtrack'))
+            v = str(utils.translate_legislator_id('bioguide', v, 'govtrack'))
             make_node(root, "sponsor", None, id=v)
     elif amdt['sponsor'] and amdt['sponsor']['type'] == 'committee':
         make_node(root, "sponsor", None, committee=amdt['sponsor']['name'])
