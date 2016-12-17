@@ -207,7 +207,9 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
                     raise Exception("Unmatched package URL (%s) at %s." % (url, "->".join(how_we_got_here)))
                 package_name = m.group(1)
                 if options.get("filter") and not re.search(options["filter"], package_name): continue
-                results = mirror_package(subject, package_name, lastmod, url, options)
+                mirror_results = mirror_package(subject, package_name, lastmod, url, options)
+                if mirror_results is not None and len(mirror_results) > 0:
+                    results = results + mirror_results
 
             else:
                 # This is a bulk data item. Extract components of the URL.
@@ -216,7 +218,9 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
                     raise Exception("Unmatched bulk data file URL (%s) at %s." % (url, "->".join(how_we_got_here)))
                 item_path = m.group(1)
                 if options.get("filter") and not re.search(options["filter"], item_path): continue
-                results = mirror_bulkdata_file(subject, url, item_path, lastmod, options)
+                mirror_results = mirror_bulkdata_file(subject, url, item_path, lastmod, options)
+                if mirror_results is not None and len(mirror_results) > 0:
+                    results = results + mirror_results
 
     else:
         raise Exception("Unknown sitemap type (%s) at the root sitemap of %s." % (sitemap.tag, url))
