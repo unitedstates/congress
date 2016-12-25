@@ -193,6 +193,18 @@ def parse_senate_vote(dom, vote):
     vote["result_text"] = unicode(dom.xpath("string(vote_result_text)"))
     vote["result"] = unicode(dom.xpath("string(vote_result)"))
 
+    # Senate cloture votes have consistently bad vote_question_text values: They don't say what the cloture
+    # was about specifically, just what bill was relevant. So cloture on an amendment just appears as
+    # cloture on the bill. The vote_title text is correctly specific in those cases. So swap the two fields
+    # in those cases so that our 'question' field is reliably a good title, and subject provides additional
+    # information. Check that the subject is non-empty before using it, just in case. Example:
+    #  "question": "On the Cloture Motion H.R. 2578"
+    #  "subject": "Motion to Invoke Cloture on the Motion to Commit H.R. 2578 with instructions (Amdt. No. 4750)"
+    if "Cloture" in vote["question"] and vote["subject"]:
+        x = vote["question"]
+        vote["question"] = vote["subject"]
+        vote["subject"] = x
+
     bill_types = {"S.": "s", "S.Con.Res.": "sconres", "S.J.Res.": "sjres", "S.Res.": "sres", "H.R.": "hr", "H.Con.Res.": "hconres", "H.J.Res.": "hjres", "H.Res.": "hres"}
 
     if unicode(dom.xpath("string(document/document_type)")):
