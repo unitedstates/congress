@@ -1003,6 +1003,10 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             action["type"] = "vetoed"
             status = "PROV_KILL:VETO"
 
+    m = re.search("Sent to Archivist of the United States unsigned", line, re.I)
+    if m != None:
+        status = "ENACTED:TENDAYRULE"
+
     m = re.search("^(?:Became )?(Public|Private) Law(?: No:)? ([\d\-]+)\.", line, re.I)
     if m != None:
         action["law"] = m.group(1).lower()
@@ -1010,7 +1014,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         action["congress"] = pieces[0]
         action["number"] = pieces[1]
         action["type"] = "enacted"
-        if prev_status in ("ENACTED:SIGNED", "ENACTED:VETO_OVERRIDE"):
+        if prev_status in ("ENACTED:SIGNED", "ENACTED:VETO_OVERRIDE", "ENACTED:TENDAYRULE"):
             pass  # this is a final administrative step
         elif prev_status == "PROV_KILL:VETO" or prev_status.startswith("VETOED:"):
             # somehow missed the override steps
