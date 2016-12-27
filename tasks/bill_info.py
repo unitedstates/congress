@@ -795,8 +795,8 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         action["suspension"] = suspension
 
         # correct upstream data error
-        if bill_id == "s2012-114" and "Roll no. 250" in line:
-            as_amended = True
+        if bill_id == "s2012-114" and "Roll no. 250" in line: as_amended = True
+        if bill_id == "s2943-114" and "On passage Passed without objection" in line: as_amended = True
 
         # get the new status of the bill after this vote
         new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, suspension, as_amended, title, prev_status)
