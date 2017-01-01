@@ -29,7 +29,7 @@ def run(options):
                 return None
         else:
             congress = utils.current_congress()
-            session_year = options.get('session', str(datetime.datetime.now().year))
+            session_year = options.get('session', str(utils.current_legislative_year()))
 
         chamber = options.get('chamber', None)
 
