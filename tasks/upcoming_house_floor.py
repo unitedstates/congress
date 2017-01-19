@@ -38,6 +38,9 @@ def run(options):
     else:
         for_the_week = get_monday_of_week(given_week)
 
+    if for_the_week is None:
+        return
+
     logging.warn('Scraping upcoming bills from docs.house.gov/floor for the week of %s.\n' % for_the_week)
     house_floor = fetch_floor_week(for_the_week, options)
 
@@ -178,7 +181,7 @@ def get_latest_monday(options):
 
     links = doc.select("a.downloadXML")
     if len(links) != 1:
-        utils.admin("Error finding download link for this week!")
+        utils.admin("There is no docs.house.gov download link --- maybe there are no upcoming bills.")
         return None
 
     link = links[0]
