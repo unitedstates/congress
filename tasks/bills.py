@@ -156,8 +156,8 @@ def form_bill_json_dict(xml_as_dict):
         'url': billstatus_url_for(bill_id),
 
         'introduced_at': bill_dict.get('introducedDate', ''),
-        'by_request': bill_dict['sponsors']['item'][0]['byRequestType']     is not None,
-        'sponsor': bill_info.sponsor_for(bill_dict['sponsors']['item'][0]),
+        'by_request': (bill_dict['sponsors']['item'][0]['byRequestType'] if bill_dict['sponsors'] is not None else False),
+        'sponsor': (bill_info.sponsor_for(bill_dict['sponsors']['item'][0]) if bill_dict['sponsors'] is not None else {}),
         'cosponsors': bill_info.cosponsors_for(bill_dict['cosponsors']),
 
         'actions': actions,
