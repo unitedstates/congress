@@ -182,6 +182,7 @@ def fetch_house_committee_meetings(committees, options):
             continue
 
         # Download the feed for this committee.
+        logging.info("Fetching events for committee " + cmte)
         html = utils.download(
             "http://docs.house.gov/Committee/RSS.ashx?Code=%s" % cmte,
             "committee_schedule/house_%s.xml" % cmte,
@@ -197,7 +198,9 @@ def fetch_house_committee_meetings(committees, options):
         for mtg in dom.xpath("channel/item"):
 
             eventurl = unicode(mtg.xpath("string(link)"))
-            event_id = re.search(r"EventID=(\d+)$", eventurl).group(1)
+            event_id = re.search(r"EventID=(\d+)$", eventurl)
+            if not event_id: continue # weird empty event showed up
+            event_id = event_id.group(1)
             pubDate = datetime.datetime.fromtimestamp(mktime(parsedate(mtg.xpath("string(pubDate)"))))
             # skip old records of meetings, some of which just give error pages
             if pubDate < (datetime.datetime.now() - datetime.timedelta(days=60)):
@@ -261,14 +264,11 @@ def load_xml_from_page(eventurl, options, existing_meetings, committees, event_i
     # Parse the XML.
     try:
         meeting = parse_house_committee_meeting(event_id, dom, existing_meetings, committees, options, witnesses, uploaded_documents)
-        if meeting != None:
+        if meeting != None: # an active meeting record
             meetings.append(meeting)
-        else:
-            print(event_id, "postponed")
    
     except Exception as e:
         logging.error("Error parsing " + eventurl, exc_info=e)
-        print(event_id, "error")
 
 
 #look for witnesses and documents in the house meeting package    
@@ -411,7 +411,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         occurs_at = dom.xpath("string(meeting-details/meeting-date/calendar-date)") + " " + dom.xpath("string(meeting-details/meeting-date/start-time)")
         occurs_at = datetime.datetime.strptime(occurs_at, "%Y-%m-%d %H:%M:%S")
     except:
-        raise ValueError("Invalid meeting data (probably server error).")
+        raise ValueError("Invalid meeting data (probably server error) in %s." % event_id)
 
     current_status = str(dom.xpath("string(current-status)"))
     if current_status not in ("S", "R"):
