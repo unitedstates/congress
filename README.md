@@ -37,11 +37,11 @@ brew install wget
 
 **Python dependencies**
 
-It's recommended you use a `virtualenv` (virtual environment) for development. The easiest way is install `virtualenv` and `virtualenvwrapper`, using `sudo` if necessary:
+It's recommended you use a `virtualenv` (virtual environment) for development. The easiest way is install `virtualenv` and `virtualenvwrapper` (using `sudo` if necessary):
 
 ```bash
-sudo pip install virtualenv
-sudo pip install virtualenvwrapper
+pip install virtualenv
+pip install virtualenvwrapper
 ```
 
 Create a virtualenv for this project:
