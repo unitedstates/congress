@@ -45,7 +45,11 @@ def get_bills_to_process(options):
         args = list(args)
         if len(args) > 0:
             args.insert(1, "bills")
-        return os.path.join(utils.data_dir(), *args)
+
+        data_path = os.path.join(utils.data_dir(), *args)
+        utils.mkdir_p(data_path)
+
+        return data_path
 
     if not options.get('congress'):
         # Get a list of all congress directories on disk.
