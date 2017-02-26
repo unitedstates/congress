@@ -14,7 +14,7 @@ Includes:
 
 Read about the contents and schema in the [documentation](https://github.com/unitedstates/congress/wiki) in the github project wiki.
 
-For background on how this repository came to be, see [Eric's blog post](http://sunlightfoundation.com/blog/2013/08/20/a-modern-approach-to-open-data/).
+For background on how this repository came to be, see [Eric's blog post](https://sunlightfoundation.com/blog/2013/08/20/a-modern-approach-to-open-data/).
 
 
 ### Setting Up
@@ -120,18 +120,18 @@ To run this project's unit tests:
 
 ### Who's Using This Data
 
-The [Sunlight Foundation](http://sunlightfoundation.com) and [GovTrack.us](https://www.govtrack.us) are the two principal maintainers of this project.
+The [Sunlight Foundation](https://sunlightfoundation.com) and [GovTrack.us](https://www.govtrack.us) are the two principal maintainers of this project.
 
 Both Sunlight and GovTrack operate APIs where you can get much of this data delivered over HTTP:
 
 * [GovTrack.us API](https://www.govtrack.us/developers/api)
-* [Sunlight Congress API](http://sunlightlabs.github.io/congress/)
+* [Sunlight Congress API](https://sunlightlabs.github.io/congress/)
 
 ## Public domain
 
 This project is [dedicated to the public domain](LICENSE). As spelled out in [CONTRIBUTING](CONTRIBUTING.md):
 
-> The project is in the public domain within the United States, and copyright and related rights in the work worldwide are waived through the [CC0 1.0 Universal public domain dedication](http://creativecommons.org/publicdomain/zero/1.0/).
+> The project is in the public domain within the United States, and copyright and related rights in the work worldwide are waived through the [CC0 1.0 Universal public domain dedication](https://creativecommons.org/publicdomain/zero/1.0/).
 
 > All contributions to this project will be released under the CC0 dedication. By submitting a pull request, you are agreeing to comply with this waiver of copyright interest.
 
