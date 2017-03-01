@@ -38,6 +38,7 @@ def run(options):
     else:
         for_the_weeks = [get_monday_of_week(given_week)]
 
+    # fetch info
     for for_the_week in for_the_weeks:
         run_for_week(for_the_week, options)
 
@@ -60,7 +61,14 @@ def fetch_floor_week(for_the_week, options):
     base_url = 'http://docs.house.gov/floor/Download.aspx?file=/billsthisweek/'
     week_url = base_url + '%s/%s.xml' % (for_the_week, for_the_week)
 
-    body = utils.download(week_url, 'upcoming_house_floor/%s.xml' % for_the_week, options)
+    # Turn on 'force' to re-download the schedules, by default, since the content
+    # changes frequently and we're scanning weeks that might have 404'd previously
+    # when we looked ahead. We leave 'force' off for downloading the file attachments.
+    options2 = dict(options)
+    if "force" not in options2:
+        options2["force"] = True
+
+    body = utils.download(week_url, 'upcoming_house_floor/%s.xml' % for_the_week, options2)
     if "was not found" in body: return None
     dom = lxml.etree.fromstring(body)
 
