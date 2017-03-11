@@ -447,40 +447,6 @@ class BillActions(unittest.TestCase):
 
         self.assertEqual(new_action['bill_ids'], ["hres241-109"])
 
-    def test_identify_committees(self):
-        bill_id = "hr547-113"
-        title = "To provide for the establishment of a border protection strategy for the international land borders of the United States, to address the ecological and environmental impacts of border security infrastructure, measures, and activities along the international land borders of the United States, and for other purposes."
-        state = "INTRODUCED"
-        line = "Referred to House Homeland Security"
-
-        new_action, new_state = parse_bill_action(line, state, bill_id, title)
-
-        self.assertIn("committees", new_action)
-        self.assertEqual(new_action['committees'], ["HSHM"])
-
-    def test_identify_committees_2(self):
-        bill_id = "hr1002-113"
-        title = "Anything"
-        state = "INTRODUCED"
-        line = "Referred to the House Committee on Financial Services."
-
-        new_action, new_state = parse_bill_action(line, state, bill_id, title)
-
-        self.assertIn("committees", new_action)
-        self.assertEqual(new_action['committees'], ["HSBA"])
-
-    def test_identify_committees_ambiguous(self):
-        bill_id = "s1329-113"
-        title = "Anything"
-        state = "INTRODUCED"
-        line = "Committee on Appropriations. Original measure reported to Senate by Senator Mikulski. With written report No. 113-78."
-
-        new_action, new_state = parse_bill_action(line, state, bill_id, title)
-
-        # it's a Senate bill, so we assume un-chamber-ed committee refs are to a Senate committee
-        self.assertIn("committees", new_action)
-        self.assertEqual(new_action['committees'], ["SSAP"])
-
     def test_referral_committee(self):
         bill_id = "hr547-113"
         title = "To provide for the establishment of a border protection strategy for the international land borders of the United States, to address the ecological and environmental impacts of border security infrastructure, measures, and activities along the international land borders of the United States, and for other purposes."
