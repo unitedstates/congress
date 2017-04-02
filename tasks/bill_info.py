@@ -153,22 +153,17 @@ def sponsor_for(sponsor_dict):
         return None
 
     # TODO: Don't do regex matching here. Find another way.
-    m = re.match(r'(?P<title>(Rep|Sen))\. (?P<name>.*?) +\[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large))?\]$',
+    m = re.match(r'(?P<title>(Rep|Sen))\. (?P<name>.*?) +\[(?P<party>[DRI])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large|None))?\]$',
         sponsor_dict['fullName'])
-    
-    if m.group("district") is None:
-        district = None # a senator
-    elif m.group("district") == "At Large":
-        district = None # TODO: For backwards compatibility, we're returning None, but 0 would be better.
-    else:
-        # TODO: For backwards compatibility, we're returning a string, but an int would be better.
-        district = m.group('district')
+
+    if not m:
+        raise ValueError(sponsor_dict)
 
     return {
         'title': m.group("title"),
         'name': m.group("name"), # the firstName, middleName, lastName fields have inconsistent capitalization - some are all uppercase
-        'district': district,
-        'state': m.group('state'),
+        'state': sponsor_dict["state"],
+        'district': sponsor_dict.get("district"), # missing for senators
         #'party': m.group('party'),
         'bioguide_id': sponsor_dict['bioguideId'],
         'type': 'person'
