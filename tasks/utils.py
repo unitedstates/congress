@@ -38,8 +38,6 @@ eastern_time_zone = timezone('US/Eastern')
 
 # scraper should be instantiated at class-load time, so that it can rate limit appropriately
 scraper = scrapelib.Scraper(requests_per_minute=120, retry_attempts=3)
-scraper.user_agent = "unitedstates/congress (https://github.com/unitedstates/congress)"
-
 
 def format_datetime(obj):
     if isinstance(obj, datetime.datetime):
@@ -213,6 +211,14 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
 _download_zip_files = {}
 
 
+def user_agent():
+    user_agent = "unitedstates/congress (https://github.com/unitedstates/congress)"
+    if config:
+        scrape_config = config.get('scraping')
+        if scrape_config:
+            user_agent = scrape_config.get('user_agent', user_agent)
+    return user_agent
+
 def download(url, destination=None, options={}):
     # uses cache by default, override (True) to ignore
     force = options.get('force', False)
@@ -303,6 +309,7 @@ def download(url, destination=None, options={}):
     else:
         try:
             logging.info("Downloading: %s" % url)
+            scraper.user_agent = user_agent()
 
             if postdata:
                 response = scraper.urlopen(url, 'POST', postdata, **urlopen_kwargs)
