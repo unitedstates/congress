@@ -7,22 +7,41 @@ from lxml import etree
 import time
 from lxml.html import fromstring
 
-# can be run on its own, just require a nomination_id (e.g. PN2094-112)
-
+# Constants
+NOMINATION_URL_QUERY_STRING  = "http://thomas.loc.gov/cgi-bin/ntquery/z?nomis:%03d%s%s:/"
+NOMINATION_URL_CACHE_STRING  = "%s/nominations/%s/%s"
+NOMINATION_URL_OUTPUT_STRING = "%s/%s/nominations/%s/%s"
 
 def run(options):
+	"""
+	The main run method that can be run on its own.
+
+	@param options: input options, requires --nomination_id (e.g. PN2094-112)
+	@return: logs results if successful, logs errors otherwise
+	"""
+
 	nomination_id = options.get('nomination_id', None)
 
 	if nomination_id:
 		result = fetch_nomination(nomination_id, options)
 		logging.warn("\n%s" % result)
 	else:
-		logging.error("To run this task directly, supply a bill_id.")
+		logging.error("To run this task directly, supply a nomination_id.")
 
 # download and cache page for nomination
-
-
 def fetch_nomination(nomination_id, options={}):
+	"""
+	Download and cache page for input nomination id.
+	Fetches the raw HTML for the nomination via http request,
+	parses it, saves it, and if successful then returns
+	a dictionary with success messages
+
+	@param nomination_id: id to search for (e.g. PN2094-112)
+	@param options: additional options dictionary, keys = ["download_only"]
+	@return: Dictionary indicating success or failure of each step
+	"""
+
+	if not options: options = {}
 	logging.info("\n[%s] Fetching..." % nomination_id)
 
 	# fetch committee name map, if it doesn't already exist
@@ -60,6 +79,15 @@ def fetch_nomination(nomination_id, options={}):
 
 
 def parse_nomination(nomination_id, body, options):
+	"""
+	Attempts to parse the raw HTML and extract the pertinent
+	information into a dictionary to return
+
+	@param nomination_id: id to search for (e.g. PN2094-112)
+	@param body: raw HTML from the request
+	@param options: additional options dictionary, keys = []
+	@return: dictionary of nomination information,
+	"""
 	nomination_type, number, congress = utils.split_nomination_id(nomination_id)
 
 	# remove (and store) comments, which contain some info for the nomination
@@ -197,9 +225,10 @@ def parse_nomination(nomination_id, body, options):
 					# choke, I think we handle all of them now
 					raise Exception("Unrecognized label: %s" % label)
 
+	# These are catastrophic errors and would result in the record
+	# not containing essential information
 	if not info.get("received_on", None):
 		raise Exception("Choked, couldn't find received date.")
-
 	if not info.get("nominees", None):
 		raise Exception("Choked, couldn't find nominee info.")
 
@@ -213,12 +242,11 @@ def parse_nomination(nomination_id, body, options):
 
 	return info
 
-# directory helpers
-
+######################### DIRECTORY HELPERS #########################
 
 def output_for_nomination(nomination_id, format):
 	nomination_type, number, congress = utils.split_nomination_id(nomination_id)
-	return "%s/%s/nominations/%s/%s" % (utils.data_dir(), congress, number, "data.%s" % format)
+	return NOMINATION_URL_OUTPUT_STRING % (utils.data_dir(), congress, number, "data.%s" % format)
 
 
 def nomination_url_for(nomination_id):
@@ -230,12 +258,12 @@ def nomination_url_for(nomination_id):
 		number_pieces.append("00")
 	url_number = "%05d%s" % (int(number_pieces[0]), number_pieces[1])
 
-	return "http://thomas.loc.gov/cgi-bin/ntquery/z?nomis:%03d%s%s:/" % (int(congress), nomination_type.upper(), url_number)
+	return NOMINATION_URL_QUERY_STRING % (int(congress), nomination_type.upper(), url_number)
 
 
 def nomination_cache_for(nomination_id, file):
 	nomination_type, number, congress = utils.split_nomination_id(nomination_id)
-	return "%s/nominations/%s/%s" % (congress, number, file)
+	return NOMINATION_URL_CACHE_STRING % (congress, number, file)
 
 
 def output_nomination(nomination, options):
