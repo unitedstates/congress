@@ -382,7 +382,7 @@ def parse_witness_list(witness_tree, uploaded_documents, event_id):
                     "CR": "Committee report", "BR": "Bill", "FA": "Floor amendment",
                     "CA": "Committee amendment", "HT": "Transcript", "WD": "Witness document"}
                         # "SD": "" I don't know this one, the SD category covers a lot
-                if types.has_key(doc_type):
+                if doc_type in types:
                   document["type_name"] = types[doc_type]
                 else:
                   document["type_name"] = None
@@ -468,7 +468,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
                     "CR": "Committee report", "BR": "Bill", "FA": "Floor amendment",
                     "CA": "Committee amendment", "HT": "Transcript", "WD": "Witness document"}
                     # "SD": "" I don't know this one, the SD category covers a lot
-            if types.has_key(doc_type):
+            if doc_type in types:
               document["type_name"] = types[doc_type]
             else:
               document["type_name"] = None
