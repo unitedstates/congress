@@ -70,4 +70,4 @@ try:
 
     task_mod.run(options)
 except Exception as exception:
-    utils.admin(exception)
+    print exception
