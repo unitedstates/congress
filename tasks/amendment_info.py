@@ -39,7 +39,7 @@ def build_amendment_json_dict(amdt_dict, options):
     if not amends_bill and not amends_treaty:
         raise Exception("Choked finding out what bill or treaty the amendment amends.")
 
-    actions = actions_for(amdt_dict['actions']['actions']['item'])
+    actions = actions_for(amdt_dict['actions']['actions'])
 
     amdt = {
         'amendment_id': amendment_id,
@@ -167,7 +167,8 @@ def amends_amendment_for(amends_amdt):
 
 
 def actions_for(action_list):
-    actions = [action_for(action) for action in action_list]
+    if action_list is None: return [] # no actions
+    actions = [action_for(action) for action in action_list['item']]
     parse_amendment_actions(actions)
     return actions
 
