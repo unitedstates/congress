@@ -34,10 +34,17 @@ import beanstalkc
 
 # The patch module is loaded after the task module is loaded, so all task
 # modules are on the import path.
-import bill_info
+import bills
+import amendment_info
+import vote_info
 
 
-__all__ = ['patch', 'output_bill_wrapper']
+__all__ = [
+    'patch',
+    'process_bill_wrapper',
+    'process_amendment_wrapper',
+    'output_vote_wrapper'
+]
 
 
 _Connection = None
@@ -60,24 +67,24 @@ def init_guard(reconnect=False):
             tube_names = config['beanstalk']['tubes'].values()
             assert max(Counter(tube_names).values()) == 1, 'Must use unique beanstalk tube names.'
             _Config = config['beanstalk']
-    if _Connection is None or reconnect == True:
+    if _Connection is None or reconnect is True:
         conn = beanstalkc.Connection(**_Config['connection'])
         assert conn is not None
         _Connection = conn
     return (_Connection, _Config)
 
 
-def output_bill_wrapper(output_bill):
-    @wraps(output_bill)
-    def _output_bill(bill, options, *args, **kwargs):
-        orig_result = output_bill(bill, options, *args, **kwargs)
+def process_bill_wrapper(process_bill):
+    @wraps(process_bill)
+    def _process_bill(bill, options, *args, **kwargs):
+        orig_result = process_bill(bill, options, *args, **kwargs)
 
         (conn, config) = init_guard()
         for _ in range(2):
             try:
                 conn.use(config['tubes']['bills'])
-                conn.put(bill["bill_id"])
-                logging.warn(u"Queued {} to beanstalkd.".format(bill['bill_id']))
+                conn.put(bill)
+                logging.warn(u"Queued {} to beanstalkd.".format(bill))
                 break
             except beanstalkc.SocketError:
                 logging.warn(u"Lost connection to beanstalkd. Attempting to reconnect.")
@@ -89,11 +96,64 @@ def output_bill_wrapper(output_bill):
 
         return orig_result
 
-    return _output_bill
+    return _process_bill
+
+
+def process_amendment_wrapper(process_amendment):
+    @wraps(process_amendment)
+    def _process_amendment(amdt_dict, bill_id, options, *args, **kwargs):
+        orig_result = process_amendment(amdt_dict, bill_id, options, *args, **kwargs)
+        amdt = amendment_info.build_amendment_id(amdt_dict['type'].lower(), amdt_dict['number'], amdt_dict['congress'])
+
+        (conn, config) = init_guard()
+        for _ in range(2):
+            try:
+                conn.use(config['tubes']['amendments'])
+                conn.put(str(amdt))
+                logging.warn(u"Queued {} to beanstalkd.".format(amdt))
+                break
+            except beanstalkc.SocketError:
+                logging.warn(u"Lost connection to beanstalkd. Attempting to reconnect.")
+                (conn, config) = init_guard(reconnect=True)
+            except Exception as e:
+                logging.warn(u"Ignored exception while queueing amendment to beanstalkd: {0} {1}".format(unicode(type(e)), unicode(e)))
+                traceback.print_exc()
+                break
+
+        return orig_result
+
+    return _process_amendment
+
+
+def output_vote_wrapper(output_vote):
+    @wraps(output_vote)
+    def _output_vote(vote, options, *args, **kwargs):
+        orig_result = output_vote(vote, options, *args, **kwargs)
+
+        (conn, config) = init_guard()
+        for _ in range(2):
+            try:
+                conn.use(config['tubes']['votes'])
+                conn.put(vote['vote_id'])
+                logging.warn(u'Queued {} to beanstalkd.'.format(vote['vote_id']))
+                break
+            except beanstalkc.SocketError:
+                logging.warn(u'Lost connection to beanstalkd. Attempting to reconnect.')
+                (conn, config) = init_guard(reconnect=True)
+            except Exception as e:
+                logging.warn(u'Ignored exception while queueing vote to beanstalkd: {0} {1}'.format(unicode(type(e)), unicode(e)))
+                traceback.print_exc()
+                break
+
+        return orig_result
+
+    return _output_vote
 
 
 def patch(task_name):
-    bill_info.output_bill = output_bill_wrapper(bill_info.output_bill)
+    bills.process_bill = process_bill_wrapper(bills.process_bill)
+    amendment_info.process_amendment = process_amendment_wrapper(amendment_info.process_amendment)
+    vote_info.output_vote = output_vote_wrapper(vote_info.output_vote)
 
 
 # Avoid scraping if the beanstalk config is invalid.
