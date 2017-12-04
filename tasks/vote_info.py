@@ -229,13 +229,18 @@ def parse_senate_vote(dom, vote):
             vote["treaty"] = {
                 "title": unicode(dom.xpath("string(document/document_title)")),
             }
-        else:
+        elif unicode(dom.xpath("string(document/document_type)")) in bill_types:
             vote["bill"] = {
                 "congress": int(dom.xpath("number(document/document_congress|congress)")),  # some historical files don't have document/document_congress so take the first of document/document_congress or the top-level congress element as a fall-back
                 "type": bill_types[unicode(dom.xpath("string(document/document_type)"))],
                 "number": int(dom.xpath("number(document/document_number)")),
                 "title": unicode(dom.xpath("string(document/document_title)")),
             }
+        else:
+            # s294-115.2017 through s302-115.2017 have S.Amdt. in document_type,
+            # but it probably should be empty since <amendment> is filled in and
+            # the rest of <document> is blank.
+            pass
 
     if unicode(dom.xpath("string(amendment/amendment_number)")):
         m = re.match(r"^S.Amdt. (\d+)", unicode(dom.xpath("string(amendment/amendment_number)")))
