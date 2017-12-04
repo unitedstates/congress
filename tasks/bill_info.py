@@ -492,6 +492,11 @@ def action_for(item):
         # remove if empty - not present in how we used to generate the file
         del action_dict["committees"]
 
+
+    # sometimes there are links (one case is for bills passed by a rule in a resolution, the link will point to the resolution)
+    if (item.get("links") or {}).get("link") is not None:
+        action_dict["links"] = item["links"]["link"]
+
     return action_dict
 
 
@@ -811,6 +816,10 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         action["how"] = "by special rule"
         action["where"] = "h"
         action["result"] = pass_fail
+
+        # It's always pursuant to another bill, and a bill number is given in the action line, which we parse out
+        # into the bill_ids field of the action. It's also represented
+        # structurally in the links->link elements of the original XML which we just put in "links".
 
         # get the new status of the bill after this vote
         new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, as_amended, title, prev_status)

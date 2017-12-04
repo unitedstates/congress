@@ -129,7 +129,7 @@ def _path_to_billstatus_file(bill_id):
 
 def read_fdsys_bulk_bill_status_file(fn, bill_id):
     fdsys_billstatus = utils.read(fn)
-    return xmltodict.parse(fdsys_billstatus, force_list=('item', 'amendment', 'committeeReport',))
+    return xmltodict.parse(fdsys_billstatus, force_list=('item', 'amendment', 'committeeReport', 'link'))
 
 def form_bill_json_dict(xml_as_dict):
     """
