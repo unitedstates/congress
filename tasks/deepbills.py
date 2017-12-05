@@ -39,8 +39,8 @@ def newer_version_available(our_filename, their_last_changed_timestamp):
 
 def bill_version_ids_for(congress, bill_type=None, bill_number=None, version_code=None, force=False):
 
-    if int(congress) < 113:
-        logging.error("The DeepBills Project currently only supports the 113th Congress forward.")
+    if int(congress) != 113:
+        logging.error("The DeepBills Project currently only supports the 113th Congress.")
         return
 
     # Bypass the bill index if the user is forcing a download and has provided enough information.
