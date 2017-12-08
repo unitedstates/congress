@@ -721,9 +721,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
     # VOTES
 
     # A House Vote.
-    line = re.sub(", the Passed", ", Passed", line)
-    # 106 h4733 and others
-
+    line = re.sub(", the Passed", ", Passed", line) # 106 h4733 and others
     m = re.search("("
         + "|".join([
             "On passage",
@@ -824,6 +822,45 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         # get the new status of the bill after this vote
         new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, as_amended, title, prev_status)
 
+        if new_status:
+            status = new_status
+
+    # House motions to table adversely dispose of a pending matter, if agreed to. An agreed-to "motion to table the measure",
+    # which is very infrequent, kills the legislation. If not agreed to, nothing changes. So this regex only captures
+    # agreed-to motions to table.
+    m = re.search("On motion to table the measure Agreed to"
+        + " ?(by voice vote|without objection|by (the Yeas and Nays|Yea-Nay Vote|recorded vote)"
+        + ": (\d+ - \d+(, \d+ Present)? [ \)]*)?\((Roll no\.|Record Vote No:) \d+\))",
+        line, re.I)
+    if m != None:
+        how = m.group(1)
+        pass_fail = 'fail'
+
+        # In order to classify this as resulting in the same thing as regular failed vote on passage, new_status_after_vote
+        # needs to know if this was a vote in the originating chamber or not.
+        if prev_status == "INTRODUCED":
+            vote_type = "vote"
+        elif False:
+            vote_type = "vote2"
+        else:
+            raise Exception("Need to classify %s as being in the originating chamber or not." % prev_status)
+
+        roll = None
+        m = re.search(r"\((Roll no\.|Record Vote No:) (\d+)\)", how, re.I)
+        if m != None:
+            how = "roll"  # normalize the ugly how
+            roll = m.group(2)
+
+        action["type"] = "vote"
+        action["vote_type"] = vote_type
+        action["how"] = how
+        action['where'] = "h"
+        action['result'] = pass_fail
+        if roll:
+            action["roll"] = roll
+
+        # get the new status of the bill after this vote
+        new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, False, title, prev_status)
         if new_status:
             status = new_status
 
