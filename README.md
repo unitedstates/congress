@@ -75,7 +75,6 @@ where data-type is one of:
 * `nominations` (see [Nominations](https://github.com/unitedstates/congress/wiki/nominations))
 * `committee_meetings` (see [Committee Meetings](https://github.com/unitedstates/congress/wiki/committee-meetings))
 * `fdsys` (see [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
-* `deepbills` (see [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
 * `statutes` (see [Bills](https://github.com/unitedstates/congress/wiki/bills) and [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
 
 To scrape bills, resolutions, and amendments from THOMAS, run:
