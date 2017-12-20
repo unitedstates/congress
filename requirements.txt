@@ -1,7 +1,6 @@
 pyyaml
 iso8601==0.1.4
 python-dateutil==1.5
-ipython
 lxml>=2.2
 pytz
 cssselect
