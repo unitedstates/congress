@@ -485,6 +485,8 @@ def normalize_vote_type(vote_type):
         (r"On (the )?Nomination", "On the Nomination"),
         (r"On Passage( of the Bill|$)", "On Passage of the Bill"),
         (r"On (the )?Motion to Proceed", "On the Motion to Proceed"),
+        (r"On the Motion \(Motion to ((Recede )from the Senate Amendment to \S+ \d+ (and ))?Concur( with Further Amendment)?", "On the Motion to $2$3Concur$4"),
+        (r"On the Motion \(Motion to (.*)\)$", "On the Motion to $1"),
     )
 
     for regex, replacement in mapping:
@@ -524,6 +526,7 @@ def get_vote_category(vote_question):
         (r"^Guilty or Not Guilty", "conviction"),  # was "impeachment" in sunlightlabs/congress but that's not quite right
         (r"^On (?:the )?Motion to Recommit", "recommit"),
         (r"^On the Motion \(Motion to Concur", "passage"),
+        (r"^On the Motion to Recede and Concur with Further Amendment", "passage"), # this is a normalized type that is returned by a function above
 
         # house only
         (r"^(On Motion (to|that the House) )?(Concur in|Concurring|Concurring in|On Concurring|On Concurring in|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "passage"),
