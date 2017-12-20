@@ -874,6 +874,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         "Disagreed to in Senate",
         "Resolution agreed to in Senate",
         "Senate (?:agreed to|concurred in) (?:the )?(?:conference report|House amendment(?: to the Senate amendments?| to the House amendments?)*)",
+        "Senate receded from its amendment and concurred", # hr1-115
         r"Cloture \S*\s?on the motion to proceed .*?not invoked in Senate",
         r"Cloture(?: motion)? on the motion to proceed to the (?:bill|measure) invoked in Senate",
         "Cloture invoked in Senate",
