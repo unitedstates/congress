@@ -525,7 +525,7 @@ def get_vote_category(vote_question):
         (r"^On the Nomination", "nomination"),
         (r"^Guilty or Not Guilty", "conviction"),  # was "impeachment" in sunlightlabs/congress but that's not quite right
         (r"^On (?:the )?Motion to Recommit", "recommit"),
-        (r"^On the Motion \(Motion to Concur", "passage"),
+        (r"^On the Motion to Concur", "passage"),
         (r"^On the Motion to Recede and Concur with Further Amendment", "passage"), # this is a normalized type that is returned by a function above
 
         # house only
