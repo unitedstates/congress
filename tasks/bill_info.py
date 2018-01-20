@@ -731,14 +731,14 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             "On agreeing to the (?:resolution|conference report)",
             "On motion to suspend the rules and agree to the (?:resolution|conference report)",
             "House Agreed to Senate Amendments.*?",
-            "On motion that the House (?:suspend the rules and )?(?:agree(?: with an amendment)? to|concur in) the Senate amendments?(?: to the House amendments?| to the Senate amendments?)*",
+            "On motion (?:that )?the House (?:suspend the rules and )?(?:agree(?: with an amendment)? to|concur in) the Senate amendments?(?: to the House amendments?| to the Senate amendments?)*",
         ])
         + ")"
         + "(, the objections of the President to the contrary notwithstanding.?)?"
         + "(, as amended| \(Amended\))?"
         + " (Passed|Failed|Agreed to|Rejected)?"
-        + " ?(by voice vote|without objection|by (the Yeas and Nays|Yea-Nay Vote|recorded vote)"
-        + "(:? \(2/3 required\))?: (\d+ - \d+(, \d+ Present)? [ \)]*)?\((Roll no\.|Record Vote No:) \d+\))",
+        + " ?(by voice vote|without objection|by (the Yeas and Nays?|Yea-Nay Vote|recorded vote)"
+        + "(:? \(2/3 required\))?: (\d+ ?- ?\d+(, \d+ Present)? [ \)]*)?\((Roll no\.|Record Vote No:) \d+\))",
         line, re.I)
     if m != None:
         motion, is_override, as_amended, pass_fail, how = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
@@ -780,7 +780,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             suspension = True
 
         # alternate form of as amended, e.g. hr3979-113
-        if "that the House agree with an amendment" in motion:
+        if "the House agree with an amendment" in motion:
             as_amended = True
 
         action["type"] = "vote"
@@ -878,7 +878,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         r"Cloture \S*\s?on the motion to proceed .*?not invoked in Senate",
         r"Cloture(?: motion)? on the motion to proceed to the (?:bill|measure) invoked in Senate",
         "Cloture invoked in Senate",
-        "Cloture on (?:the motion to proceed to )?the bill (?:not )?invoked in Senate",
+        "Cloture on (?:the motion to (?:proceed to |concur in )(?:the House amendment (?:to the Senate amendment )?to )?)(?:the bill|H.R. .*) (?:not )?invoked in Senate",
         "(?:Introduced|Received|Submitted) in the Senate, (?:read twice, |considered, |read the third time, )+and (?:passed|agreed to)",
         ])
         + ")"
