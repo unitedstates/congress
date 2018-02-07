@@ -69,6 +69,8 @@ import os.path
 import zipfile
 import utils
 
+import rtyaml
+
 # globals
 fdsys_baseurl = "https://www.gpo.gov/smap/"
 BULKDATA_BASE_URL = "https://www.gpo.gov/fdsys/bulkdata/"
@@ -133,17 +135,28 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
     if skip_sitemap(subject, options):
         return
 
-    # Where to cache the sitemap and a file where we store its current <lastmod> date
-    # (which comes from a parent sitemap)?
+    # Get the file paths to cache:
+    # * the sitemap XML for future runs
+    # * its <lastmod> date (which comes from the parent sitemap) so we know if we need to re-download it now
+    # * the <lastmod> dates of the packages listed in this sitemap so we know if we need to re-download any package files
     (cache_file, lastmod_cache_file) = get_sitemap_cache_files(subject)
     lastmod_cache_file = os.path.join(utils.cache_dir(), lastmod_cache_file)
+    if not os.path.exists(lastmod_cache_file):
+        lastmod_cache = { }
+
+        # Migrate from old flat file format.
+        if os.path.exists(lastmod_cache_file.replace(".yaml", ".txt")):
+            lastmod_cache["lastmod"] = utils.read(lastmod_cache_file.replace(".yaml", ".txt"))
+    else:
+        with open(lastmod_cache_file) as f:
+            lastmod_cache = rtyaml.load(f)
 
     # Download anew if the current_lastmod doesn't match the stored lastmod
     # in our cache, and if --cache is not specified. Or if --force is given.
     # If we're not downloading it, load it from disk because we still have
     # to process each sitemap to ensure we've downloaded all of the package
     # files the user wants.
-    download = should_download_sitemap(lastmod_cache_file, current_lastmod, options)
+    download = should_download_sitemap(lastmod_cache.get("lastmod"), current_lastmod, options)
 
     # Download, or just retreive from cache.
     if download:
@@ -158,10 +171,9 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
     if not body:
         raise Exception("Failed to download %s" % url)
 
-    # Write the current last modified date to disk so we know the next time whether
-    # we need to fetch the file --- if we just downloaded it.
+    # If we downloaded a new file, update the lastmod for our cache.
     if download and current_lastmod:
-        utils.write(current_lastmod, lastmod_cache_file)
+        lastmod_cache["lastmod"] = current_lastmod
 
     # Load the XML.
     try:
@@ -207,7 +219,7 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
                     raise Exception("Unmatched package URL (%s) at %s." % (url, "->".join(how_we_got_here)))
                 package_name = m.group(1)
                 if options.get("filter") and not re.search(options["filter"], package_name): continue
-                mirror_results = mirror_package(subject, package_name, lastmod, url, options)
+                mirror_results = mirror_package(subject, package_name, lastmod, lastmod_cache.setdefault("packages", {}), url, options)
                 if mirror_results is not None and len(mirror_results) > 0:
                     results = results + mirror_results
 
@@ -224,6 +236,13 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
 
     else:
         raise Exception("Unknown sitemap type (%s) at the root sitemap of %s." % (sitemap.tag, url))
+
+    # Write the updated last modified dates to disk so we know the next time whether
+    # we need to fetch the files. If we didn't download anything, no need to write an
+    # empty file.
+    if lastmod_cache:
+        with open(lastmod_cache_file, "w") as f:
+            rtyaml.dump(lastmod_cache, f)
 
     return results
 
@@ -317,12 +336,12 @@ def get_sitemap_cache_files(subject):
 
     cache_file = os.path.join(cache_file, "sitemap.xml")
 
-    lastmod_cache_file = cache_file.replace(".xml", "-lastmod.txt")
+    lastmod_cache_file = cache_file.replace(".xml", "-lastmod.yaml")
 
     return (cache_file, lastmod_cache_file)
 
 
-def should_download_sitemap(lastmod_cache_file, current_lastmod, options):
+def should_download_sitemap(lastmod_cache, current_lastmod, options):
     # Download a sitemap or just read from our cache?
 
     if not current_lastmod:
@@ -341,7 +360,7 @@ def should_download_sitemap(lastmod_cache_file, current_lastmod, options):
     else:
         # Download if the lastmod from the parent sitemap doesn't agree with
         # the lastmod stored on disk.
-        return current_lastmod != utils.read(lastmod_cache_file)
+        return current_lastmod != lastmod_cache
 
 
 def format_item_for_listing(item):
@@ -365,7 +384,7 @@ def format_item_for_listing(item):
 # Downloading Packages
 
 
-def mirror_package(sitemap, package_name, lastmod, content_detail_url, options):
+def mirror_package(sitemap, package_name, lastmod, lastmod_cache, content_detail_url, options):
     """Create a local mirror of a FDSys package."""
 
     # Return a list of files we downloaded.
@@ -373,7 +392,7 @@ def mirror_package(sitemap, package_name, lastmod, content_detail_url, options):
 
     if not options.get("granules", False):
         # Most packages are just a package. This is the usual case.
-        results = mirror_package_or_granule(sitemap, package_name, None, lastmod, options)
+        results = mirror_package_or_granule(sitemap, package_name, None, lastmod, lastmod_cache, options)
 
     else:
         # In some collections, like STATUTE, each document has subparts which are not
@@ -394,12 +413,12 @@ def mirror_package(sitemap, package_name, lastmod, content_detail_url, options):
                 if not m or m.group(1) != package_name:
                     raise Exception("Unmatched granule URL %s" % link.get("href"))
                 granule_name = m.group(2)
-                results = mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, options)
+                results = mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, lastmod_cache, options)
 
     return results
 
 
-def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, options):
+def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, lastmod_cache, options):
     # Return a list of files we downloaded.
     results = []
 
@@ -410,12 +429,16 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
     if not path:
         return  # should skip
 
+    # Go to the part of the lastmod_cache for this package.
+    lastmod_cache = lastmod_cache.setdefault(package_name, {})
+    if granule_name: lastmod_cache = lastmod_cache.setdefault(granule_name, {})
+    lastmod_cache = lastmod_cache.setdefault("files", {})
+
+    # Migrate old cache storage:
     # Get the lastmod times of the files previously saved for this package.
-    file_lastmod_changed = False
-    file_lastmod = { }
     lastmod_cache_file = path + "/lastmod.json"
-    if os.path.exists(lastmod_cache_file):
-        file_lastmod = json.load(open(lastmod_cache_file))
+    if not lastmod_cache and os.path.exists(lastmod_cache_file):
+        lastmod_cache.update(json.load(open(lastmod_cache_file)))
 
     # Try downloading files for each file type.
     targets = get_package_files(package_name, granule_name)
@@ -426,10 +449,8 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
         if options.get("store", "") and file_type not in options["store"].split(","):
             continue
 
-        # Do we already have this file updated? The file_lastmod JSON
-        # stores the lastmod from the sitemap at the time we downloaded
-        # the individual file.
-        if file_lastmod.get(file_type) == lastmod:
+        # Do we already have this file updated?
+        if lastmod_cache.get(file_type) == lastmod:
             if not options.get("force", False):
                 continue
 
@@ -467,14 +488,13 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
             pass
         elif not data or isinstance(data, int):
             # There was some other error - skip the rest. Don't
-            # update file_lastmod!
+            # update lastmod_cache!
             continue
 
         # Update the lastmod of the downloaded file. If the download failed,
         # because of a 404, we still update this to indicate that the file
         # definitively does not exist. We won't try fetcihng it again.
-        file_lastmod[file_type] = lastmod
-        file_lastmod_changed = True
+        lastmod_cache[file_type] = lastmod
 
         # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
         # TODO: Encoding? The HTTP content-type header says UTF-8, but do we trust it?
@@ -490,12 +510,6 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, opti
             # which extracts commonly used components of the MODS XML, whenever we update
             # that MODS file.
             extract_bill_version_metadata(package_name, path)
-
-    # Write the current last modified date back to disk so we know the next time whether
-    # we need to fetch the files for this sitemap item. Assuming we fetched anything.
-    # If nothing new was fetched, then there is no reason to update the file.
-    if file_lastmod and file_lastmod_changed:
-        utils.write(json.dumps(file_lastmod), lastmod_cache_file)
 
     return results
 

@@ -9,3 +9,4 @@ mechanize
 BeautifulSoup4
 mock
 xmltodict
+rtyaml
