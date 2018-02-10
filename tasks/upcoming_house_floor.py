@@ -122,19 +122,17 @@ def fetch_floor_week(for_the_week, options):
             bill['item_type'] = 'draft_bill'
             bill['draft_bill_id'] = draft_bill_id
         else:
-            if "Concur in the Senate Amendment to" in bill_number:
-                bill['item_type'] = 'senate_amendment'
-                bill_number = bill_number.replace('Concur in the Senate Amendment to ', '')
-            elif "Concur in the Senate Amendment with an Amendment to" in bill_number:
-                bill['item_type'] = 'senate_amendment'
-                bill_number = bill_number.replace('Concur in the Senate Amendment with an Amendment to ', '')
-                bill_number = bill_number.lower().replace("senate amendment to the house amendment to ", '')
-            elif re.match("senate amendments? to ", bill_number, re.I):
-                bill['item_type'] = 'senate_amendment'
-                bill_number = re.sub(r"senate amendments? (to the house amendment )?to ", "", bill_number.lower())
-            elif "house amendment to " in bill_number.lower():
+            m = re.match("(Concur in )?(?P<type>((the )?(Senate|House) Amendments? (with an amendment )?to )+)(?P<bill>.*)", bill_number, re.I)
+            if m:
+              amendment_type = m.group("type").split("to")[0]
+              if "Senate" in amendment_type and "House" not in amendment_type:
+                  bill['item_type'] = 'senate_amendment'
+              elif "House" in amendment_type and "Senate" not in amendment_type:
                 bill['item_type'] = 'house_amendment'
-                bill_number = bill_number.lower().replace("house amendment to ", '')
+              else:
+                raise ValueError(bill_number)
+              bill_number = m.group("bill")
+
             elif "Conference report to accompany" in bill_number:
                 bill['item_type'] = 'conference_report'
                 bill_number = bill_number.replace("Conference report to accompany ", '')
