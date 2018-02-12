@@ -175,7 +175,7 @@ def fetch_house_committee_meetings(committees, options):
     seen_meetings = set()
 
     # Scrape the committee listing page for a list of committees with scrapable events.
-    committee_html = utils.download("http://docs.house.gov/Committee/Committees.aspx", "committee_schedule/house_overview.html", options)
+    committee_html = utils.download("http://docs.house.gov/Committee/Committees.aspx", "committee_schedule/house_overview.html", opts)
     for cmte in re.findall(r'<option value="(....)">', committee_html):
         if cmte not in committees:
             logging.error("Invalid committee code: " + cmte)
@@ -298,7 +298,11 @@ def extract_meeting_package(eventurl, event_id, options):
 
     # when just downloading the metadata XML, return the DOM and no other info
     if not options.get("docs", True):
-        dom = lxml.etree.fromstring(request.read())
+        try:
+            dom = lxml.etree.fromstring(request.read())
+        except lxml.etree.XMLSyntaxError as e:
+            print event_id, e
+            return False
         return {"witnesses": None, "uploaded_documents": [], "dom": dom}
 
     ## read zipfile
