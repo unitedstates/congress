@@ -122,7 +122,7 @@ def fetch_floor_week(for_the_week, options):
             bill['item_type'] = 'draft_bill'
             bill['draft_bill_id'] = draft_bill_id
         else:
-            m = re.match("(Concur in )?(?P<type>((the )?(Senate|House) Amendments? (with an amendment )?to )+)(?P<bill>.*)", bill_number, re.I)
+            m = re.match("(Concur(ring)? in )?(?P<type>((the )?(Senate|House) Amendments? (with an amendment )?to )+)(?P<bill>.*)", bill_number, re.I)
             if m:
               amendment_type = m.group("type").split("to")[0]
               if "Senate" in amendment_type and "House" not in amendment_type:
