@@ -890,9 +890,9 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         roll = None
 
         # put disagreed check first, cause "agreed" is contained inside it
-        if re.search("disagreed", motion, re.I):
+        if re.search("disagreed|not invoked", motion, re.I):
             pass_fail = "fail"
-        elif re.search("passed|agreed|concurred|bill invoked|measure invoked|cloture invoked", motion, re.I):
+        elif re.search("passed|agreed|concurred|invoked", motion, re.I):
             pass_fail = "pass"
         else:
             pass_fail = "fail"
