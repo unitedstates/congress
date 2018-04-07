@@ -736,7 +736,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         + ")"
         + "(, the objections of the President to the contrary notwithstanding.?)?"
         + "(, as amended| \(Amended\))?"
-        + " (Passed|Failed|Agreed to|Rejected)?"
+        + "\.? (Passed|Failed|Agreed to|Rejected)?" # hr1625-115 has a stray period here
         + " ?(by voice vote|without objection|by (the Yeas and Nays?|Yea-Nay Vote|recorded vote)"
         + "(:? \(2/3 required\))?: (\d+ ?- ?\d+(, \d+ Present)? [ \)]*)?\((Roll no\.|Record Vote No:) \d+\))",
         line, re.I)
