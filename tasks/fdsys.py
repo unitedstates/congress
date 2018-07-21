@@ -1,43 +1,29 @@
-# Downloads documents from GPO FDSys, using their sitemaps
-# to efficiently determine what needs to be updated.
+# Downloads documents from GPO's GovInfo.gov site, using sitemaps
+# to efficiently determine what needs to be updated. See
+# https://www.govinfo.gov/sitemaps for a list of collections.
+# This service was formerly called "Fdsys."
 #
-# ./run fdsys --list
-# Dumps a list of the names of GPO's collections and the years
-# they have data in (since most collections are divided by year
-# of document publication).
+# ./run fdsys --collections=BILLS,STATUTE,...
+# Download bill text (from the BILLS collection; there's also a bulk
+# data BILLS collection but it has less in it), the Statues at Large,
+# and other documents from GovInfo.gov's non-bulk-data collections.
 #
-# ./run fdsys --collections=BILLS --bulkdata=False
-# Download bill text (from the primary FDSys BILLS collection;
-# there's also a bulk data BILLS collection but it has less it
-# it).
+# ./run fdsys --bulkdata=BILLSTATUS,FR,...
+# Download bill status, the Federal Register, and other documents
+# from GovInfo.gov's bulk data collections. (The BILLS collection occurs
+# both as a regular collection (bill text in multiple formats) and as
+# a bulk data collection (just XML starting recently). Use --bulkdata=BILLS
+# to get the bulk data collection.)
 #
 #   Options:
 #
-#   --collections=BILLS,BILLSTATUS,STATUTE,...
-#   Restricts the downloads to just the named collections. For
-#   BILLS, you should probably also specify --bulkdata=True/False.
-#   If omitted, downloads files from all collections.
-#
-#   --bulkdata=True|False
-#   Download regular document collections or bulk data collections.
-#   If omitted, downloads all. But there's a problem-
-#   The BILLS collection occurs both as a regular documents
-#   collection (bill text in multiple formats) and as a bulk
-#   data collection (just XML starting recently). This flag is
-#   how you can distinguish which one you want.
-#
 #   --years=2001[,2002,2004]
-#   Comma-separated list of years to download from (does not
-#   apply to bulk data collections which are not divided by
-#   year).
+#   Comma-separated list of years to download from. Applies to collections
+#   that are divided by year.
 #
 #   --congress=113[,114]
-#   Comma-separated list of congresses to download from (only for
-#   BILLSTATUS). Alternate format:
-#
-#   --congress=">113"
-#   Specify a number to get all congresses *after* the value (only for
-#   BILLSTATUS) The quotes are necessary for this format.
+#   Comma-separated list of congresses to download from. Applies to bulk
+#   data collections like BILLSTATUS that are grouped by Congress + Bill Type.
 #
 #   --store=mods,pdf,text,xml,premis
 #   Save the MODS, PDF, text, XML, or PREMIS file associated
@@ -71,9 +57,13 @@ import utils
 
 import rtyaml
 
+
 # globals
-fdsys_baseurl = "https://www.gpo.gov/smap/"
-BULKDATA_BASE_URL = "https://www.gpo.gov/fdsys/bulkdata/"
+GOVINFO_BASE_URL = "https://www.govinfo.gov/"
+COLLECTION_BASE_URL = GOVINFO_BASE_URL + "app/details/"
+BULKDATA_BASE_URL = GOVINFO_BASE_URL + "bulkdata/"
+COLLECTION_SITEMAPINDEX_PATTERN = GOVINFO_BASE_URL + "sitemap/{collection}_sitemap_index.xml"
+BULKDATA_SITEMAPINDEX_PATTERN = GOVINFO_BASE_URL + "sitemap/bulkdata/{collection}/sitemapindex.xml"
 FDSYS_BILLSTATUS_FILENAME = "fdsys_billstatus.xml"
 
 # for xpath
@@ -83,70 +73,38 @@ ns = {"x": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 # Main entry point
 
 def run(options):
-    # GPO FDSys organizes its sitemaps by publication year (the date of
-    # original print publication) and then by colletion (bills, statutes,
-    # etc.). There are additional unconnected sitemaps for each bulk
-    # data collection.
+    # Process sitemaps.
+    for collection in sorted(options.get("collections", "").split(",")):
+        if collection != "":
+            update_sitemap(COLLECTION_SITEMAPINDEX_PATTERN.format(collection=collection), None, [], options)
+    for collection in sorted(options.get("bulkdata", "").split(",")):
+        if collection != "":
+            update_sitemap(BULKDATA_SITEMAPINDEX_PATTERN.format(collection=collection), None, [], options)
 
-    # Update our cache of the complete FDSys sitemap and download package
-    # files as requested in the command-line options.
-    listing = []
-    update_sitemap_cache(options, listing)
-
-    # With --list, just output all of the available data on FDSys
-    # (the collection names, and the years each collection is available in, etc.).
-    if options.get("list", False):
-        listing = map(format_item_for_listing, listing)
-        listing.sort()
-        for item in listing:
-            print item
-
-
-# Processing the Sitemaps
-
-
-def update_sitemap_cache(options, listing):
-    """Updates the local cache of the complete FDSys sitemap trees,
-    only downloading changed sitemap files."""
-
-    # with --bulkdata=False, or not specified
-    if options.get("bulkdata", None) in (None, False):
-        # Process the main sitemap index for all of the document collections.
-        update_sitemap(fdsys_baseurl + "fdsys/sitemap.xml", None, [], options, listing)
-
-    # with --bulkdata=True, or not specified
-    if options.get("bulkdata", None) in (None, True):
-        # Process the bulk data sitemap index.
-        update_sitemap(fdsys_baseurl + "bulkdata/sitemapindex.xml", None, [], options, listing)
-
-def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
+def update_sitemap(url, current_lastmod, how_we_got_here, options):
     """Updates the local cache of a sitemap file."""
+
+    # Skip if the year or congress flags are set and this sitemap is
+    # not for that year or Congress.
+    if should_skip_sitemap(url, options):
+        return []
 
     # Return a list of files we downloaded.
     results = []
 
-    # What is this sitemap for?
-    subject = extract_sitemap_subject_from_url(url, how_we_got_here)
-
     # For debugging, remember what URLs we are stepping through.
     how_we_got_here = how_we_got_here + [url]
-
-    # Does the user want to process this sitemap?
-    if skip_sitemap(subject, options):
-        return
 
     # Get the file paths to cache:
     # * the sitemap XML for future runs
     # * its <lastmod> date (which comes from the parent sitemap) so we know if we need to re-download it now
     # * the <lastmod> dates of the packages listed in this sitemap so we know if we need to re-download any package files
-    (cache_file, lastmod_cache_file) = get_sitemap_cache_files(subject)
+    cache_file = get_sitemap_cache_file(url)
+    cache_file = os.path.join("fdsys/sitemap", cache_file, "sitemap.xml")
+    lastmod_cache_file = cache_file.replace(".xml", "-lastmod.yaml")
     lastmod_cache_file = os.path.join(utils.cache_dir(), lastmod_cache_file)
     if not os.path.exists(lastmod_cache_file):
         lastmod_cache = { }
-
-        # Migrate from old flat file format.
-        if os.path.exists(lastmod_cache_file.replace(".yaml", ".txt")):
-            lastmod_cache["lastmod"] = utils.read(lastmod_cache_file.replace(".yaml", ".txt"))
     else:
         with open(lastmod_cache_file) as f:
             lastmod_cache = rtyaml.load(f)
@@ -190,7 +148,7 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
             # Get URL and lastmod date of the sitemap.
             url = str(node.xpath("string(x:loc)", namespaces=ns))
             lastmod = str(node.xpath("string(x:lastmod)", namespaces=ns))
-            sitemap_results = update_sitemap(url, lastmod, how_we_got_here, options, listing)
+            sitemap_results = update_sitemap(url, lastmod, how_we_got_here, options)
             if sitemap_results is not None:
                 results = results + sitemap_results
 
@@ -198,39 +156,29 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
 
         # This is a regular sitemap with content items listed.
 
-        # For the --list command, remember that this sitemap had some data.
-        # And then return --- don't download any package files.
-        if options.get("list"):
-            listing.append(subject)
-            return
-
         # Process the items.
         for node in sitemap.xpath("x:url", namespaces=ns):
             url = str(node.xpath("string(x:loc)", namespaces=ns))
             lastmod = str(node.xpath("string(x:lastmod)", namespaces=ns))
 
-            if not subject.get("bulkdata"):
-                # This is a regular collection item.
-                #
-                # Get the "package" name, i.e. a particular document (which has
-                # one or more file formats within it).
-                m = re.match("https://www.gpo.gov/fdsys/pkg/(.*)/content-detail.html", url)
-                if not m:
-                    raise Exception("Unmatched package URL (%s) at %s." % (url, "->".join(how_we_got_here)))
-                package_name = m.group(1)
+            m = re.match(COLLECTION_BASE_URL + r"([^-]+)-(.*)", url)
+            if m:
+                collection = m.group(1)
+                package_name = m.group(2)
                 if options.get("filter") and not re.search(options["filter"], package_name): continue
-                mirror_results = mirror_package(subject, package_name, lastmod, lastmod_cache.setdefault("packages", {}), url, options)
+                mirror_results = mirror_package(collection, package_name, lastmod, lastmod_cache.setdefault("packages", {}), url, options)
                 if mirror_results is not None and len(mirror_results) > 0:
                     results = results + mirror_results
 
             else:
                 # This is a bulk data item. Extract components of the URL.
-                m = re.match(re.escape(BULKDATA_BASE_URL) + re.escape(subject["collection"]) + "/(.+)", url)
+                m = re.match(BULKDATA_BASE_URL + r"([^/]+)/(.*)", url)
                 if not m:
                     raise Exception("Unmatched bulk data file URL (%s) at %s." % (url, "->".join(how_we_got_here)))
-                item_path = m.group(1)
+                collection = m.group(1)
+                item_path = m.group(2)
                 if options.get("filter") and not re.search(options["filter"], item_path): continue
-                mirror_results = mirror_bulkdata_file(subject, url, item_path, lastmod, options)
+                mirror_results = mirror_bulkdata_file(collection, url, item_path, lastmod, options)
                 if mirror_results is not None and len(mirror_results) > 0:
                     results = results + mirror_results
 
@@ -246,100 +194,61 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options, listing):
 
     return results
 
-
-def extract_sitemap_subject_from_url(url, how_we_got_here):
-    # The root of the main documents collections sitemap.
-    if url == fdsys_baseurl + "fdsys/sitemap.xml":
-        return { }
-
-    # A year sitemap under the main documents root.
-    m = re.match(re.escape(fdsys_baseurl) + r"fdsys/sitemap_(\d+)/sitemap_\d+.xml$", url)
+def should_skip_sitemap(url, options):
+    # Don't skip sitemap indexes.
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_sitemap_index.xml", url)
     if m:
-        return { "year": m.group(1) }
-
-    # A regular collection sitemap.
-    m = re.match(re.escape(fdsys_baseurl) + r"fdsys/sitemap_(\d+)/\d+_(.*)_sitemap.xml$", url)
+        return False
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/sitemapindex.xml", url)
     if m:
-        return { "year": m.group(1), "collection": m.group(2) }
+        return False
 
-    if url == fdsys_baseurl + "bulkdata/sitemapindex.xml":
-        return { "bulkdata": True }
+    year_filter = options.get("years", "").strip()
+    congress_filter = options.get("congress", "").strip()
 
-    # The root of a bulkdata collection. Bulk data sitemaps
-    # aren't grouped by year in the same way the regular
-    # collections are.
-    m = re.match(re.escape(fdsys_baseurl) + r"bulkdata/(.*)/sitemapindex.xml$", url)
-    if m:
-        return { "bulkdata": True, "collection": m.group(1) }
-
-    # Bulk data collections have subdivisions, like for BILLS it's
-    # subdivided by Congress+bill-type strings (like "113s" for
-    # 113th Congress, "S." (senate) bills).
-    m = re.match(re.escape(fdsys_baseurl) + r"bulkdata/(.*)/([^/]+)/sitemap.xml$", url)
-    if m:
-        return_data = { "bulkdata": True, "collection": m.group(1), "grouping": m.group(2) }
-        congress_match = re.match(r"^([0-9]+)", m.group(2))
-        if return_data["collection"] == "BILLSTATUS" and congress_match:
-            return_data['congress'] = congress_match.group(1)
-
-        return return_data
-
-    raise ValueError("Unrecognized sitemap URL: " + url + " (" + "->".join(how_we_got_here) + ")")
-
-
-def skip_sitemap(subject, options):
+    # Regular collections are grouped by publication year.
     # Which years should we download? All if none is specified.
-    if "year" in subject and options.get("years", "").strip() != "":
-        only_years = set(options.get("years").split(","))
-        if subject["year"] not in only_years:
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_(\d+)_sitemap.xml", url)
+    if m:
+        year = m.group(2)
+        if year_filter != "" and year not in year_filter.split(","):
             return True
 
-    # Which collections should we download? All if none is specified.
-    if "collection" in subject and options.get("collections", "").strip() != "":
-        only_collections = set(options.get("collections").split(","))
-        if subject["collection"] not in only_collections:
+    # Bulk data collections are grouped into subdirectories that can
+    # represent years (as in the FR collection) or other types of groupings
+    # like Congress + Bill Type for the BILLSTATUS collection.
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/(\d+)(.*)/sitemap.xml", url)
+    if m:
+        numeric_grouping = m.group(2)
+        if year_filter != "" and numeric_grouping not in year_filter.split(","):
             return True
-
-    # Which congresses should we download? All if none is specified.
-    if "congress" in subject and options.get("congress", "").strip() != "":
-        # If we're looking for congresses after a certain one.
-        if options.get("congress")[0] == '>':
-            if int(subject["congress"]) <= int(options.get("congress")[1:]):
-                return True
-        else:
-            only_congress = set(options.get("congress").split(","))
-            if subject["congress"] not in only_congress:
-                return True
+        if congress_filter != "" and numeric_grouping not in congress_filter.split(","):
+            return True
 
     return False
 
-
-def get_sitemap_cache_files(subject):
+def get_sitemap_cache_file(url):
     # Where should we store the local cache of the sitemap XML and a file
     # that stores its <lastmod> date for when we last downloaded it? Returns
     # a path relative to the cache root.
 
-    cache_file = "fdsys/sitemap"
-    
-    if "year" in subject:
-        # The main document collections have years, but the bulk data
-        # collections don't.
-        cache_file = os.path.join(cache_file, subject["year"])
-    
-    if "collection" in subject:
-        # The root sitemap for the main collections doesn't have a "collection" name.
-        cache_file = os.path.join(cache_file, subject["collection"])
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_sitemap_index.xml", url)
+    if m:
+        return m.group(1)
 
-    if "grouping" in subject:
-        # Some bulk data sitemaps have what we're calling groupings.
-        cache_file = os.path.join(cache_file, subject["grouping"])
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_(\d+)_sitemap.xml", url)
+    if m:
+        return m.group(1) + "/" + m.group(2)
 
-    cache_file = os.path.join(cache_file, "sitemap.xml")
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/sitemapindex.xml", url)
+    if m:
+        return m.group(1) + "-bulkdata"
 
-    lastmod_cache_file = cache_file.replace(".xml", "-lastmod.yaml")
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/(.+)/sitemap.xml", url)
+    if m:
+        return m.group(1) + "-bulkdata/" + m.group(2)
 
-    return (cache_file, lastmod_cache_file)
-
+    raise ValueError(url)
 
 def should_download_sitemap(lastmod_cache, current_lastmod, options):
     # Download a sitemap or just read from our cache?
@@ -363,28 +272,10 @@ def should_download_sitemap(lastmod_cache, current_lastmod, options):
         return current_lastmod != lastmod_cache
 
 
-def format_item_for_listing(item):
-    # Helper function for the --list command.
-
-    ret = item["collection"]
-    if item.get("bulkdata"):
-        ret += " (bulkdata)"
-
-    if item.get("year"):
-        # for regular collections
-        ret += " " + item["year"]
-
-    if item.get("grouping"):
-        # for bulk data collections
-        ret += " " + item["grouping"]
-
-    return ret
-
-
 # Downloading Packages
 
 
-def mirror_package(sitemap, package_name, lastmod, lastmod_cache, content_detail_url, options):
+def mirror_package(collection, package_name, lastmod, lastmod_cache, content_detail_url, options):
     """Create a local mirror of a FDSys package."""
 
     # Return a list of files we downloaded.
@@ -392,40 +283,56 @@ def mirror_package(sitemap, package_name, lastmod, lastmod_cache, content_detail
 
     if not options.get("granules", False):
         # Most packages are just a package. This is the usual case.
-        results = mirror_package_or_granule(sitemap, package_name, None, lastmod, lastmod_cache, options)
+        results = mirror_package_or_granule(collection, package_name, None, lastmod, lastmod_cache, options)
 
     else:
         # In some collections, like STATUTE, each document has subparts which are not
-        # described in the sitemap. Load the main HTML page and scrape for the sub-files.
+        # described in the sitemap.
+        #
         # In the STATUTE collection, the MODS information in granules is redundant with
         # information in the top-level package MODS file. But the only way to get granule-
-        # level PDFs is to go through the granules.
-        content_index = utils.download(content_detail_url,
-                                       "fdsys/package/%s/%s/%s.html" % (sitemap["year"], sitemap["collection"], package_name),
-                                       utils.merge(options, {
-                                           'binary': True,
-                                       }))
-        if not content_index:
+        # level --- i.e. individual law --- PDFs is to go through the granules.
+        #
+        # On GovInfo.gov, the granules are returned in an AJAX call that fetches the
+        # "document in context" table, which fortuitously returns JSON.
+        granules = utils.download(GOVINFO_BASE_URL + "wssearch/documentsInContext/%s-%s" % (collection, package_name),
+                                       "fdsys/package/%s/%s.json" % (collection, package_name),
+                                       utils.merge(options, {  # The Content-Type response header
+                                           'binary': True,     # indicates it's UTF-8 encoded, but
+                                       }))                     # binary: False means it's HTML and
+                                                               # HTML entities are replaced, which
+                                                               # would be bad since this is JSON .
+        if not granules:
             raise Exception("Failed to download %s" % content_detail_url)
-        for link in html.fromstring(content_index).cssselect("table.page-details-data-table td.rightLinkCell a"):
-            if link.text == "More":
-                m = re.match("granule/(.*)/(.*)/content-detail.html", link.get("href"))
-                if not m or m.group(1) != package_name:
-                    raise Exception("Unmatched granule URL %s" % link.get("href"))
-                granule_name = m.group(2)
-                results = mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, lastmod_cache, options)
+        granules = json.loads(granules.decode("utf8")) # see above
+
+        prefix = collection + "-" + package_name + "-"
+
+        results = []
+
+        def process_granule_node(node):
+            if "granuleid" in node["nodeValue"]:
+                if not node["nodeValue"]["granuleid"].startswith(prefix):
+                    raise ValueError(node["nodeValue"]["granuleid"])
+                granule_name = node["nodeValue"]["granuleid"][len(prefix):]
+                results.extend(mirror_package_or_granule(collection, package_name, granule_name, lastmod, lastmod_cache, options))
+
+            for child in node["childNodes"]:
+                process_granule_node(child)
+
+        process_granule_node(granules)
 
     return results
 
 
-def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, lastmod_cache, options):
+def mirror_package_or_granule(collection, package_name, granule_name, lastmod, lastmod_cache, options):
     # Return a list of files we downloaded.
     results = []
 
     # Where should we store the file? Each collection has a different
     # file system layout (for BILLS, we put bill text along where the
     # bills scraper puts bills).
-    path = get_output_path(sitemap, package_name, granule_name, options)
+    path = get_output_path(collection, package_name, granule_name, options)
     if not path:
         return  # should skip
 
@@ -441,7 +348,7 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, last
         lastmod_cache.update(json.load(open(lastmod_cache_file)))
 
     # Try downloading files for each file type.
-    targets = get_package_files(package_name, granule_name)
+    targets = get_package_files(collection, package_name, granule_name)
     for file_type, (file_url, relpath) in targets.items():
         # Does the user want to save this file type? If the user didn't
         # specify --store, save everything. Otherwise only save the
@@ -477,7 +384,7 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, last
             if file_type in ("pdf", "zip"):
                 # expected to be present for all packages
                 raise Exception("Failed to download %s %s (404)" % (package_name, file_type))
-            elif sitemap["collection"] == "BILLS" and file_type in ("text", "mods"):
+            elif collection == "BILLS" and file_type in ("text", "mods"):
                 # expected to be present for bills
                 raise Exception("Failed to download %s %s (404)" % (package_name, file_type))
         elif data is True:
@@ -505,7 +412,7 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, last
             with open(file_path_text, "w") as f:
                 f.write(unwrap_text_in_html(data))
 
-        if sitemap["collection"] == "BILLS" and file_type == "mods":
+        if collection == "BILLS" and file_type == "mods":
             # When we download bill files, also create the text-versions/data.json file
             # which extracts commonly used components of the MODS XML, whenever we update
             # that MODS file.
@@ -515,7 +422,7 @@ def mirror_package_or_granule(sitemap, package_name, granule_name, lastmod, last
 
 
 def get_bill_id_for_package(package_name, with_version=True, restrict_to_congress=None):
-    m = re.match(r"BILL(?:S|STATUS)-(\d+)([a-z]+)(\d+)([a-z][a-z0-9]*|)$", package_name)
+    m = re.match(r"(\d+)([a-z]+)(\d+)([a-z][a-z0-9]*|)$", package_name)
     if not m:
         raise Exception("Unmatched bill document package name: " + package_name)
     congress, bill_type, bill_number, version_code = m.groups()
@@ -529,11 +436,11 @@ def get_bill_id_for_package(package_name, with_version=True, restrict_to_congres
         return "%s%s-%s-%s" % (bill_type, bill_number, congress, version_code)
 
 
-def get_output_path(sitemap, package_name, granule_name, options):
+def get_output_path(collection, package_name, granule_name, options):
     # Where to store the document files?
 
     # The path will depend a bit on the collection.
-    if sitemap["collection"] == "BILLS":
+    if collection == "BILLS":
         # Store with the other bill data ([congress]/bills/[billtype]/[billtype][billnumber]).
         bill_and_ver = get_bill_id_for_package(package_name, with_version=False, restrict_to_congress=options.get("congress"))
         if not bill_and_ver:
@@ -542,54 +449,57 @@ def get_output_path(sitemap, package_name, granule_name, options):
         bill_id, version_code = bill_and_ver
         return output_for_bill(bill_id, "text-versions/" + version_code, is_data_dot=False)
 
-    elif sitemap["collection"] == "CRPT":
+    elif collection == "CRPT":
         # Store committee reports in [congress]/crpt/[reporttype].
-        m = re.match(r"CRPT-(\d+)([hse]rpt)(\d+)$", package_name)
+        m = re.match(r"(\d+)([hse]rpt)(\d+)$", package_name)
         if not m:
             raise ValueError(package_name)
         congress, report_type, report_number = m.groups()
         if options.get("congress") and congress != options.get("congress"):
             return None  # congress number does not match options["congress"]
-        return "%s/%s/%s/%s/%s" % (utils.data_dir(), congress, sitemap["collection"].lower(), report_type, report_type + report_number)
+        return "%s/%s/%s/%s/%s" % (utils.data_dir(), congress, collection.lower(), report_type, report_type + report_number)
     
     else:
-        # Store in fdsys/COLLECTION/YEAR/PKGNAME[/GRANULE_NAME].
-        path = "%s/fdsys/%s/%s/%s" % (utils.data_dir(), sitemap["collection"], sitemap["year"], package_name)
+        # Store in fdsys/COLLECTION/PKGNAME[/GRANULE_NAME].
+        path = "%s/fdsys/%s/%s" % (utils.data_dir(), collection, package_name)
         if granule_name:
             path += "/" + granule_name
         return path
 
 
-def get_package_files(package_name, granule_name):
+def get_package_files(collection, package_name, granule_name):
     # What URL are the package files at? Return a tuple of the remote
     # URL and a relative filename for storing it locally.
 
-    baseurl = "https://www.gpo.gov/fdsys/pkg/%s" % package_name
-
-    if not granule_name:
-        # For regular packages, the URL layout is...
-        baseurl2 = baseurl
-        file_name = package_name
-    else:
-        # For granules, the URL layout is...
-        baseurl2 = "https://www.gpo.gov/fdsys/granule/%s/%s" % (package_name, granule_name)
-        file_name = granule_name
-
     ret = {
-       'mods': (baseurl2 + "/mods.xml",                  "mods.xml"),
-        'pdf': (baseurl + "/pdf/" + file_name + ".pdf",  "document.pdf"),
-        'xml': (baseurl + "/xml/" + file_name + ".xml",  "document.xml"),
-       'text': (baseurl + "/html/" + file_name + ".htm", "document.html"), # text wrapped in HTML!
-     'premis': (baseurl + "/premis.xml",                 "premis.xml")
+        'pdf': ("content/pkg/{collection}-{package_name}/pdf/{collection}-{package_name}{dash}{granule_name}.pdf",  "document.pdf"),
+       'text': ("content/pkg/{collection}-{package_name}/html/{collection}-{package_name}{dash}{granule_name}.htm", "document.html"), # text wrapped in HTML!
+        'xml': ("content/pkg/{collection}-{package_name}/xml/{collection}-{package_name}{dash}{granule_name}.xml",  "document.xml"),
+       'mods': ("metadata/pkg/{collection}-{package_name}/mods.xml",                            "mods.xml"),
+     'premis': ("metadata/pkg/{collection}-{package_name}/premis.xml",                          "premis.xml")
     }
 
     if granule_name:
         # Granules don't have PREMIS files.
         del ret['premis']
 
+        # Granule metadata is stored in a different path.
+        ret.update({
+           'mods': ("metadata/granule/{collection}-{package_name}/{collection}-{package_name}-{granule_name}/mods.xml",                            "mods.xml"),
+        })
+
     if package_name.startswith("STATUTE-"):
         # Statutes at Large don't have XML.
         del ret['xml']
+
+    for key, value in ret.items():
+        ret[key] = (
+            GOVINFO_BASE_URL + value[0].format(
+                collection=collection,
+                package_name=package_name,
+                dash="-" if granule_name else "",
+                granule_name=granule_name if granule_name else ""),
+            value[1])
 
     return ret
 
@@ -602,18 +512,18 @@ def unwrap_text_in_html(data):
 # Downloading bulk data files
 
 
-def mirror_bulkdata_file(sitemap, url, item_path, lastmod, options):
+def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
     # Return a list of files we downloaded.
     results = []
 
     # Where should we store the file?
-    path = "%s/fdsys/%s/%s" % (utils.data_dir(), sitemap["collection"], item_path)
+    path = "%s/fdsys/%s/%s" % (utils.data_dir(), collection, item_path)
 
     # For BILLSTATUS, store this along with where we store the rest of bill
     # status data.
-    if sitemap["collection"] == "BILLSTATUS":
+    if collection == "BILLSTATUS":
         from bills import output_for_bill
-        bill_id, version_code = get_bill_id_for_package(os.path.splitext(os.path.basename(item_path))[0], with_version=False)
+        bill_id, version_code = get_bill_id_for_package(os.path.splitext(os.path.basename(item_path.replace("BILLSTATUS-", "")))[0], with_version=False)
         path = output_for_bill(bill_id, FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
 
     # Where should we store the lastmod found in the sitemap so that
