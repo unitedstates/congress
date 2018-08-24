@@ -25,23 +25,15 @@
 #   Comma-separated list of congresses to download from. Applies to bulk
 #   data collections like BILLSTATUS that are grouped by Congress + Bill Type.
 #
-#   --store=mods,pdf,text,xml,premis
-#   Save the MODS, PDF, text, XML, or PREMIS file associated
-#   with each package. If omitted, stores every file for each
-#   package.
+#   --extract=mods,pdf,text,xml,premis
+#   Extract the MODS, PDF, text, XML, or PREMIS file associated
+#   with each package from the downloaded package ZIP file.
 #
 #   --filter="regex"
 #   Only stores files that match the regex. Regular collections
 #   are matched against the package name (i.e. BILLS-113hconres66ih)
 #   while bulk data items are matched against the their file path
 #   (i.e. 113/1/hconres/BILLS-113hconres66ih.xml).
-#
-#   --granules
-#   Some collections, like STATUTE, have "granules" inside each
-#   package (a package is a volume of the Statutes at Large, while
-#   a granule is an extracted portion for a particular public law).
-#   With --granules, saves the individual granules instead of the
-#   main package files.
 #
 #   --cached|--force
 #   Always/never use the cache.
@@ -89,9 +81,6 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options):
     if should_skip_sitemap(url, options):
         return []
 
-    # Return a list of files we downloaded.
-    results = []
-
     # For debugging, remember what URLs we are stepping through.
     how_we_got_here = how_we_got_here + [url]
 
@@ -108,6 +97,21 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options):
     else:
         with open(lastmod_cache_file) as f:
             lastmod_cache = rtyaml.load(f)
+
+    try:
+        return update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cache, cache_file)
+    finally:
+        # Write the updated last modified dates to disk so we know the next time whether
+        # we need to fetch the files. If we didn't download anything, no need to write an
+        # empty file.
+        with utils.NoInterrupt():
+            with open(lastmod_cache_file, "w") as f:
+                rtyaml.dump(lastmod_cache, f)
+
+
+def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cache, cache_file):
+    # Return a list of files we downloaded.
+    results = []
 
     # Download anew if the current_lastmod doesn't match the stored lastmod
     # in our cache, and if --cache is not specified. Or if --force is given.
@@ -166,9 +170,8 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options):
                 collection = m.group(1)
                 package_name = m.group(2)
                 if options.get("filter") and not re.search(options["filter"], package_name): continue
-                mirror_results = mirror_package(collection, package_name, lastmod, lastmod_cache.setdefault("packages", {}), url, options)
-                if mirror_results is not None and len(mirror_results) > 0:
-                    results = results + mirror_results
+                mirror_results = mirror_package(collection, package_name, lastmod, lastmod_cache.setdefault("packages", {}), options)
+                results.extend(mirror_results)
 
             else:
                 # This is a bulk data item. Extract components of the URL.
@@ -184,13 +187,6 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options):
 
     else:
         raise Exception("Unknown sitemap type (%s) at the root sitemap of %s." % (sitemap.tag, url))
-
-    # Write the updated last modified dates to disk so we know the next time whether
-    # we need to fetch the files. If we didn't download anything, no need to write an
-    # empty file.
-    if lastmod_cache:
-        with open(lastmod_cache_file, "w") as f:
-            rtyaml.dump(lastmod_cache, f)
 
     return results
 
@@ -275,150 +271,139 @@ def should_download_sitemap(lastmod_cache, current_lastmod, options):
 # Downloading Packages
 
 
-def mirror_package(collection, package_name, lastmod, lastmod_cache, content_detail_url, options):
+def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
     """Create a local mirror of a FDSys package."""
-
-    # Return a list of files we downloaded.
-    results = []
-
-    if not options.get("granules", False):
-        # Most packages are just a package. This is the usual case.
-        results = mirror_package_or_granule(collection, package_name, None, lastmod, lastmod_cache, options)
-
-    else:
-        # In some collections, like STATUTE, each document has subparts which are not
-        # described in the sitemap.
-        #
-        # In the STATUTE collection, the MODS information in granules is redundant with
-        # information in the top-level package MODS file. But the only way to get granule-
-        # level --- i.e. individual law --- PDFs is to go through the granules.
-        #
-        # On GovInfo.gov, the granules are returned in an AJAX call that fetches the
-        # "document in context" table, which fortuitously returns JSON.
-        granules = utils.download(GOVINFO_BASE_URL + "wssearch/documentsInContext/%s-%s" % (collection, package_name),
-                                       "fdsys/package/%s/%s.json" % (collection, package_name),
-                                       utils.merge(options, {  # The Content-Type response header
-                                           'binary': True,     # indicates it's UTF-8 encoded, but
-                                       }))                     # binary: False means it's HTML and
-                                                               # HTML entities are replaced, which
-                                                               # would be bad since this is JSON .
-        if not granules:
-            raise Exception("Failed to download %s" % content_detail_url)
-        granules = json.loads(granules.decode("utf8")) # see above
-
-        prefix = collection + "-" + package_name + "-"
-
-        results = []
-
-        def process_granule_node(node):
-            if "granuleid" in node["nodeValue"]:
-                if not node["nodeValue"]["granuleid"].startswith(prefix):
-                    raise ValueError(node["nodeValue"]["granuleid"])
-                granule_name = node["nodeValue"]["granuleid"][len(prefix):]
-                results.extend(mirror_package_or_granule(collection, package_name, granule_name, lastmod, lastmod_cache, options))
-
-            for child in node["childNodes"]:
-                process_granule_node(child)
-
-        process_granule_node(granules)
-
-    return results
-
-
-def mirror_package_or_granule(collection, package_name, granule_name, lastmod, lastmod_cache, options):
-    # Return a list of files we downloaded.
-    results = []
 
     # Where should we store the file? Each collection has a different
     # file system layout (for BILLS, we put bill text along where the
     # bills scraper puts bills).
-    path = get_output_path(collection, package_name, granule_name, options)
-    if not path:
-        return  # should skip
+    path = get_output_path(collection, package_name, options)
+    if not path: # should skip
+        return []
 
     # Go to the part of the lastmod_cache for this package.
     lastmod_cache = lastmod_cache.setdefault(package_name, {})
-    if granule_name: lastmod_cache = lastmod_cache.setdefault(granule_name, {})
     lastmod_cache = lastmod_cache.setdefault("files", {})
 
-    # Migrate old cache storage:
-    # Get the lastmod times of the files previously saved for this package.
-    lastmod_cache_file = path + "/lastmod.json"
-    if not lastmod_cache and os.path.exists(lastmod_cache_file):
-        lastmod_cache.update(json.load(open(lastmod_cache_file)))
+    # Download the package ZIP file. We don't know what formats are available
+    # until we download this file, and when we hit particular package files
+    # we get 302 HTTP responses, which is uninformative about whether the
+    # file is supposed to exist or not. But we can reliably download the ZIP
+    # package.
+    file_path = os.path.join(path, "package.zip")
 
-    # Try downloading files for each file type.
-    targets = get_package_files(collection, package_name, granule_name)
-    for file_type, (file_url, relpath) in targets.items():
-        # Does the user want to save this file type? If the user didn't
-        # specify --store, save everything. Otherwise only save the
-        # file types asked for.
-        if options.get("store", "") and file_type not in options["store"].split(","):
-            continue
+    # Download the package ZIP file if it's updated.
+    downloaded_files = []
+    if mirror_package_zipfile(collection, package_name, file_path, lastmod, lastmod_cache, options):
+        downloaded_files.append(file_path)
 
-        # Do we already have this file updated?
-        if lastmod_cache.get(file_type) == lastmod:
-            if not options.get("force", False):
+    # Extract files from the package ZIP file depending on the --extract
+    # command-line arguments. We do this even if the package ZIP file has
+    # not changed because the --extract arguments might have changed and
+    # the caller may want to extract files after having already gotten the
+    # package ZIP file.
+    extracted_files = extract_package_files(collection, package_name, file_path, lastmod_cache, options)
+    downloaded_files.extend(extracted_files)
+
+    return downloaded_files
+
+def mirror_package_zipfile(collection, package_name, file_path, lastmod, lastmod_cache, options):
+    # Do we already have this file updated?
+    if lastmod_cache.get("package") == lastmod:
+        if not options.get("force", False):
+            return
+
+    # With --cached, skip if the file is already downloaded.
+    if os.path.exists(file_path) and options.get("cached", False):
+        return
+
+    # Download.
+    file_url = GOVINFO_BASE_URL + "content/pkg/{}-{}.zip".format(collection, package_name)
+    logging.warn("Downloading: " + file_path)
+    data = utils.download(file_url, file_path, utils.merge(options, {
+        'binary': True,
+        'force': True, # decision to cache was made above
+        'to_cache': False,
+        'needs_content': False,
+    }))
+
+    # Update the lastmod of the downloaded file.
+    lastmod_cache['package'] = lastmod
+    return True
+
+def extract_package_files(collection, package_name, package_file, lastmod_cache, options):
+    # Extract files from the package ZIP file depending on the --extract
+    # command-line argument. When extracting a file, mark the extracted
+    # file's lastmod as the same as the package's lastmod.
+
+    # Get the formats that the user wants to extract.
+    extract_formats = set(format for format in options.get("extract", "").split(",") if format.strip())
+
+    # Make a mapping from file formats to a tuple of the filename found in the package ZIP
+    # file and the filename that we will use to store the extracted format locally.
+    format_paths = {
+        'pdf': ("{collection}-{package_name}/pdf/{collection}-{package_name}.pdf",  "document.pdf"),
+       'text': ("{collection}-{package_name}/html/{collection}-{package_name}.htm", "document.html"), # text wrapped in HTML!
+        'xml': ("{collection}-{package_name}/xml/{collection}-{package_name}.xml",  "document.xml"),
+       'mods': ("{collection}-{package_name}/mods.xml",                             "mods.xml"),
+     'premis': ("{collection}-{package_name}/premis.xml",                           "premis.xml")
+    }
+
+    # Extract only files if the package lastmod is newer than the file's lastmod.
+    extract_formats = { format for format in extract_formats
+        if lastmod_cache.get(format) is None or lastmod_cache[format] < lastmod_cache['package'] }
+    
+    # Don't even bother opening the ZIP file if there are no new files to extract.
+    if not extract_formats:
+        return []
+
+    # Open the package ZIP file and try to extract files with names
+    # we recognize.
+    extracted_files = []
+    with zipfile.ZipFile(package_file) as package:
+        for format in extract_formats:
+            if format not in format_paths:
+                raise ValueError("invalid format: " + format)
+
+            # Construct the expected path in the package ZIP file and the desired local filename.
+            package_path, local_path = format_paths[format]
+            package_path = package_path.format(collection=collection, package_name=package_name)
+            local_path = os.path.join(os.path.dirname(package_file), local_path)
+
+            # Extract it.
+            try:
+                with package.open(package_path) as f1:
+                    with open(local_path, 'w') as f2:
+                        f2.write(f1.read())
+            except KeyError:
+                # No file of this format is present in this package.
                 continue
+            finally:
+                # Even if the file didn't exist, which is NOT an error condition
+                # because not all packages have documents of all formats, update
+                # the format's file's lastmod in our cache so that we don't try
+                # to extract it again later, unless the package is updated.
+                lastmod_cache[format] = lastmod_cache['package']
 
-        # With --cached, skip if the file is already downloaded.
-        file_path = os.path.join(path, relpath)
-        if os.path.exists(file_path) and options.get("cached", False):
-            continue
+            logging.warn("Extracted: " + local_path)
+            extracted_files.append(local_path)
 
-        # Download.
-        logging.warn("Downloading: " + file_path)
-        data = utils.download(file_url, file_path, utils.merge(options, {
-            'binary': True,
-            'force': True, # decision to cache was made above
-            'to_cache': False,
-            'return_status_code_on_error': True,
-            'needs_content': (file_type == "text" and file_path.endswith(".html")),
-        }))
-        results.append(file_path)
+            # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
+            if format == "text":
+                file_path_text = local_path.replace(".html", ".txt")
+                logging.info("Unwrapping HTML to: " + file_path_text)
+                with open(local_path) as f1:
+                    with open(file_path_text, "w") as f2:
+                        f2.write(unwrap_text_in_html(f1.read()))
+                extracted_files.append(file_path_text)
 
-        # Download failed?
-        if data == 404:
-            # Not all packages have all file types. Just check the ones we know
-            # must be there.
-            if file_type in ("pdf", "zip"):
-                # expected to be present for all packages
-                raise Exception("Failed to download %s %s (404)" % (package_name, file_type))
-            elif collection == "BILLS" and file_type in ("text", "mods"):
-                # expected to be present for bills
-                raise Exception("Failed to download %s %s (404)" % (package_name, file_type))
-        elif data is True:
-            # Download was successful but needs_content was False so we don't have the
-            # file content. Instead, True is returned. Strangely isintance(True, int) is
-            # True (!!!) so we have to test for True separately from testing if we got a
-            # return code integer.
-            pass
-        elif not data or isinstance(data, int):
-            # There was some other error - skip the rest. Don't
-            # update lastmod_cache!
-            continue
+            if collection == "BILLS" and format == "mods":
+                # When we download bill files, also create the text-versions/data.json file
+                # which extracts commonly used components of the MODS XML, whenever we update
+                # that MODS file.
+                extract_bill_version_metadata(package_name, os.path.dirname(package_file))
 
-        # Update the lastmod of the downloaded file. If the download failed,
-        # because of a 404, we still update this to indicate that the file
-        # definitively does not exist. We won't try fetcihng it again.
-        lastmod_cache[file_type] = lastmod
-
-        # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
-        # TODO: Encoding? The HTTP content-type header says UTF-8, but do we trust it?
-        #       html.fromstring does auto-detection.
-        if file_type == "text" and file_path.endswith(".html"):
-            file_path_text = file_path[0:-4] + "txt"
-            logging.info("Unwrapping HTML to: " + file_path_text)
-            with open(file_path_text, "w") as f:
-                f.write(unwrap_text_in_html(data))
-
-        if collection == "BILLS" and file_type == "mods":
-            # When we download bill files, also create the text-versions/data.json file
-            # which extracts commonly used components of the MODS XML, whenever we update
-            # that MODS file.
-            extract_bill_version_metadata(package_name, path)
-
-    return results
+    return extracted_files
 
 
 def get_bill_id_for_package(package_name, with_version=True, restrict_to_congress=None):
@@ -436,7 +421,7 @@ def get_bill_id_for_package(package_name, with_version=True, restrict_to_congres
         return "%s%s-%s-%s" % (bill_type, bill_number, congress, version_code)
 
 
-def get_output_path(collection, package_name, granule_name, options):
+def get_output_path(collection, package_name, options):
     # Where to store the document files?
 
     # The path will depend a bit on the collection.
@@ -460,48 +445,9 @@ def get_output_path(collection, package_name, granule_name, options):
         return "%s/%s/%s/%s/%s" % (utils.data_dir(), congress, collection.lower(), report_type, report_type + report_number)
     
     else:
-        # Store in fdsys/COLLECTION/PKGNAME[/GRANULE_NAME].
+        # Store in fdsys/COLLECTION/PKGNAME.
         path = "%s/fdsys/%s/%s" % (utils.data_dir(), collection, package_name)
-        if granule_name:
-            path += "/" + granule_name
         return path
-
-
-def get_package_files(collection, package_name, granule_name):
-    # What URL are the package files at? Return a tuple of the remote
-    # URL and a relative filename for storing it locally.
-
-    ret = {
-        'pdf': ("content/pkg/{collection}-{package_name}/pdf/{collection}-{package_name}{dash}{granule_name}.pdf",  "document.pdf"),
-       'text': ("content/pkg/{collection}-{package_name}/html/{collection}-{package_name}{dash}{granule_name}.htm", "document.html"), # text wrapped in HTML!
-        'xml': ("content/pkg/{collection}-{package_name}/xml/{collection}-{package_name}{dash}{granule_name}.xml",  "document.xml"),
-       'mods': ("metadata/pkg/{collection}-{package_name}/mods.xml",                            "mods.xml"),
-     'premis': ("metadata/pkg/{collection}-{package_name}/premis.xml",                          "premis.xml")
-    }
-
-    if granule_name:
-        # Granules don't have PREMIS files.
-        del ret['premis']
-
-        # Granule metadata is stored in a different path.
-        ret.update({
-           'mods': ("metadata/granule/{collection}-{package_name}/{collection}-{package_name}-{granule_name}/mods.xml",                            "mods.xml"),
-        })
-
-    if package_name.startswith("STATUTE-"):
-        # Statutes at Large don't have XML.
-        del ret['xml']
-
-    for key, value in ret.items():
-        ret[key] = (
-            GOVINFO_BASE_URL + value[0].format(
-                collection=collection,
-                package_name=package_name,
-                dash="-" if granule_name else "",
-                granule_name=granule_name if granule_name else ""),
-            value[1])
-
-    return ret
 
 
 def unwrap_text_in_html(data):
