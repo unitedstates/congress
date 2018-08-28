@@ -6,7 +6,7 @@ import xmltodict
 
 import bill_info
 import amendment_info
-import fdsys
+import govinfo
 import utils
 
 
@@ -34,7 +34,7 @@ def get_bills_to_process(options):
     # Return a generator over bill_ids that need to be processed.
     # Every time we process a bill we copy the fdsys_billstatus-lastmod.txt
     # file to data-fromfdsys-lastmod.txt, next to data.json. This way we
-    # know when the FDSys XML file has changed.
+    # know when the GovInfo (formerly FDSys) XML file has changed.
 
     def get_data_path(*args):
         # Utility function to generate a part of the path
@@ -83,9 +83,9 @@ def get_bills_to_process(options):
                 key = lambda x : int(x.replace(bill_type, ""))
                 ):
 
-                fn = get_data_path(congress, bill_type, bill_type_and_number, fdsys.FDSYS_BILLSTATUS_FILENAME)
+                fn = get_data_path(congress, bill_type, bill_type_and_number, govinfo.FDSYS_BILLSTATUS_FILENAME)
                 if os.path.exists(fn):
-                    # The FDSys bulk data file exists. Does our JSON data
+                    # The GovInfo.gov bulk data file exists. Does our JSON data
                     # file need to be updated?
                     bulkfile_lastmod = utils.read(fn.replace(".xml", "-lastmod.txt"))
                     parse_lastmod = utils.read(get_data_path(congress, bill_type, bill_type_and_number, "data-fromfdsys-lastmod.txt"))
@@ -125,7 +125,7 @@ def process_bill(bill_id, options):
     }
 
 def _path_to_billstatus_file(bill_id):
-    return output_for_bill(bill_id, fdsys.FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
+    return output_for_bill(bill_id, govinfo.FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
 
 def read_fdsys_bulk_bill_status_file(fn, bill_id):
     fdsys_billstatus = utils.read(fn)
@@ -203,7 +203,7 @@ def build_bill_id(bill_type, bill_number, congress):
 
 def billstatus_url_for(bill_id):
     bill_type, bill_number, congress = utils.split_bill_id(bill_id)
-    return fdsys.BULKDATA_BASE_URL + 'BILLSTATUS/{0}/{1}/BILLSTATUS-{0}{1}{2}.xml'.format(congress, bill_type, bill_number)
+    return govinfo.BULKDATA_BASE_URL + 'BILLSTATUS/{0}/{1}/BILLSTATUS-{0}{1}{2}.xml'.format(congress, bill_type, bill_number)
 
 def output_for_bill(bill_id, format, is_data_dot=True):
     bill_type, number, congress = utils.split_bill_id(bill_id)

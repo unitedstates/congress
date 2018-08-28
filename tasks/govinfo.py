@@ -3,12 +3,12 @@
 # https://www.govinfo.gov/sitemaps for a list of collections.
 # This service was formerly called "Fdsys."
 #
-# ./run fdsys --collections=BILLS,STATUTE,...
+# ./run govinfo--collections=BILLS,STATUTE,...
 # Download bill text (from the BILLS collection; there's also a bulk
 # data BILLS collection but it has less in it), the Statues at Large,
 # and other documents from GovInfo.gov's non-bulk-data collections.
 #
-# ./run fdsys --bulkdata=BILLSTATUS,FR,...
+# ./run govinfo --bulkdata=BILLSTATUS,FR,...
 # Download bill status, the Federal Register, and other documents
 # from GovInfo.gov's bulk data collections. (The BILLS collection occurs
 # both as a regular collection (bill text in multiple formats) and as
@@ -89,7 +89,7 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options):
     # * its <lastmod> date (which comes from the parent sitemap) so we know if we need to re-download it now
     # * the <lastmod> dates of the packages listed in this sitemap so we know if we need to re-download any package files
     cache_file = get_sitemap_cache_file(url)
-    cache_file = os.path.join("fdsys/sitemap", cache_file, "sitemap.xml")
+    cache_file = os.path.join("govinfo/sitemap", cache_file, "sitemap.xml")
     lastmod_cache_file = cache_file.replace(".xml", "-lastmod.yaml")
     lastmod_cache_file = os.path.join(utils.cache_dir(), lastmod_cache_file)
     if not os.path.exists(lastmod_cache_file):
@@ -272,7 +272,7 @@ def should_download_sitemap(lastmod_cache, current_lastmod, options):
 
 
 def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
-    """Create a local mirror of a FDSys package."""
+    """Create a local mirror of a GovInfo.gov package."""
 
     # Where should we store the file? Each collection has a different
     # file system layout (for BILLS, we put bill text along where the
@@ -445,8 +445,8 @@ def get_output_path(collection, package_name, options):
         return "%s/%s/%s/%s/%s" % (utils.data_dir(), congress, collection.lower(), report_type, report_type + report_number)
     
     else:
-        # Store in fdsys/COLLECTION/PKGNAME.
-        path = "%s/fdsys/%s/%s" % (utils.data_dir(), collection, package_name)
+        # Store in govinfo/COLLECTION/PKGNAME.
+        path = "%s/govinfo/%s/%s" % (utils.data_dir(), collection, package_name)
         return path
 
 
@@ -463,7 +463,7 @@ def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
     results = []
 
     # Where should we store the file?
-    path = "%s/fdsys/%s/%s" % (utils.data_dir(), collection, item_path)
+    path = "%s/govinfo/%s/%s" % (utils.data_dir(), collection, item_path)
 
     # For BILLSTATUS, store this along with where we store the rest of bill
     # status data.
