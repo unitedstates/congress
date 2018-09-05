@@ -16,6 +16,7 @@ import scrapelib
 import pprint
 import logging
 import subprocess
+import signal
 
 import smtplib
 import email.utils
@@ -845,3 +846,31 @@ def translate_legislator_id(source_id_type, source_id, dest_id_type):
         return _translate_legislator_id_cache[(source_id_type, source_id)][dest_id_type]
     except KeyError:
         raise UnmatchedIdentifer(source_id_type, source_id, dest_id_type)
+
+# adapted from https://gist.github.com/tcwalther/ae058c64d5d9078a9f333913718bba95,
+# which was based on http://stackoverflow.com/a/21919644/487556.
+# This provides a with-block object that prevents Ctrl+C (SIGINT)
+# or the TERM signal from interrupting program flow until the
+# with-block exits. This is useful to ensure that file write
+# operations aren't killed mid-write resulting in a corrupt file.
+class NoInterrupt(object):
+    def __init__(self, *signals):
+        if not signals: signals = [signal.SIGTERM, signal.SIGINT]
+        self.sigs = signals        
+    def __enter__(self):
+        self.signal_received = {}
+        self.old_handlers = {}
+        for sig in self.sigs:
+            def handler(s, frame, sig=sig): # sig=sig ensures the variable is captured by value
+                self.signal_received[sig] = (s, frame)
+                # Note: in Python 3.5, you can use signal.Signals(sig).name
+                logging.info('Signal %s received. Delaying KeyboardInterrupt.' % sig)
+            self.old_handlers[sig] = signal.signal(sig, handler)
+    def __exit__(self, type, value, traceback):
+        # Restore signal handlers that were in place before entering the with-block.
+        for sig in self.sigs:
+            signal.signal(sig, self.old_handlers[sig])
+        # Issue the signals caught during the with-block.
+        for sig, args in self.signal_received.items():
+            if self.old_handlers[sig]:
+                self.old_handlers[sig](*args)

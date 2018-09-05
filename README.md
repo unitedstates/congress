@@ -8,7 +8,7 @@ Includes:
 
 * Scrapers for House and Senate roll call votes.
 
-* A scraper for GPO FDSys, the official repository for most legislative documents.
+* A document fetcher for GovInfo.gov, which holds bill text, bill status, and other official documents.
 
 * A defunct THOMAS scraper for presidential nominations in Congress.
 
@@ -74,13 +74,13 @@ where data-type is one of:
 * `votes` (see [Votes](https://github.com/unitedstates/congress/wiki/votes))
 * `nominations` (see [Nominations](https://github.com/unitedstates/congress/wiki/nominations))
 * `committee_meetings` (see [Committee Meetings](https://github.com/unitedstates/congress/wiki/committee-meetings))
-* `fdsys` (see [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
+* `govinfo` (see [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
 * `statutes` (see [Bills](https://github.com/unitedstates/congress/wiki/bills) and [Bill Text](https://github.com/unitedstates/congress/wiki/bill-text))
 
-To scrape bills, resolutions, and amendments from THOMAS, run:
+To get data for bills, resolutions, and amendments, run:
 
 ```bash
-./run fdsys --collections=BILLSTATUS
+./run govinfo --bulkdata=BILLSTATUS
 ./run bills
 ```
 
