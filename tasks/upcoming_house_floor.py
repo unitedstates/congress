@@ -133,9 +133,9 @@ def fetch_floor_week(for_the_week, options):
                 raise ValueError(bill_number)
               bill_number = m.group("bill")
 
-            elif "Conference report to accompany" in bill_number:
+            elif re.match("Conference report to accompany ", bill_number, re.I):
                 bill['item_type'] = 'conference_report'
-                bill_number = bill_number.replace("Conference report to accompany ", '')
+                bill_number = bill_number.lower().replace("conference report to accompany ", '')
             else:
                 bill['item_type'] = 'bill'
         
