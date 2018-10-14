@@ -170,7 +170,11 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
                 collection = m.group(1)
                 package_name = m.group(2)
                 if options.get("filter") and not re.search(options["filter"], package_name): continue
-                mirror_results = mirror_package(collection, package_name, lastmod, lastmod_cache.setdefault("packages", {}), options)
+                try:
+                    mirror_results = mirror_package(collection, package_name, lastmod, lastmod_cache.setdefault("packages", {}), options)
+                except:
+                    logging.exception("Error fetching package {} in collection {} from {}.".format(package_name, collection, url))
+                    mirror_results = []
                 results.extend(mirror_results)
 
             else:
@@ -181,7 +185,11 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
                 collection = m.group(1)
                 item_path = m.group(2)
                 if options.get("filter") and not re.search(options["filter"], item_path): continue
-                mirror_results = mirror_bulkdata_file(collection, url, item_path, lastmod, options)
+                try:
+                    mirror_results = mirror_bulkdata_file(collection, url, item_path, lastmod, options)
+                except:
+                    logging.exception("Error fetching file {} in collection {} from {}.".format(item_path, collection, url))
+                    mirror_results = None
                 if mirror_results is not None and len(mirror_results) > 0:
                     results = results + mirror_results
 
