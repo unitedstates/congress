@@ -13,7 +13,7 @@ import re
 from bs4 import BeautifulSoup
 
 # Parsing data from the House' upcoming floor feed, at
-# http://docs.house.gov/floor/
+# https://docs.house.gov/floor/
 #
 # This contains data on what bills and draft bills are coming up
 # on the floor of the House.
@@ -56,9 +56,9 @@ def run_for_week(for_the_week, options):
     logging.warn("Found %i bills for the week of %s, written to %s" % (len(house_floor['upcoming']), for_the_week, output_file))
 
 
-# For any week, e.g. http://docs.house.gov/floor/Download.aspx?file=/billsthisweek/20131021/20131021.xml
+# For any week, e.g. https://docs.house.gov/floor/Download.aspx?file=/billsthisweek/20131021/20131021.xml
 def fetch_floor_week(for_the_week, options):
-    base_url = 'http://docs.house.gov/floor/Download.aspx?file=/billsthisweek/'
+    base_url = 'https://docs.house.gov/floor/Download.aspx?file=/billsthisweek/'
     week_url = base_url + '%s/%s.xml' % (for_the_week, for_the_week)
 
     # Turn on 'force' to re-download the schedules, by default, since the content
@@ -185,7 +185,7 @@ def get_monday_of_week(day_to_get_bills):
 
 def get_latest_monday(options):
     # docs.house.gov always links to the most recent week that isn't in the future.
-    url = "http://docs.house.gov/floor/"
+    url = "https://docs.house.gov/floor/"
     html = utils.download(url, None, options)
     doc = BeautifulSoup(html)
 
