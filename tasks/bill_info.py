@@ -838,7 +838,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
 
         # In order to classify this as resulting in the same thing as regular failed vote on passage, new_status_after_vote
         # needs to know if this was a vote in the originating chamber or not.
-        if prev_status == "INTRODUCED":
+        if prev_status == "INTRODUCED" or bill_id.startswith("hres"):
             vote_type = "vote"
         elif False:
             vote_type = "vote2"
