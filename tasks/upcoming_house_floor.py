@@ -139,6 +139,10 @@ def fetch_floor_week(for_the_week, options):
             else:
                 bill['item_type'] = 'bill'
 
+            # In one case we got "H. Res. 497 (H. Rept. 116-125)".
+            # Stop at parens.
+            bill_number = re.sub(r"\(.*", "", bill_number)
+
             try:
                 bill['bill_id'] = bill_id_for(bill_number.strip(), congress)
             except ValueError:
