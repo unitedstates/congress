@@ -138,8 +138,13 @@ def fetch_floor_week(for_the_week, options):
                 bill_number = bill_number.lower().replace("conference report to accompany ", '')
             else:
                 bill['item_type'] = 'bill'
-        
-            bill['bill_id'] = bill_id_for(bill_number.strip(), congress)
+
+            try:
+                bill['bill_id'] = bill_id_for(bill_number.strip(), congress)
+            except ValueError:
+                logging.error("Could not parse bill from: %s" % bill_number)
+                continue
+                
 
         bill['files'] = []
         for file in node.xpath('files/file'):

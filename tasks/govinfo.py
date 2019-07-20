@@ -131,7 +131,8 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
             'binary': True
         }))
     if not body:
-        raise Exception("Failed to download %s" % url)
+        logging.error("Failed to download %s. Skipping." % url)
+        return results
 
     # If we downloaded a new file, update the lastmod for our cache.
     if download and current_lastmod:
