@@ -301,6 +301,12 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
     # package.
     file_path = os.path.join(path, "package.zip")
 
+    # If the file was supposedly downloaded before (i.e. lastmod_cache is
+    # not empty) but it is missing, force a re-download by clearing the lastmod cache.
+    if lastmod_cache and not os.path.exists(file_path):
+        logging.error("Missing: " + file_path + " (previously: " + repr(lastmod_cache) + ")")
+        lastmod_cache.clear()
+
     # Download the package ZIP file if it's updated.
     downloaded_files = []
     if mirror_package_zipfile(collection, package_name, file_path, lastmod, lastmod_cache, options):
