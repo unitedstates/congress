@@ -193,7 +193,7 @@ def get_latest_monday(options):
     # docs.house.gov always links to the most recent week that isn't in the future.
     url = "https://docs.house.gov/floor/"
     html = utils.download(url, None, options)
-    doc = BeautifulSoup(html)
+    doc = BeautifulSoup(html, features="lxml")
 
     links = doc.select("a.downloadXML")
     if len(links) != 1:
