@@ -162,6 +162,7 @@ def fetch_floor_week(for_the_week, options):
             }
 
             # now try downloading the file to disk and linking it to the data
+            if not download: continue
             try:
                 file_path = 'upcoming_house_floor/%s/%s' % (for_the_week, filename)
                 utils.download(file_url, file_path, options)
