@@ -477,12 +477,24 @@ def action_for(item):
 
             references.append({'type': type, 'reference': reference})
 
+    # extract committee IDs
+    if item.get('committee'):
+      # Data format through Dec. 13, 2019 had only one <committee/> (though node could be empty).
+      committee_nodes = [item['committee']]
+    elif item.get('committees'):
+      # Starting on Dec. 13, 2019, and with a slow rollout, multiple committees could be specified.
+      # Thankfully our JSON output format allowed it already.
+      committee_nodes = item['committees'].get("item", [])
+    else:
+      # <committee/> or <committees/>, whichever was present, was empty
+      committee_nodes = []
+
     # form dict
 
     action_dict = {
         'acted_at': acted_at,
         'action_code': item.get('actionCode', ''),
-        'committees': [item['committee']['systemCode'][0:-2].upper()] if item['committee'] else None,
+        'committees': [committee_item['systemCode'][0:-2].upper() for committee_item in committee_nodes] if committee_nodes else None, # if empty, store None
         'references': references,
         'type': 'action', # replaced by parse_bill_action if a regex matches 
         'text': text,
