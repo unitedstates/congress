@@ -43,6 +43,7 @@ import glob
 import json
 import re
 import logging
+import os
 import os.path
 import zipfile
 import utils
@@ -317,8 +318,14 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
     # not changed because the --extract arguments might have changed and
     # the caller may want to extract files after having already gotten the
     # package ZIP file.
-    extracted_files = extract_package_files(collection, package_name, file_path, lastmod_cache, options)
-    downloaded_files.extend(extracted_files)
+    try:
+        extracted_files = extract_package_files(collection, package_name, file_path, lastmod_cache, options)
+        downloaded_files.extend(extracted_files)
+    except zipfile.BadZipfile as e:
+        # Sometimes files don't download properly. If the ZIP file is
+        # corrupt, log the error and delete the file.
+        logging.error(str(e) + ". Deleting: " + file_path, exc_info=True)
+        os.unlink(file_path)
 
     return downloaded_files
 
