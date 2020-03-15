@@ -9,8 +9,11 @@ from dateutil.relativedelta import MO
 import lxml
 import json
 import re
+import subprocess
 
 from bs4 import BeautifulSoup
+
+from bills import output_for_bill
 
 # Parsing data from the House' upcoming floor feed, at
 # https://docs.house.gov/floor/
@@ -28,6 +31,7 @@ from bs4 import BeautifulSoup
 #
 # options:
 #   week_of: the date of a Monday of a week to look for. defaults to current week.
+#   download: download associated documents and convert PDFs to text
 
 
 def run(options):
@@ -165,24 +169,63 @@ def fetch_floor_week(for_the_week, options):
                 'published_at': date_for(file.get('publish-date'))
             }
 
+            bill['files'].append(file_field)
+
             # now try downloading the file to disk and linking it to the data
             if not download: continue
             try:
                 file_path = 'upcoming_house_floor/%s/%s' % (for_the_week, filename)
-                utils.download(file_url, file_path, options)
+                try:
+                    os.makedirs(os.path.join(utils.data_dir(), os.path.dirname(file_path)))
+                except OSError:
+                    pass # directory exists
+                options3 = dict(options)
+                options3["to_cache"] = False # put in the actual specified directory
+                options3["binary"] = True # force binary mode, no file escaping
+                utils.download(file_url, os.path.join(utils.data_dir(), file_path), options3)
                 file_field['path'] = file_path
-            except:
+            except IOError:
                 logging.error("Omitting 'path', couldn't download file %s from House floor for the week of %s" % (file_field['url'], for_the_week))
+                continue
 
-            bill['files'].append(file_field)
+            # if it's a PDF, convert to text and extract XML
+            if file_format == "pdf" and file_path.endswith(".pdf"):
+                # extract text
+                text_path = file_path.replace(".pdf", ".txt")
+                if subprocess.call(["pdftotext", "-layout", os.path.join(utils.data_dir(), file_path), os.path.join(utils.data_dir(), text_path)]) != 0:
+                    raise Exception("pdftotext failed on %s" % file_path)
+                file_field['text_path'] = text_path
+
+                # extract embedded XML
+                for line in subprocess.check_output(["pdfdetach", "-list", os.path.join(utils.data_dir(), file_path)]).split("\n"):
+                    m = re.match(r"(\d+):\s*(.*)", line)
+                    if m:
+                        attachment_n, attachment_fn = m.groups()
+                        if attachment_fn.endswith(".xml"):
+                            text_path = file_path.replace(".pdf", ".xml")
+                            subprocess.check_call(["pdfdetach", os.path.join(utils.data_dir(), file_path), "-save", attachment_n, "-o", os.path.join(utils.data_dir(), text_path)])
+                            file_field['xml_path'] = text_path
 
         upcoming.append(bill)
 
+        if "bill_id" in bill:
+	        # Save this bill data to the bill's bill text directory.
+	        text_data_path = output_for_bill(bill['bill_id'], os.path.join("text-versions", "dhg-" + bill["floor_item_id"] + ".json"), is_data_dot=False)
+	        try:
+	            os.makedirs(os.path.join(utils.data_dir(), os.path.dirname(text_data_path)))
+	        except OSError:
+	            pass # directory exists
+        	utils.write(json.dumps(bill, sort_keys=True, indent=2, default=utils.format_datetime), text_data_path)
+
+
+    # Create and return the house floor file data.
     house_floor = {
         'congress': congress,
         'week_of': legislative_day,
         'upcoming': upcoming
     }
+
+
     return house_floor
 
 
