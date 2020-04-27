@@ -25,6 +25,10 @@ def create_govtrack_xml(bill, options):
                         # remap "bioguide_id" attributes to govtrack "id"
                         k = "id"
                         v = str(utils.translate_legislator_id('bioguide', v, 'govtrack'))
+                    if k == "thomas_id":
+                        # remap "thomas_id" attributes to govtrack "id"
+                        k = "id"
+                        v = str(utils.translate_legislator_id('thomas', v, 'govtrack'))
                     attrs2[k] = v
             attrs = attrs2
 
@@ -57,15 +61,20 @@ def create_govtrack_xml(bill, options):
         if title['is_for_portion']:
             n.set("partial", "1")
 
+    def get_legislator_id_attr(p):
+      if "bioguide_id" in p: return { "bioguide_id": p["bioguide_id"] }
+      if "thomas_id" in p: return { "thomas_id": p["thomas_id"] }
+      return { }
+
     if bill['sponsor']:
         # TODO: Sponsored by committee?
-        make_node(root, "sponsor", None, bioguide_id=bill['sponsor']['bioguide_id'])
+        make_node(root, "sponsor", None, **get_legislator_id_attr(bill['sponsor']))
     else:
         make_node(root, "sponsor", None)
 
     cosponsors = make_node(root, "cosponsors", None)
     for cosp in bill['cosponsors']:
-        n = make_node(cosponsors, "cosponsor", None, bioguide_id=cosp["bioguide_id"])
+        n = make_node(cosponsors, "cosponsor", None, **get_legislator_id_attr(cosp))
         if cosp["sponsored_at"]:
             n.set("joined", cosp["sponsored_at"])
         if cosp["withdrawn_at"]:
@@ -139,9 +148,10 @@ def create_govtrack_xml(bill, options):
     if bill.get('summary'):
         make_node(root, "summary", bill['summary']['text'], date=bill['summary']['date'], status=bill['summary']['as'])
 
-    committee_reports = make_node(root, "committee-reports", None)
-    for report in bill['committee_reports']:
-        make_node(committee_reports, "report", report)
+    if bill.get('committee_reports'):
+      committee_reports = make_node(root, "committee-reports", None)
+      for report in bill.get('committee_reports', []):
+          make_node(committee_reports, "report", report)
 
     return etree.tostring(root, pretty_print=True)
 
@@ -814,12 +824,12 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             status = new_status
 
     # Passed House, not necessarily by an actual vote (think "deem")
-    m = re.search(r"Passed House pursuant to|House agreed to Senate amendment (with amendment )?pursuant to", line, re.I)
+    m = re.search(r"Passed House pursuant to|House agreed to Senate amendment (with amendment )?pursuant to|Pursuant to the provisions of [HSCONJRES\. ]+ \d+, [HSCONJRES\. ]+ \d+ is considered passed House", line, re.I)
     if m != None:
         vote_type = "vote" if (bill_type[0] == "h") else "vote2"
         if "agreed to Senate amendment" in line: vote_type = "pingpong"
         pass_fail = "pass"
-        as_amended = bool(m.group(1))
+        as_amended = ("with amendment" in line) or ("as amended" in line)
 
         action["type"] = "vote"
         action["vote_type"] = vote_type
