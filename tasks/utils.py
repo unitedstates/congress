@@ -30,7 +30,7 @@ path = "config.yml"
 if os.path.exists(path):
     # Don't use a cached config file, just in case, and direct_yaml_load is not yet defined.
     import yaml
-    config = yaml.load(open(path))
+    config = yaml.load(open(path), Loader=yaml.BaseLoader)
 else:
     config = None
 
