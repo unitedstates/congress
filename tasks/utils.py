@@ -117,7 +117,7 @@ def get_term_congresses(term):
     valid_congresses = (start_year >= start_congress_first_year) and (end_year <= end_congress_last_year)
 
 #  if not valid_congresses:
-#    print term["type"], start_congress, (start_year, start_congress_first_year), (end_year, end_congress_last_year)
+#    print(term["type"], start_congress, (start_year, start_congress_first_year), (end_year, end_congress_last_year))
 
     return congresses if valid_congresses else []
 
@@ -159,7 +159,7 @@ def split_vote_id(vote_id):
 def split_nomination_id(nomination_id):
     try:
         return re.match("^([A-z]{2})([\d-]+)-(\d+)$", nomination_id).groups()
-    except Exception, e:
+    except Exception as e:
         logging.error("Unabled to parse %s" % nomination_id)
         return (None, None, None)
 
@@ -172,7 +172,7 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
     for id in to_fetch:
         try:
             results = fetch_func(id, options, *extra_args)
-        except Exception, e:
+        except Exception as e:
             if options.get('raise', False):
                 raise
             else:
@@ -399,7 +399,7 @@ def read(destination):
 
 
 def merge(dict1, dict2):
-    return dict(dict1.items() + dict2.items())
+    return dict(list(dict1.items()) + list(dict2.items()))
 
 # de-dupe a list, taken from:
 # http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
@@ -531,8 +531,8 @@ def admin(body):
                 send_email(body)
 
     except Exception as exception:
-        print "Exception logging message to admin, halting as to avoid loop"
-        print format_exception(exception)
+        print("Exception logging message to admin, halting as to avoid loop")
+        print(format_exception(exception))
 
 
 def format_exception(exception):

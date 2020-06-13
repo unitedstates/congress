@@ -319,7 +319,7 @@ def parse_house_vote(dom, vote):
         if " " in d:
             return datetime.datetime.strptime(d, "%d-%b-%Y %I:%M %p")
         else:  # some votes have no times?
-            print vote
+            print(vote)
             return datetime.datetime.strptime(d, "%d-%b-%Y")
 
     vote["date"] = parse_date(str(dom.xpath("string(vote-metadata/action-date)")) + " " + str(dom.xpath("string(vote-metadata/action-time)")))
