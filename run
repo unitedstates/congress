@@ -41,7 +41,7 @@ else:
     log_level = options.get("log", "warn")
 
 if log_level not in ["debug", "info", "warn", "error"]:
-    print "Invalid log level (specify: debug, info, warn, error)."
+    print("Invalid log level (specify: debug, info, warn, error).")
     sys.exit(1)
 
 if options.get('timestamps', False):
@@ -71,3 +71,4 @@ try:
     task_mod.run(options)
 except Exception as exception:
     utils.admin(exception)
+

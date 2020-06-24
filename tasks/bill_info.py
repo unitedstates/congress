@@ -765,8 +765,8 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
     if m != None:
         motion, is_override, as_amended, pass_fail, how = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
 
-        # print line
-        # print m.groups()
+        # print(line)
+        # print(m.groups())
 
         if re.search(r"Passed House|House Agreed to", motion, re.I):
             pass_fail = 'pass'

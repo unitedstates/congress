@@ -146,7 +146,7 @@ def parse_nomination(nomination_id, body, options):
 
 					try:
 						name = re.search("(.+?),", name).groups()[0]
-					except Exception, e:
+					except Exception as e:
 						raise Exception("Couldn't parse nominee entry: %s" % name)
 
 					# Some begin "One nomination,...", so 'List of Nominees' will get it
