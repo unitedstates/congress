@@ -306,21 +306,21 @@ def download(url, destination=None, options={}):
             logging.info("Downloading: %s" % url)
 
             if postdata:
-                response = scraper.urlopen(url, 'POST', postdata, **urlopen_kwargs)
+                response = scraper.post(url, postdata, **urlopen_kwargs)
             else:
                 if not needs_content:
                     mkdir_p(os.path.dirname(cache_path))
                     scraper.urlretrieve(url, cache_path, **urlopen_kwargs)
                     return True
 
-                response = scraper.urlopen(url, **urlopen_kwargs)
+                response = scraper.get(url, **urlopen_kwargs)
 
             if not is_binary:
-                body = response  # a subclass of a 'unicode' instance
+                body = response.text  # a subclass of a 'unicode' instance
                 if not isinstance(body, unicode):
                     raise ValueError("Content not decoded.")
             else:
-                body = response.bytes  # a 'str' instance
+                body = response.content # a 'str' instance
                 if isinstance(body, unicode):
                     raise ValueError("Binary content improperly decoded.")
         except scrapelib.HTTPError as e:

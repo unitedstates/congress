@@ -4,7 +4,7 @@ python-dateutil==1.5
 lxml>=2.2
 pytz
 cssselect
-scrapelib>=0.10.0,<1.0.0
+scrapelib
 mechanize
 BeautifulSoup4
 mock
