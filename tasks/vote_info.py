@@ -33,7 +33,7 @@ def fetch_vote(vote_id, options):
     if options.get("download_only", False):
         return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
-    if "This vote was vacated" in body:
+    if bytes("This vote was vacated".encode('utf8')) in body:
         # Vacated votes: 2011-484, 2012-327, ...
         # Remove file, since it may previously have existed with data.
         for f in (output_for_vote(vote_id, "json"), output_for_vote(vote_id, "xml")):
@@ -155,7 +155,7 @@ def output_vote(vote, options, id_type=None):
                 if v.get("voteview_votecode_extra") is not None:
                     n.set("voteview_votecode_extra", v["voteview_votecode_extra"])
 
-    xmloutput = etree.tostring(root, pretty_print=True, encoding="utf8")
+    xmloutput = etree.tostring(root, pretty_print=True).decode('utf8')
 
     # mimick two hard line breaks in GovTrack's legacy output to ease running diffs
     xmloutput = re.sub('(source=".*?") ', r"\1\n  ", xmloutput)

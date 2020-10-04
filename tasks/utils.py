@@ -295,7 +295,7 @@ def download(url, destination=None, options={}):
             logging.info("Cached: (%s, %s)" % (cache_path, url))
         if not needs_content:
             return True
-        with open(cache_path, 'r') as f:
+        with open(cache_path, 'rb') as f:
             body = f.read()
         if not is_binary:
             body = body.decode("utf8")
