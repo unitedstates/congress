@@ -176,7 +176,7 @@ def fetch_house_committee_meetings(committees, options):
 
     # Scrape the committee listing page for a list of committees with scrapable events.
     committee_html = utils.download("http://docs.house.gov/Committee/Committees.aspx", "committee_schedule/house_overview.html", opts)
-    for cmte in re.findall(r'<option value="(....)">', committee_html):
+    for cmte in re.findall(r'<option value="(....)">', committee_html.decode('utf-8')):
         if cmte not in committees:
             logging.error("Invalid committee code: " + cmte)
             continue
@@ -189,7 +189,7 @@ def fetch_house_committee_meetings(committees, options):
             opts)
 
         # It's not really valid?
-        html = html.replace("&nbsp;", " ")  # who likes nbsp's? convert to spaces. but otherwise, entity is not recognized.
+        html = html.replace(b"&nbsp;", b" ")  # who likes nbsp's? convert to spaces. but otherwise, entity is not recognized.
         #print(html)
         # Parse and loop through the meetings listed in the committee feed.
         dom = lxml.etree.fromstring(html)
