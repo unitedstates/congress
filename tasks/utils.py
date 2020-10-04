@@ -375,8 +375,11 @@ def write(content, destination, options={}):
 
     # Save the content to disk.
     mkdir_p(os.path.dirname(destination))
-    f = open(destination, 'w')
-    f.write(content)
+    f = open(destination, 'wb')
+    try:
+        f.write(content.encode('utf-8'))
+    except:
+        f.write(content)
     f.close()
 
 def write_json(data, destination):
