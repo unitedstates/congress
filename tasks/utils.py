@@ -59,7 +59,7 @@ def current_congress():
 
 
 def congress_from_legislative_year(year):
-    return ((year + 1) / 2) - 894
+    return ((year + 1) // 2) - 894
 
 
 def current_legislative_year(date=None):

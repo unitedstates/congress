@@ -1,6 +1,6 @@
 import utils
 import json
-import iso8601
+from iso8601 import iso8601
 import datetime
 import os
 import os.path
