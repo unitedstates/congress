@@ -34,7 +34,7 @@ FROM        debian:jessie
 MAINTAINER  Paul R. Tagliamonte <paultag@sunlightfoundation.com>
 
 RUN apt-get update && apt-get install -y \
-    git python-dev libxml2-dev libxslt1-dev libz-dev python-pip wget
+    git python3-dev libxml2-dev libxslt1-dev libz-dev python3-pip wget
 
 RUN mkdir -p /opt/theunitedstates.io/
 ADD . /opt/theunitedstates.io/congress/
@@ -42,7 +42,7 @@ WORKDIR /opt/theunitedstates.io/congress/
 
 RUN pip install -r requirements.txt
 
-RUN echo "/opt/theunitedstates.io/congress/" > /usr/lib/python2.7/dist-packages/congress.pth
+RUN echo "/opt/theunitedstates.io/congress/" > /usr/lib/python3.6/dist-packages/congress.pth
 
 RUN mkdir -p /congress
 WORKDIR /congress
