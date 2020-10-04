@@ -19,14 +19,14 @@ For background on how this repository came to be, see [Eric's blog post](https:/
 
 ### Setting Up
 
-This project is tested using Python 2.7.
+This project is tested using Python 3.
 
 **System dependencies**
 
 On Ubuntu, you'll need `wget`, `pip`, and some support packages:
 
 ```bash
-sudo apt-get install git python-dev libxml2-dev libxslt1-dev libz-dev python-pip
+sudo apt-get install git python3-dev libxml2-dev libxslt1-dev libz-dev python3-pip
 ```
 
 On OS X, you'll need developer tools installed ([XCode](https://developer.apple.com/xcode/)), and `wget`.
