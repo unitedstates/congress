@@ -607,7 +607,7 @@ def direct_yaml_load(filename):
 
 def pickle_load(filename):
     import pickle
-    return pickle.load(open(filename))
+    return pickle.load(open(filename, 'rb'))
 
 # Write to a pickle file.
 
@@ -615,14 +615,14 @@ def pickle_load(filename):
 def pickle_write(data, filename):
     import pickle
     mkdir_p(os.path.dirname(filename))
-    return pickle.dump(data, open(filename, "w"))
+    return pickle.dump(data, open(filename, 'wb'))
 
 # Get the hash used to verify the contents of a file.
 
 
 def get_file_hash(filename):
     import hashlib
-    return hashlib.sha1(open(filename).read()).hexdigest()
+    return hashlib.sha1(open(filename, 'rb').read()).hexdigest()
 
 # Get the location of the cached version of a file.
 
