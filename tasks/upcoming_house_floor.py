@@ -98,7 +98,7 @@ def fetch_floor_week(for_the_week, options):
         description = node.xpath('floor-text//text()')[0]
 
         # how is this bill being considered?
-        category = node.iterancestors("category").next().get('type')
+        category = next(node.iterancestors("category")).get('type')
         if "suspension" in category:
             consideration = "suspension"
         elif "pursuant" in category:
@@ -192,18 +192,25 @@ def fetch_floor_week(for_the_week, options):
             if file_format == "pdf" and file_path.endswith(".pdf"):
                 # extract text
                 text_path = file_path.replace(".pdf", ".txt")
-                if subprocess.call(["pdftotext", "-layout", os.path.join(utils.data_dir(), file_path), os.path.join(utils.data_dir(), text_path)]) != 0:
+                if subprocess.call(["pdftotext", "-layout",
+                    os.path.join(utils.data_dir(), file_path),
+                    os.path.join(utils.data_dir(), text_path)], text=True) != 0:
                     raise Exception("pdftotext failed on %s" % file_path)
                 file_field['text_path'] = text_path
 
                 # extract embedded XML
-                for line in subprocess.check_output(["pdfdetach", "-list", os.path.join(utils.data_dir(), file_path)]).split("\n"):
+                for line in subprocess.check_output(["pdfdetach", "-list",
+                    os.path.join(utils.data_dir(), file_path)], text=True).split("\n"):
                     m = re.match(r"(\d+):\s*(.*)", line)
                     if m:
                         attachment_n, attachment_fn = m.groups()
                         if attachment_fn.endswith(".xml"):
                             text_path = file_path.replace(".pdf", ".xml")
-                            subprocess.check_call(["pdfdetach", os.path.join(utils.data_dir(), file_path), "-save", attachment_n, "-o", os.path.join(utils.data_dir(), text_path)])
+                            subprocess.check_call(["pdfdetach",
+                                os.path.join(utils.data_dir(), file_path),
+                                "-save", attachment_n, "-o",
+                                os.path.join(utils.data_dir(), text_path)],
+                                text=True)
                             file_field['xml_path'] = text_path
 
         upcoming.append(bill)
