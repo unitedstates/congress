@@ -462,7 +462,7 @@ def build_votes(vote_list):
             })
 
     # sort for output
-    for voters in list(votes.values()):
+    for voters in votes.values():
         voters.sort(key=lambda v: v['display_name'])
 
     return (votes, presidents_positions)

@@ -33,7 +33,7 @@ def fetch_vote(vote_id, options):
     if options.get("download_only", False):
         return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
-    if bytes("This vote was vacated".encode('utf8')) in body:
+    if b"This vote was vacated" in body:
         # Vacated votes: 2011-484, 2012-327, ...
         # Remove file, since it may previously have existed with data.
         for f in (output_for_vote(vote_id, "json"), output_for_vote(vote_id, "xml")):
@@ -132,7 +132,7 @@ def output_vote(vote, options, id_type=None):
     # preferred order of output: ayes, nays, present, then not voting, and similarly for guilty/not-guilty
     # and handling other options like people's names for votes for the Speaker.
     option_sort_order = ('Aye', 'Yea', 'Guilty', 'No', 'Nay', 'Not Guilty', 'OTHER', 'Present', 'Not Voting')
-    options_list = sorted(list(vote["votes"].keys()), key=lambda o: option_sort_order.index(o) if o in option_sort_order else option_sort_order.index("OTHER"))
+    options_list = sorted(vote["votes"].keys(), key=lambda o: option_sort_order.index(o) if o in option_sort_order else option_sort_order.index("OTHER"))
     for option in options_list:
         if option not in option_keys:
             option_keys[option] = option
@@ -155,7 +155,7 @@ def output_vote(vote, options, id_type=None):
                 if v.get("voteview_votecode_extra") is not None:
                     n.set("voteview_votecode_extra", v["voteview_votecode_extra"])
 
-    xmloutput = etree.tostring(root, pretty_print=True).decode('utf8')
+    xmloutput = etree.tostring(root, pretty_print=True, encoding="unicode")
 
     # mimick two hard line breaks in GovTrack's legacy output to ease running diffs
     xmloutput = re.sub('(source=".*?") ', r"\1\n  ", xmloutput)
@@ -424,7 +424,7 @@ def parse_house_vote(dom, vote):
     # See https://github.com/unitedstates/congress/issues/46.
 
     seen_ids = set()
-    all_voters = sum(list(vote["votes"].values()), [])
+    all_voters = sum(vote["votes"].values(), [])
     all_voters.sort(key=lambda v: len(v["display_name"]), reverse=True)  # process longer names first
     for v in all_voters:
         if v["id"] not in ("", "0000000"):

@@ -125,7 +125,7 @@ def vote_ids_for_senate(congress, session_year, options):
         utils.merge(options, {'binary': True})
     )
 
-    if not page or bytes("Requested Page Not Found (404)".encode('utf-8')) in page:
+    if not page or b"Requested Page Not Found (404)" in page:
         logging.error("Couldn't download Senate vote XML index %s, skipping" % url)
         return None
 

@@ -535,7 +535,7 @@ def admin(body):
 
     except Exception as exception:
         print("Exception logging message to admin, halting as to avoid loop")
-        print((format_exception(exception)))
+        print(format_exception(exception))
 
 
 def format_exception(exception):
@@ -575,7 +575,7 @@ def make_node(parent, tag, text, **attrs):
     n = etree.Element(tag)
     parent.append(n)
     n.text = text
-    for k, v in list(attrs.items()):
+    for k, v in attrs.items():
         if v is None:
             continue
         if isinstance(v, datetime.datetime):
@@ -836,7 +836,7 @@ def translate_legislator_id(source_id_type, source_id, dest_id_type):
         _translate_legislator_id_cache = { }
         for filename in ("legislators-historical", "legislators-current"):
             for moc in yaml_load("congress-legislators/%s.yaml" % (filename)):
-                for id_type, id_value in list(moc["id"].items()):
+                for id_type, id_value in moc["id"].items():
                     try:
                         _translate_legislator_id_cache[(id_type, id_value)] = moc['id']
                     except TypeError:
@@ -874,6 +874,6 @@ class NoInterrupt(object):
         for sig in self.sigs:
             signal.signal(sig, self.old_handlers[sig])
         # Issue the signals caught during the with-block.
-        for sig, args in list(self.signal_received.items()):
+        for sig, args in self.signal_received.items():
             if self.old_handlers[sig]:
                 self.old_handlers[sig](*args)

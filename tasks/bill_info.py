@@ -19,7 +19,7 @@ def create_govtrack_xml(bill, options):
         if options.get("govtrack", False):
             # Rewrite bioguide_id attributes as just id with GovTrack person IDs.
             attrs2 = {}
-            for k, v in list(attrs.items()):
+            for k, v in attrs.items():
                 if v:
                     if k == "bioguide_id":
                         # remap "bioguide_id" attributes to govtrack "id"
@@ -328,7 +328,7 @@ def titles_for(title_list):
     titles_copy = list(titles) # clone before beginning sort
     def first_index_of(**kwargs):
         for i, title in enumerate(titles_copy):
-            for k, v in list(kwargs.items()):
+            for k, v in kwargs.items():
                 k = k.replace("_", "")
                 if title.get(k) != v:
                     break

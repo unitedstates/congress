@@ -113,7 +113,7 @@ def fetch_senate_committee_meetings(committees, options):
             if subcommittee_code and subcommittee_code not in committees[committee_code]["subcommittees"]:
                 raise ValueError(subcommittee_code)
         except:
-            print(("Invalid committee code", committee_id))
+            print("Invalid committee code", committee_id)
             continue
 
         # See if this meeting already exists. If so, take its GUID.
@@ -122,7 +122,7 @@ def fetch_senate_committee_meetings(committees, options):
         for mtg in existing_meetings:
             if mtg["committee"] == committee_code and mtg.get("subcommittee", None) == subcommittee_code and mtg["occurs_at"] == occurs_at.isoformat():
                 if options.get("debug", False):
-                    print(("[%s] Reusing gUID." % mtg["guid"]))
+                    print("[%s] Reusing gUID." % mtg["guid"])
                 guid = mtg["guid"]
                 break
         else:
@@ -139,7 +139,7 @@ def fetch_senate_committee_meetings(committees, options):
 
         # Create the meeting event.
         if options.get("debug", False):
-            print(("[senate][%s][%s] Found meeting in room %s at %s." % (committee_code, subcommittee_code, room, occurs_at.isoformat())))
+            print("[senate][%s][%s] Found meeting in room %s at %s." % (committee_code, subcommittee_code, room, occurs_at.isoformat()))
 
         meetings.append({
             "chamber": "senate",
@@ -153,7 +153,7 @@ def fetch_senate_committee_meetings(committees, options):
             "bill_ids": bills,
         })
 
-    print(("[senate] Found %i meetings." % len(meetings)))
+    print("[senate] Found %i meetings." % len(meetings))
     return meetings
 
 # House
@@ -217,7 +217,7 @@ def fetch_house_committee_meetings(committees, options):
             # if bad zipfile
             if load_xml_from_page == False: continue
 
-    print(("[house] Found %i meetings." % len(meetings)))
+    print("[house] Found %i meetings." % len(meetings))
     return meetings
 
 
@@ -245,7 +245,7 @@ def fetch_meeting_from_event_id(committees, options, load_id):
         if load_xml_from_page == False: continue
         current_id += 1
     
-    print(("[house] Found %i meetings." % len(meetings)))
+    print("[house] Found %i meetings." % len(meetings))
     return meetings
 
 
@@ -301,7 +301,7 @@ def extract_meeting_package(eventurl, event_id, options):
         try:
             dom = lxml.etree.fromstring(request.read())
         except lxml.etree.XMLSyntaxError as e:
-            print((event_id, e))
+            print(event_id, e)
             return False
         return {"witnesses": None, "uploaded_documents": [], "dom": dom}
 
@@ -539,7 +539,7 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
 
         # return the parsed meeting
         if options.get("debug", False):
-            print(("[house][%s][%s] Found meeting in room %s at %s" % (committee_code, subcommittee_code, room, occurs_at.isoformat())))
+            print("[house][%s][%s] Found meeting in room %s at %s" % (committee_code, subcommittee_code, room, occurs_at.isoformat()))
 
         results = {
             "chamber": "house",
@@ -582,7 +582,7 @@ def save_documents(package, event_id):
             try:
                 bytes = package.read(name)
             except:
-                print(("Did not save to disk: file %s" % (name)))
+                print("Did not save to disk: file %s" % (name))
                 continue
             file_name = "%s/%s" % (output_dir, name)
             
@@ -651,7 +651,7 @@ def save_file(url, event_id):
                 text_doc = text_from_pdf(file_name)
             return True
         except:
-            print(("Failed to save- %s" % (url)))
+            print("Failed to save- %s" % (url))
             return False
     else:
         logging.info("failed to fetch: " + url)

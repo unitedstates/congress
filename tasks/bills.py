@@ -108,7 +108,7 @@ def process_bill(bill_id, options):
 
     # Convert and write out data.json and data.xml.
     utils.write(
-        str(json.dumps(bill_data, indent=2, sort_keys=True)),
+        json.dumps(bill_data, indent=2, sort_keys=True),
         os.path.dirname(fdsys_xml_path) + '/data.json')
 
     from bill_info import create_govtrack_xml
