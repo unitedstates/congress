@@ -11,7 +11,7 @@ import json
 from pytz import timezone
 import datetime
 import time
-from lxml import html, etree
+from lxml import etree
 import scrapelib
 import pprint
 import logging
