@@ -194,13 +194,15 @@ def fetch_floor_week(for_the_week, options):
                 text_path = file_path.replace(".pdf", ".txt")
                 if subprocess.call(["pdftotext", "-layout",
                     os.path.join(utils.data_dir(), file_path),
-                    os.path.join(utils.data_dir(), text_path)], text=True) != 0:
+                    os.path.join(utils.data_dir(), text_path)],
+                    universal_newlines=True) != 0:
                     raise Exception("pdftotext failed on %s" % file_path)
                 file_field['text_path'] = text_path
 
                 # extract embedded XML
                 for line in subprocess.check_output(["pdfdetach", "-list",
-                    os.path.join(utils.data_dir(), file_path)], text=True).split("\n"):
+                    os.path.join(utils.data_dir(), file_path)],
+                    universal_newlines=True).split("\n"):
                     m = re.match(r"(\d+):\s*(.*)", line)
                     if m:
                         attachment_n, attachment_fn = m.groups()
@@ -210,7 +212,7 @@ def fetch_floor_week(for_the_week, options):
                                 os.path.join(utils.data_dir(), file_path),
                                 "-save", attachment_n, "-o",
                                 os.path.join(utils.data_dir(), text_path)],
-                                text=True)
+                                universal_newlines=True)
                             file_field['xml_path'] = text_path
 
         upcoming.append(bill)
