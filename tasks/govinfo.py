@@ -473,7 +473,7 @@ def get_output_path(collection, package_name, options):
 
 
 def unwrap_text_in_html(data):
-    text_content = unicode(html.fromstring(data).text_content())
+    text_content = str(html.fromstring(data).text_content())
     return text_content.encode("utf8")
 
 

@@ -5,7 +5,7 @@ import datetime
 import os
 import os.path
 import re
-import urlparse
+import urllib.parse
 import time
 import datetime
 from lxml import html, etree
@@ -90,7 +90,7 @@ def vote_ids_for_house(congress, session_year, options):
 
         # download inside page, find the matching links
         page = utils.download(
-            urlparse.urljoin(index_page, link.get("href")),
+            urllib.parse.urljoin(index_page, link.get("href")),
             "%s/votes/%s/pages/house_%s.html" % (congress, session_year, grp),
             options)
 

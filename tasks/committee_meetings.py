@@ -9,7 +9,7 @@ import uuid
 import logging
 import mechanize
 import zipfile
-import StringIO
+import io
 import requests
 import subprocess
 
@@ -93,12 +93,12 @@ def fetch_senate_committee_meetings(committees, options):
         options))
 
     for node in dom.xpath("meeting"):
-        committee_id = unicode(node.xpath('string(cmte_code)'))
+        committee_id = str(node.xpath('string(cmte_code)'))
         if committee_id.strip() == "":
             continue  # "No committee hearings scheduled" placeholder
-        occurs_at = unicode(node.xpath('string(date)'))
-        room = unicode(node.xpath('string(room)'))
-        topic = unicode(node.xpath('string(matter)'))
+        occurs_at = str(node.xpath('string(date)'))
+        room = str(node.xpath('string(room)'))
+        topic = str(node.xpath('string(matter)'))
 
         occurs_at = datetime.datetime.strptime(occurs_at, "%d-%b-%Y %I:%M %p")
         topic = re.sub(r"\s+", " ", topic).strip()
@@ -113,7 +113,7 @@ def fetch_senate_committee_meetings(committees, options):
             if subcommittee_code and subcommittee_code not in committees[committee_code]["subcommittees"]:
                 raise ValueError(subcommittee_code)
         except:
-            print("Invalid committee code", committee_id)
+            print(("Invalid committee code", committee_id))
             continue
 
         # See if this meeting already exists. If so, take its GUID.
@@ -122,13 +122,13 @@ def fetch_senate_committee_meetings(committees, options):
         for mtg in existing_meetings:
             if mtg["committee"] == committee_code and mtg.get("subcommittee", None) == subcommittee_code and mtg["occurs_at"] == occurs_at.isoformat():
                 if options.get("debug", False):
-                    print("[%s] Reusing gUID." % mtg["guid"])
+                    print(("[%s] Reusing gUID." % mtg["guid"]))
                 guid = mtg["guid"]
                 break
         else:
             # Not found, so create a new ID.
             # TODO: Can we make this a human-readable ID?
-            guid = unicode(uuid.uuid4())
+            guid = str(uuid.uuid4())
 
         # Scrape the topic text for mentions of bill numbers.
         congress = utils.congress_from_legislative_year(utils.current_legislative_year(occurs_at))
@@ -139,7 +139,7 @@ def fetch_senate_committee_meetings(committees, options):
 
         # Create the meeting event.
         if options.get("debug", False):
-            print("[senate][%s][%s] Found meeting in room %s at %s." % (committee_code, subcommittee_code, room, occurs_at.isoformat()))
+            print(("[senate][%s][%s] Found meeting in room %s at %s." % (committee_code, subcommittee_code, room, occurs_at.isoformat())))
 
         meetings.append({
             "chamber": "senate",
@@ -153,7 +153,7 @@ def fetch_senate_committee_meetings(committees, options):
             "bill_ids": bills,
         })
 
-    print("[senate] Found %i meetings." % len(meetings))
+    print(("[senate] Found %i meetings." % len(meetings)))
     return meetings
 
 # House
@@ -197,7 +197,7 @@ def fetch_house_committee_meetings(committees, options):
         # original start to loop
         for mtg in dom.xpath("channel/item"):
 
-            eventurl = unicode(mtg.xpath("string(link)"))
+            eventurl = str(mtg.xpath("string(link)"))
             event_id = re.search(r"EventID=(\d+)$", eventurl)
             if not event_id: continue # weird empty event showed up
             event_id = event_id.group(1)
@@ -217,7 +217,7 @@ def fetch_house_committee_meetings(committees, options):
             # if bad zipfile
             if load_xml_from_page == False: continue
 
-    print("[house] Found %i meetings." % len(meetings))
+    print(("[house] Found %i meetings." % len(meetings)))
     return meetings
 
 
@@ -245,7 +245,7 @@ def fetch_meeting_from_event_id(committees, options, load_id):
         if load_xml_from_page == False: continue
         current_id += 1
     
-    print("[house] Found %i meetings." % len(meetings))
+    print(("[house] Found %i meetings." % len(meetings)))
     return meetings
 
 
@@ -301,13 +301,13 @@ def extract_meeting_package(eventurl, event_id, options):
         try:
             dom = lxml.etree.fromstring(request.read())
         except lxml.etree.XMLSyntaxError as e:
-            print(event_id, e)
+            print((event_id, e))
             return False
         return {"witnesses": None, "uploaded_documents": [], "dom": dom}
 
     ## read zipfile
     try:
-        request_bytes = StringIO.StringIO(request.read())
+        request_bytes = io.StringIO(request.read())
         package = zipfile.ZipFile(request_bytes)
     except:
         message = "Problem downloading zipfile: %s" % (event_id)
@@ -533,13 +533,13 @@ def parse_house_committee_meeting(event_id, dom, existing_meetings, committees, 
         else:
             # Not found, so create a new ID.
             # TODO: when does this happen?
-            guid = unicode(uuid.uuid4())
+            guid = str(uuid.uuid4())
 
         url = "http://docs.house.gov/Committee/Calendar/ByEvent.aspx?EventID=" + event_id
 
         # return the parsed meeting
         if options.get("debug", False):
-            print("[house][%s][%s] Found meeting in room %s at %s" % (committee_code, subcommittee_code, room, occurs_at.isoformat()))
+            print(("[house][%s][%s] Found meeting in room %s at %s" % (committee_code, subcommittee_code, room, occurs_at.isoformat())))
 
         results = {
             "chamber": "house",
@@ -582,7 +582,7 @@ def save_documents(package, event_id):
             try:
                 bytes = package.read(name)
             except:
-                print("Did not save to disk: file %s" % (name))
+                print(("Did not save to disk: file %s" % (name)))
                 continue
             file_name = "%s/%s" % (output_dir, name)
             
@@ -651,7 +651,7 @@ def save_file(url, event_id):
                 text_doc = text_from_pdf(file_name)
             return True
         except:
-            print("Failed to save- %s" % (url))
+            print(("Failed to save- %s" % (url)))
             return False
     else:
         logging.info("failed to fetch: " + url)

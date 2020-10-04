@@ -19,7 +19,7 @@ You must include a 'beakstalk' section in config.yml with this structure
       votes: 'us_votes'
 """
 
-from __future__ import print_function
+
 
 import sys
 import logging
@@ -64,7 +64,7 @@ def init_guard(reconnect=False):
             assert 'bills' in config['beanstalk']['tubes']
             assert 'amendments' in config['beanstalk']['tubes']
             assert 'votes' in config['beanstalk']['tubes']
-            tube_names = config['beanstalk']['tubes'].values()
+            tube_names = list(config['beanstalk']['tubes'].values())
             assert max(Counter(tube_names).values()) == 1, 'Must use unique beanstalk tube names.'
             _Config = config['beanstalk']
     if _Connection is None or reconnect is True:
@@ -84,13 +84,13 @@ def process_bill_wrapper(process_bill):
             try:
                 conn.use(config['tubes']['bills'])
                 conn.put(bill)
-                logging.warn(u"Queued {} to beanstalkd.".format(bill))
+                logging.warn("Queued {} to beanstalkd.".format(bill))
                 break
             except beanstalkc.SocketError:
-                logging.warn(u"Lost connection to beanstalkd. Attempting to reconnect.")
+                logging.warn("Lost connection to beanstalkd. Attempting to reconnect.")
                 (conn, config) = init_guard(reconnect=True)
             except Exception as e:
-                logging.warn(u"Ignored exception while queueing bill to beanstalkd: {0} {1}".format(unicode(type(e)), unicode(e)))
+                logging.warn("Ignored exception while queueing bill to beanstalkd: {0} {1}".format(str(type(e)), str(e)))
                 traceback.print_exc()
                 break
 
@@ -110,13 +110,13 @@ def process_amendment_wrapper(process_amendment):
             try:
                 conn.use(config['tubes']['amendments'])
                 conn.put(str(amdt))
-                logging.warn(u"Queued {} to beanstalkd.".format(amdt))
+                logging.warn("Queued {} to beanstalkd.".format(amdt))
                 break
             except beanstalkc.SocketError:
-                logging.warn(u"Lost connection to beanstalkd. Attempting to reconnect.")
+                logging.warn("Lost connection to beanstalkd. Attempting to reconnect.")
                 (conn, config) = init_guard(reconnect=True)
             except Exception as e:
-                logging.warn(u"Ignored exception while queueing amendment to beanstalkd: {0} {1}".format(unicode(type(e)), unicode(e)))
+                logging.warn("Ignored exception while queueing amendment to beanstalkd: {0} {1}".format(str(type(e)), str(e)))
                 traceback.print_exc()
                 break
 
@@ -135,13 +135,13 @@ def output_vote_wrapper(output_vote):
             try:
                 conn.use(config['tubes']['votes'])
                 conn.put(vote['vote_id'])
-                logging.warn(u'Queued {} to beanstalkd.'.format(vote['vote_id']))
+                logging.warn('Queued {} to beanstalkd.'.format(vote['vote_id']))
                 break
             except beanstalkc.SocketError:
-                logging.warn(u'Lost connection to beanstalkd. Attempting to reconnect.')
+                logging.warn('Lost connection to beanstalkd. Attempting to reconnect.')
                 (conn, config) = init_guard(reconnect=True)
             except Exception as e:
-                logging.warn(u'Ignored exception while queueing vote to beanstalkd: {0} {1}'.format(unicode(type(e)), unicode(e)))
+                logging.warn('Ignored exception while queueing vote to beanstalkd: {0} {1}'.format(str(type(e)), str(e)))
                 traceback.print_exc()
                 break
 

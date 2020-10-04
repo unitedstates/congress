@@ -19,7 +19,7 @@ def create_govtrack_xml(bill, options):
         if options.get("govtrack", False):
             # Rewrite bioguide_id attributes as just id with GovTrack person IDs.
             attrs2 = {}
-            for k, v in attrs.items():
+            for k, v in list(attrs.items()):
                 if v:
                     if k == "bioguide_id":
                         # remap "bioguide_id" attributes to govtrack "id"
@@ -43,7 +43,7 @@ def create_govtrack_xml(bill, options):
             elif k == "source_url":
                 n.set("url", v)
             else:
-                n.set(k, unicode(v))
+                n.set(k, str(v))
     if "original_bill_number" in bill:
         make_node(root, "bill-number", bill["original_bill_number"])
 
@@ -328,7 +328,7 @@ def titles_for(title_list):
     titles_copy = list(titles) # clone before beginning sort
     def first_index_of(**kwargs):
         for i, title in enumerate(titles_copy):
-            for k, v in kwargs.items():
+            for k, v in list(kwargs.items()):
                 k = k.replace("_", "")
                 if title.get(k) != v:
                     break
@@ -1097,7 +1097,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
 
     # sweep the action line for bill IDs of related bills
     bill_ids = utils.extract_bills(line, congress)
-    bill_ids = filter(lambda b: b != bill_id, bill_ids)
+    bill_ids = [b for b in bill_ids if b != bill_id]
     if bill_ids and (len(bill_ids) > 0):
         action['bill_ids'] = bill_ids
 

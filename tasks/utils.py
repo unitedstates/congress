@@ -6,7 +6,7 @@ import traceback
 import zipfile
 import platform
 import re
-import htmlentitydefs
+import html.entities
 import json
 from pytz import timezone
 import datetime
@@ -47,7 +47,7 @@ def format_datetime(obj):
         return eastern_time_zone.localize(obj.replace(microsecond=0)).isoformat()
     elif isinstance(obj, datetime.date):
         return obj.isoformat()
-    elif isinstance(obj, (str, unicode)):
+    elif isinstance(obj, str):
         return obj
     else:
         return None
@@ -257,7 +257,7 @@ def download(url, destination=None, options={}):
     # archive.
     if destination and to_cache:
         dparts = destination.split(os.sep)
-        for i in xrange(len(dparts) - 1):
+        for i in range(len(dparts) - 1):
             # form the ZIP file name and test if it exists...
             zfn = os.path.join(cache, *dparts[:i + 1]) + ".zip"
             if not os.path.exists(zfn):
@@ -317,11 +317,11 @@ def download(url, destination=None, options={}):
 
             if not is_binary:
                 body = response.text  # a subclass of a 'unicode' instance
-                if not isinstance(body, unicode):
+                if not isinstance(body, str):
                     raise ValueError("Content not decoded.")
             else:
                 body = response.content # a 'str' instance
-                if isinstance(body, unicode):
+                if isinstance(body, str):
                     raise ValueError("Binary content improperly decoded.")
         except scrapelib.HTTPError as e:
             logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
@@ -438,7 +438,7 @@ def xpath_regex(doc, element, pattern):
 def unescape(text):
 
     def remove_unicode_control(str):
-        remove_re = re.compile(u'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]')
+        remove_re = re.compile('[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]')
         return remove_re.sub('', str)
 
     def fixup(m):
@@ -447,15 +447,15 @@ def unescape(text):
             # character reference
             try:
                 if text[:3] == "&#x":
-                    return unichr(int(text[3:-1], 16))
+                    return chr(int(text[3:-1], 16))
                 else:
-                    return unichr(int(text[2:-1]))
+                    return chr(int(text[2:-1]))
             except ValueError:
                 pass
         else:
             # named entity
             try:
-                text = unichr(htmlentitydefs.name2codepoint[text[1:-1]])
+                text = chr(html.entities.name2codepoint[text[1:-1]])
             except KeyError:
                 pass
         return text  # leave as is
@@ -532,7 +532,7 @@ def admin(body):
 
     except Exception as exception:
         print("Exception logging message to admin, halting as to avoid loop")
-        print(format_exception(exception))
+        print((format_exception(exception)))
 
 
 def format_exception(exception):
@@ -572,7 +572,7 @@ def make_node(parent, tag, text, **attrs):
     n = etree.Element(tag)
     parent.append(n)
     n.text = text
-    for k, v in attrs.items():
+    for k, v in list(attrs.items()):
         if v is None:
             continue
         if isinstance(v, datetime.datetime):
@@ -734,16 +734,16 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
         for filename in ("legislators-historical", "legislators-current"):
             for moc in yaml_load("congress-legislators/%s.yaml" % (filename)):
                 for term in moc["terms"]:
-                    for c in xrange(congress_from_legislative_year(int(term['start'][0:4])) - 1,
+                    for c in range(congress_from_legislative_year(int(term['start'][0:4])) - 1,
                                     congress_from_legislative_year(int(term['end'][0:4])) + 1 + 1):
                         lookup_legislator_cache.setdefault(c, []).append((moc, term))
 
     def to_ascii(name):
         name = name.replace("-", " ")
-        if not isinstance(name, unicode):
+        if not isinstance(name, str):
             return name
         import unicodedata
-        return u"".join(c for c in unicodedata.normalize('NFKD', name) if not unicodedata.combining(c))
+        return "".join(c for c in unicodedata.normalize('NFKD', name) if not unicodedata.combining(c))
 
     # Scan all of the terms that cover 'when' for a match.
     if isinstance(when, datetime.datetime):
@@ -833,7 +833,7 @@ def translate_legislator_id(source_id_type, source_id, dest_id_type):
         _translate_legislator_id_cache = { }
         for filename in ("legislators-historical", "legislators-current"):
             for moc in yaml_load("congress-legislators/%s.yaml" % (filename)):
-                for id_type, id_value in moc["id"].items():
+                for id_type, id_value in list(moc["id"].items()):
                     try:
                         _translate_legislator_id_cache[(id_type, id_value)] = moc['id']
                     except TypeError:
@@ -871,6 +871,6 @@ class NoInterrupt(object):
         for sig in self.sigs:
             signal.signal(sig, self.old_handlers[sig])
         # Issue the signals caught during the with-block.
-        for sig, args in self.signal_received.items():
+        for sig, args in list(self.signal_received.items()):
             if self.old_handlers[sig]:
                 self.old_handlers[sig](*args)
