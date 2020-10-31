@@ -1,11 +1,11 @@
 import utils
 import json
-import iso8601
+from iso8601 import iso8601
 import datetime
 import os
 import os.path
 import re
-import urlparse
+import urllib.parse
 import time
 import datetime
 from lxml import html, etree
@@ -90,7 +90,7 @@ def vote_ids_for_house(congress, session_year, options):
 
         # download inside page, find the matching links
         page = utils.download(
-            urlparse.urljoin(index_page, link.get("href")),
+            urllib.parse.urljoin(index_page, link.get("href")),
             "%s/votes/%s/pages/house_%s.html" % (congress, session_year, grp),
             options)
 
@@ -125,7 +125,7 @@ def vote_ids_for_senate(congress, session_year, options):
         utils.merge(options, {'binary': True})
     )
 
-    if not page or "Requested Page Not Found (404)" in page:
+    if not page or b"Requested Page Not Found (404)" in page:
         logging.error("Couldn't download Senate vote XML index %s, skipping" % url)
         return None
 

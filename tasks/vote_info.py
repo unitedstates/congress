@@ -33,7 +33,7 @@ def fetch_vote(vote_id, options):
     if options.get("download_only", False):
         return {'saved': False, 'ok': True, 'reason': "requested download only"}
 
-    if "This vote was vacated" in body:
+    if b"This vote was vacated" in body:
         # Vacated votes: 2011-484, 2012-327, ...
         # Remove file, since it may previously have existed with data.
         for f in (output_for_vote(vote_id, "json"), output_for_vote(vote_id, "xml")):
@@ -155,7 +155,7 @@ def output_vote(vote, options, id_type=None):
                 if v.get("voteview_votecode_extra") is not None:
                     n.set("voteview_votecode_extra", v["voteview_votecode_extra"])
 
-    xmloutput = etree.tostring(root, pretty_print=True, encoding="utf8")
+    xmloutput = etree.tostring(root, pretty_print=True, encoding="unicode")
 
     # mimick two hard line breaks in GovTrack's legacy output to ease running diffs
     xmloutput = re.sub('(source=".*?") ', r"\1\n  ", xmloutput)
@@ -180,18 +180,18 @@ def parse_senate_vote(dom, vote):
     vote["date"] = parse_date(dom.xpath("string(vote_date)"))
     if len(dom.xpath("modify_date")) > 0:
         vote["record_modified"] = parse_date(dom.xpath("string(modify_date)"))  # some votes like s1-110.2008 don't have a modify_date
-    vote["question"] = unicode(dom.xpath("string(vote_question_text)"))
+    vote["question"] = str(dom.xpath("string(vote_question_text)"))
     if vote["question"] == "":
-        vote["question"] = unicode(dom.xpath("string(question)"))  # historical votes?
-    vote["type"] = unicode(dom.xpath("string(vote_question)"))
+        vote["question"] = str(dom.xpath("string(question)"))  # historical votes?
+    vote["type"] = str(dom.xpath("string(vote_question)"))
     if vote["type"] == "":
         vote["type"] = vote["question"]
     vote["type"] = normalize_vote_type(vote["type"])
     vote["category"] = get_vote_category(vote["type"])
-    vote["subject"] = unicode(dom.xpath("string(vote_title)"))
-    vote["requires"] = unicode(dom.xpath("string(majority_requirement)"))
-    vote["result_text"] = unicode(dom.xpath("string(vote_result_text)"))
-    vote["result"] = unicode(dom.xpath("string(vote_result)"))
+    vote["subject"] = str(dom.xpath("string(vote_title)"))
+    vote["requires"] = str(dom.xpath("string(majority_requirement)"))
+    vote["result_text"] = str(dom.xpath("string(vote_result_text)"))
+    vote["result"] = str(dom.xpath("string(vote_result)"))
 
     # Senate cloture votes have consistently bad vote_question_text values: They don't say what the cloture
     # was about specifically, just what bill was relevant. So cloture on an amendment just appears as
@@ -218,23 +218,23 @@ def parse_senate_vote(dom, vote):
 
     bill_types = {"S.": "s", "S.Con.Res.": "sconres", "S.J.Res.": "sjres", "S.Res.": "sres", "H.R.": "hr", "H.Con.Res.": "hconres", "H.J.Res.": "hjres", "H.Res.": "hres"}
 
-    if unicode(dom.xpath("string(document/document_type)")):
+    if str(dom.xpath("string(document/document_type)")):
         if dom.xpath("string(document/document_type)") == "PN":
             vote["nomination"] = {
-                "number": unicode(dom.xpath("string(document/document_number)")),
-                "title": unicode(dom.xpath("string(document/document_title)")),
+                "number": str(dom.xpath("string(document/document_number)")),
+                "title": str(dom.xpath("string(document/document_title)")),
             }
             vote["question"] += ": " + vote["nomination"]["title"]
         elif dom.xpath("string(document/document_type)") == "Treaty Doc.":
             vote["treaty"] = {
-                "title": unicode(dom.xpath("string(document/document_title)")),
+                "title": str(dom.xpath("string(document/document_title)")),
             }
-        elif unicode(dom.xpath("string(document/document_type)")) in bill_types:
+        elif str(dom.xpath("string(document/document_type)")) in bill_types:
             vote["bill"] = {
                 "congress": int(dom.xpath("number(document/document_congress|congress)")),  # some historical files don't have document/document_congress so take the first of document/document_congress or the top-level congress element as a fall-back
-                "type": bill_types[unicode(dom.xpath("string(document/document_type)"))],
+                "type": bill_types[str(dom.xpath("string(document/document_type)"))],
                 "number": int(dom.xpath("number(document/document_number)")),
-                "title": unicode(dom.xpath("string(document/document_title)")),
+                "title": str(dom.xpath("string(document/document_title)")),
             }
         else:
             # s294-115.2017 through s302-115.2017 have S.Amdt. in document_type,
@@ -242,16 +242,16 @@ def parse_senate_vote(dom, vote):
             # the rest of <document> is blank.
             pass
 
-    if unicode(dom.xpath("string(amendment/amendment_number)")):
-        m = re.match(r"^S.Amdt. (\d+)", unicode(dom.xpath("string(amendment/amendment_number)")))
+    if str(dom.xpath("string(amendment/amendment_number)")):
+        m = re.match(r"^S.Amdt. (\d+)", str(dom.xpath("string(amendment/amendment_number)")))
         if m:
             vote["amendment"] = {
                 "type": "s",
                 "number": int(m.group(1)),
-                "purpose": unicode(dom.xpath("string(amendment/amendment_purpose)")),
+                "purpose": str(dom.xpath("string(amendment/amendment_purpose)")),
             }
 
-        amendment_to = unicode(dom.xpath("string(amendment/amendment_to_document_number)"))
+        amendment_to = str(dom.xpath("string(amendment/amendment_to_document_number)"))
         if "Treaty" in amendment_to:
             treaty, number = amendment_to.split("-")
             vote["treaty"] = {
@@ -264,7 +264,7 @@ def parse_senate_vote(dom, vote):
                 "congress": vote["congress"],
                 "type": bill_types[bill_type],
                 "number": int(bill_number),
-                "title": unicode(dom.xpath("string(amendment/amendment_to_document_short_title)")),
+                "title": str(dom.xpath("string(amendment/amendment_to_document_short_title)")),
             }
         else:
             # Senate votes:
@@ -289,7 +289,7 @@ def parse_senate_vote(dom, vote):
                 logging.info("[%s] Missing lis_member_id, falling back to name lookup for %s" % (vote["vote_id"], voter["last_name"]))
 
     # Ensure the options are noted, even if no one votes that way.
-    if unicode(dom.xpath("string(question)")) == "Guilty or Not Guilty":
+    if str(dom.xpath("string(question)")) == "Guilty or Not Guilty":
         vote["votes"]['Guilty'] = []
         vote["votes"]['Not Guilty'] = []
     else:
@@ -307,7 +307,7 @@ def parse_senate_vote(dom, vote):
             "id": str(member.xpath("string(lis_member_id)")),
             "state": str(member.xpath("string(state)")),
             "party": str(member.xpath("string(party)")),
-            "display_name": unicode(member.xpath("string(member_full)")),
+            "display_name": str(member.xpath("string(member_full)")),
             "first_name": str(member.xpath("string(first_name)")),
             "last_name": str(member.xpath("string(last_name)")),
         })
@@ -323,14 +323,14 @@ def parse_house_vote(dom, vote):
             return datetime.datetime.strptime(d, "%d-%b-%Y")
 
     vote["date"] = parse_date(str(dom.xpath("string(vote-metadata/action-date)")) + " " + str(dom.xpath("string(vote-metadata/action-time)")))
-    vote["question"] = unicode(dom.xpath("string(vote-metadata/vote-question)"))
-    vote["type"] = unicode(dom.xpath("string(vote-metadata/vote-question)"))
+    vote["question"] = str(dom.xpath("string(vote-metadata/vote-question)"))
+    vote["type"] = str(dom.xpath("string(vote-metadata/vote-question)"))
     vote["type"] = normalize_vote_type(vote["type"])
-    if unicode(dom.xpath("string(vote-metadata/vote-desc)")).startswith("Impeaching "):
+    if str(dom.xpath("string(vote-metadata/vote-desc)")).startswith("Impeaching "):
         vote["category"] = "impeachment"
     else:
         vote["category"] = get_vote_category(vote["question"])
-    vote["subject"] = unicode(dom.xpath("string(vote-metadata/vote-desc)"))
+    vote["subject"] = str(dom.xpath("string(vote-metadata/vote-desc)"))
     if not vote["subject"]:
         del vote["subject"]
         
@@ -338,10 +338,10 @@ def parse_house_vote(dom, vote):
     vote_types = {"YEA-AND-NAY": "1/2", "2/3 YEA-AND-NAY": "2/3", "3/5 YEA-AND-NAY": "3/5", "1/2": "1/2", "2/3": "2/3", "QUORUM": "QUORUM", "RECORDED VOTE": "1/2", "2/3 RECORDED VOTE": "2/3", "3/5 RECORDED VOTE": "3/5"}
     vote["requires"] = vote_types.get(str(dom.xpath("string(vote-metadata/vote-type)")), "unknown")
 
-    vote["result_text"] = unicode(dom.xpath("string(vote-metadata/vote-result)"))
-    vote["result"] = unicode(dom.xpath("string(vote-metadata/vote-result)"))
+    vote["result_text"] = str(dom.xpath("string(vote-metadata/vote-result)"))
+    vote["result"] = str(dom.xpath("string(vote-metadata/vote-result)"))
 
-    bill_num = unicode(dom.xpath("string(vote-metadata/legis-num)"))
+    bill_num = str(dom.xpath("string(vote-metadata/legis-num)"))
     if bill_num not in ("", "QUORUM", "JOURNAL", "MOTION", "ADJOURN") and not re.match(r"QUORUM \d+$", bill_num):
         bill_types = {"S": "s", "S CON RES": "sconres", "S J RES": "sjres", "S RES": "sres", "H R": "hr", "H CON RES": "hconres", "H J RES": "hjres", "H RES": "hres"}
         try:
@@ -358,16 +358,16 @@ def parse_house_vote(dom, vote):
         vote["amendment"] = {
             "type": "h-bill",
             "number": int(str(dom.xpath("string(vote-metadata/amendment-num)"))),
-            "author": unicode(dom.xpath("string(vote-metadata/amendment-author)")),
+            "author": str(dom.xpath("string(vote-metadata/amendment-author)")),
         }
 
     # Assemble a complete question from the vote type, amendment, and bill number.
     if "amendment" in vote and "bill" in vote:
-        vote["question"] += ": Amendment %s to %s" % (vote["amendment"]["number"], unicode(dom.xpath("string(vote-metadata/legis-num)")))
+        vote["question"] += ": Amendment %s to %s" % (vote["amendment"]["number"], str(dom.xpath("string(vote-metadata/legis-num)")))
     elif "amendment" in vote:
         vote["question"] += ": Amendment %s to [unknown bill]" % vote["amendment"]["number"]
     elif "bill" in vote:
-        vote["question"] += ": " + unicode(dom.xpath("string(vote-metadata/legis-num)"))
+        vote["question"] += ": " + str(dom.xpath("string(vote-metadata/legis-num)"))
         if "subject" in vote:
             vote["question"] += " " + vote["subject"]
     elif "subject" in vote:
@@ -380,10 +380,10 @@ def parse_house_vote(dom, vote):
         vote["votes"].setdefault(vote_option, []).append(voter)
 
     # Ensure the options are noted, even if no one votes that way.
-    if unicode(dom.xpath("string(vote-metadata/vote-question)")) == "Election of the Speaker":
+    if str(dom.xpath("string(vote-metadata/vote-question)")) == "Election of the Speaker":
         for n in dom.xpath('vote-metadata/vote-totals/totals-by-candidate/candidate'):
             vote["votes"][n.text] = []
-    elif unicode(dom.xpath("string(vote-metadata/vote-question)")) == "Call of the House":
+    elif str(dom.xpath("string(vote-metadata/vote-question)")) == "Call of the House":
         for n in dom.xpath('vote-metadata/vote-totals/totals-by-candidate/candidate'):
             vote["votes"][n.text] = []
     elif "YEA-AND-NAY" in dom.xpath('string(vote-metadata/vote-type)'):
@@ -398,7 +398,7 @@ def parse_house_vote(dom, vote):
         vote["votes"]['Not Voting'] = []
 
     for member in dom.xpath("vote-data/recorded-vote"):
-        display_name = unicode(member.xpath("string(legislator)"))
+        display_name = str(member.xpath("string(legislator)"))
         state = str(member.xpath("string(legislator/@state)"))
         party = str(member.xpath("string(legislator/@party)"))
         vote_cast = str(member.xpath("string(vote)"))

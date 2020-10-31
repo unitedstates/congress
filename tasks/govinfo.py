@@ -395,7 +395,7 @@ def extract_package_files(collection, package_name, package_file, lastmod_cache,
             # Extract it.
             try:
                 with package.open(package_path) as f1:
-                    with open(local_path, 'w') as f2:
+                    with open(local_path, 'wb') as f2:
                         f2.write(f1.read())
             except KeyError:
                 # No file of this format is present in this package.
@@ -415,7 +415,7 @@ def extract_package_files(collection, package_name, package_file, lastmod_cache,
                 file_path_text = local_path.replace(".html", ".txt")
                 logging.info("Unwrapping HTML to: " + file_path_text)
                 with open(local_path) as f1:
-                    with open(file_path_text, "w") as f2:
+                    with open(file_path_text, "wb") as f2:
                         f2.write(unwrap_text_in_html(f1.read()))
                 extracted_files.append(file_path_text)
 
@@ -473,7 +473,7 @@ def get_output_path(collection, package_name, options):
 
 
 def unwrap_text_in_html(data):
-    text_content = unicode(html.fromstring(data).text_content())
+    text_content = str(html.fromstring(data).text_content())
     return text_content.encode("utf8")
 
 

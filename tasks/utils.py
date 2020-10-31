@@ -6,12 +6,12 @@ import traceback
 import zipfile
 import platform
 import re
-import htmlentitydefs
+import html.entities
 import json
 from pytz import timezone
 import datetime
 import time
-from lxml import html, etree
+from lxml import etree
 import scrapelib
 import pprint
 import logging
@@ -47,7 +47,7 @@ def format_datetime(obj):
         return eastern_time_zone.localize(obj.replace(microsecond=0)).isoformat()
     elif isinstance(obj, datetime.date):
         return obj.isoformat()
-    elif isinstance(obj, (str, unicode)):
+    elif isinstance(obj, str):
         return obj
     else:
         return None
@@ -59,7 +59,7 @@ def current_congress():
 
 
 def congress_from_legislative_year(year):
-    return ((year + 1) / 2) - 894
+    return ((year + 1) // 2) - 894
 
 
 def current_legislative_year(date=None):
@@ -257,7 +257,7 @@ def download(url, destination=None, options={}):
     # archive.
     if destination and to_cache:
         dparts = destination.split(os.sep)
-        for i in xrange(len(dparts) - 1):
+        for i in range(len(dparts) - 1):
             # form the ZIP file name and test if it exists...
             zfn = os.path.join(cache, *dparts[:i + 1]) + ".zip"
             if not os.path.exists(zfn):
@@ -295,7 +295,7 @@ def download(url, destination=None, options={}):
             logging.info("Cached: (%s, %s)" % (cache_path, url))
         if not needs_content:
             return True
-        with open(cache_path, 'r') as f:
+        with open(cache_path, 'rb') as f:
             body = f.read()
         if not is_binary:
             body = body.decode("utf8")
@@ -317,11 +317,11 @@ def download(url, destination=None, options={}):
 
             if not is_binary:
                 body = response.text  # a subclass of a 'unicode' instance
-                if not isinstance(body, unicode):
+                if not isinstance(body, str):
                     raise ValueError("Content not decoded.")
             else:
                 body = response.content # a 'str' instance
-                if isinstance(body, unicode):
+                if isinstance(body, str):
                     raise ValueError("Binary content improperly decoded.")
         except scrapelib.HTTPError as e:
             logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
@@ -375,8 +375,11 @@ def write(content, destination, options={}):
 
     # Save the content to disk.
     mkdir_p(os.path.dirname(destination))
-    f = open(destination, 'w')
-    f.write(content)
+    f = open(destination, 'wb')
+    try:
+        f.write(content.encode('utf-8'))
+    except:
+        f.write(content)
     f.close()
 
 def write_json(data, destination):
@@ -438,7 +441,7 @@ def xpath_regex(doc, element, pattern):
 def unescape(text):
 
     def remove_unicode_control(str):
-        remove_re = re.compile(u'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]')
+        remove_re = re.compile('[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]')
         return remove_re.sub('', str)
 
     def fixup(m):
@@ -447,15 +450,15 @@ def unescape(text):
             # character reference
             try:
                 if text[:3] == "&#x":
-                    return unichr(int(text[3:-1], 16))
+                    return chr(int(text[3:-1], 16))
                 else:
-                    return unichr(int(text[2:-1]))
+                    return chr(int(text[2:-1]))
             except ValueError:
                 pass
         else:
             # named entity
             try:
-                text = unichr(htmlentitydefs.name2codepoint[text[1:-1]])
+                text = chr(html.entities.name2codepoint[text[1:-1]])
             except KeyError:
                 pass
         return text  # leave as is
@@ -607,7 +610,7 @@ def direct_yaml_load(filename):
 
 def pickle_load(filename):
     import pickle
-    return pickle.load(open(filename))
+    return pickle.load(open(filename, 'rb'))
 
 # Write to a pickle file.
 
@@ -615,14 +618,14 @@ def pickle_load(filename):
 def pickle_write(data, filename):
     import pickle
     mkdir_p(os.path.dirname(filename))
-    return pickle.dump(data, open(filename, "w"))
+    return pickle.dump(data, open(filename, 'wb'))
 
 # Get the hash used to verify the contents of a file.
 
 
 def get_file_hash(filename):
     import hashlib
-    return hashlib.sha1(open(filename).read()).hexdigest()
+    return hashlib.sha1(open(filename, 'rb').read()).hexdigest()
 
 # Get the location of the cached version of a file.
 
@@ -734,16 +737,16 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
         for filename in ("legislators-historical", "legislators-current"):
             for moc in yaml_load("congress-legislators/%s.yaml" % (filename)):
                 for term in moc["terms"]:
-                    for c in xrange(congress_from_legislative_year(int(term['start'][0:4])) - 1,
+                    for c in range(congress_from_legislative_year(int(term['start'][0:4])) - 1,
                                     congress_from_legislative_year(int(term['end'][0:4])) + 1 + 1):
                         lookup_legislator_cache.setdefault(c, []).append((moc, term))
 
     def to_ascii(name):
         name = name.replace("-", " ")
-        if not isinstance(name, unicode):
+        if not isinstance(name, str):
             return name
         import unicodedata
-        return u"".join(c for c in unicodedata.normalize('NFKD', name) if not unicodedata.combining(c))
+        return "".join(c for c in unicodedata.normalize('NFKD', name) if not unicodedata.combining(c))
 
     # Scan all of the terms that cover 'when' for a match.
     if isinstance(when, datetime.datetime):

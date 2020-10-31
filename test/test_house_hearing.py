@@ -47,7 +47,7 @@ class HearingInfo(unittest.TestCase):
         self.assertEqual(test_output['room'], 'CAPITOL H-313')
         self.assertEqual(test_output['subcommittee'], None)
         self.assertEqual(test_output[
-                         'topic'], u'H.R. 4435\u2014National Defense Authorization Act for Fiscal Year 2015 [General Debate]; H.R. 4660\u2014Commerce, Justice, Science, and Related Agencies Appropriations Act, 2015')
+                         'topic'], 'H.R. 4435\u2014National Defense Authorization Act for Fiscal Year 2015 [General Debate]; H.R. 4660\u2014Commerce, Justice, Science, and Related Agencies Appropriations Act, 2015')
         self.assertEqual(test_output[
                          'url'], 'http://docs.house.gov/Committee/Calendar/ByEvent.aspx?EventID=102252')
 

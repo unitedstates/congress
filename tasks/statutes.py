@@ -77,14 +77,14 @@ def run(options):
     elif "volumes" in options:
         start, end = options["volumes"].split("-")
         to_fetch = []
-        for v in xrange(int(start), int(end) + 1):
+        for v in range(int(start), int(end) + 1):
             to_fetch.extend(glob.glob(root_dir + "/*/STATUTE-" + str(v)))
     elif "year" in options:
         to_fetch = glob.glob(root_dir + "/" + str(int(options["year"])) + "/STATUTE-*")
     elif "years" in options:
         start, end = options["years"].split("-")
         to_fetch = []
-        for y in xrange(int(start), int(end) + 1):
+        for y in range(int(start), int(end) + 1):
             to_fetch.extend(glob.glob(root_dir + "/" + str(y) + "/STATUTE-*"))
     else:
         to_fetch = sorted(glob.glob(root_dir + "/*/STATUTE-*"))

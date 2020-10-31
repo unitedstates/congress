@@ -1,5 +1,5 @@
 import re
-import StringIO
+import io
 import csv
 import datetime
 import time
@@ -22,7 +22,7 @@ def run(options):
     chamber = options.get('chamber', None)
 
     # we're going to need to map votes to sessions because in modern history the numbering resets by session
-    session_dates = list(csv.DictReader(StringIO.StringIO(utils.download("http://www.govtrack.us/data/us/sessions.tsv").encode("utf8")), delimiter="\t"))
+    session_dates = list(csv.DictReader(io.StringIO(utils.download("http://www.govtrack.us/data/us/sessions.tsv").encode("utf8")), delimiter="\t"))
 
     # download the vote data now
     if chamber and chamber in [ "h", "s" ]:
