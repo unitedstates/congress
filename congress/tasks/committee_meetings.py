@@ -1,4 +1,4 @@
-import utils
+from congress.tasks import utils
 import os.path
 import os
 import re

@@ -5,8 +5,8 @@ import datetime
 import time
 import logging
 
-import utils
-from vote_info import output_vote
+from congress.tasks import utils
+from congress.tasks.vote_info import output_vote
 
 # load some hard-coded codes
 special_vote_options = { }

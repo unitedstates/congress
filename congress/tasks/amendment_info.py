@@ -5,9 +5,9 @@ import time
 import json
 from lxml import etree
 
-import utils
+from congress.tasks import utils
 
-from bill_info import sponsor_for as sponsor_for_bill, action_for
+from congress.tasks.bill_info import sponsor_for as sponsor_for_bill, action_for
 
 def process_amendment(amdt_data, bill_id, options):
     amdt = build_amendment_json_dict(amdt_data, options)

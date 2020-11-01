@@ -1,4 +1,4 @@
-import utils
+from congress.tasks import utils
 import logging
 import re
 import json

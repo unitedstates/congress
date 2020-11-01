@@ -43,17 +43,18 @@ It's recommended you use a `virtualenv` (virtual environment) for development. C
 python3 -m venv congress
 source congress/bin/activate
 ```
-Finally, with your virtual environment activated, install Python packages:
+Finally, with your virtual environment activated, install the package, which
+will automatically pull in the Python dependencies:
 
 ```bash
-pip3 install -r requirements.txt
+pip install .
 ```
 
 ### Collecting the data
 
 The general form to start the scraping process is:
 
-    ./run <data-type> [--force] [other options]
+    usc-run <data-type> [--force] [other options]
 
 where data-type is one of:
 
@@ -67,8 +68,8 @@ where data-type is one of:
 To get data for bills, resolutions, and amendments, run:
 
 ```bash
-./run govinfo --bulkdata=BILLSTATUS
-./run bills
+usc-run govinfo --bulkdata=BILLSTATUS
+usc-run bills
 ```
 
 The bills script will output bulk data into a top-level `data` directory, then organized by Congress number, bill type, and bill number. Two data output files will be generated for each bill: a JSON version (data.json) and an XML version (data.xml).
