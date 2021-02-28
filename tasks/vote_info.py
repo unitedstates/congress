@@ -140,6 +140,12 @@ def output_vote(vote, options, id_type=None):
 
     for option in options_list:
         for v in vote["votes"][option]:
+            # Rep-elect Letlow is included as not voting in the first House vote of the 117th Congress
+            # where the clerk calls a quorum roll call. But because Letlow had died prior to this date,
+            # he is not represented in congress-legislators and has no GovTrack-id, and so we cannot
+            # represent this record in the data.
+            if isinstance(v, dict) and v["id"] == "L000555" and options.get("govtrack", False): continue
+
             n = utils.make_node(root, "voter", None)
             if v == "VP":
                 n.set("id", "0")
