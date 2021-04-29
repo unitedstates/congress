@@ -40,26 +40,20 @@ brew install wget
 It's recommended you use a `virtualenv` (virtual environment) for development. The easiest way is install `virtualenv` and `virtualenvwrapper` (using `sudo` if necessary):
 
 ```bash
-pip install virtualenv
-pip install virtualenvwrapper
+pip3 install virtualenv
+pip3 install virtualenvwrapper
 ```
 
 Create a virtualenv for this project:
 
 ```bash
-mkvirtualenv congress
+cd congress
+source venv/bin/activate
 ```
-
-And activate it before any development session using:
-
-```bash
-workon congress
-```
-
 Finally, with your virtual environment activated, install Python packages:
 
 ```bash
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ### Collecting the data
