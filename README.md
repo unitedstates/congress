@@ -26,7 +26,7 @@ This project is tested using Python 3.
 On Ubuntu, you'll need `wget`, `pip`, and some support packages:
 
 ```bash
-sudo apt-get install git python3-dev libxml2-dev libxslt1-dev libz-dev python3-pip
+sudo apt-get install git python3-dev libxml2-dev libxslt1-dev libz-dev python3-pip python3-venv
 ```
 
 On OS X, you'll need developer tools installed ([XCode](https://developer.apple.com/xcode/)), and `wget`.
@@ -40,15 +40,15 @@ brew install wget
 It's recommended you use a `virtualenv` (virtual environment) for development. The easiest way is install `virtualenv` and `virtualenvwrapper` (using `sudo` if necessary):
 
 ```bash
-pip3 install virtualenv
-pip3 install virtualenvwrapper
+pip3 install virtualenv virtualenvwrapper
 ```
 
 Create a virtualenv for this project:
 
 ```bash
 cd congress
-source venv/bin/activate
+python3 -m venv congress
+source congress/bin/activate
 ```
 Finally, with your virtual environment activated, install Python packages:
 
