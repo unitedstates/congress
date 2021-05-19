@@ -37,16 +37,9 @@ brew install wget
 
 **Python dependencies**
 
-It's recommended you use a `virtualenv` (virtual environment) for development. The easiest way is install `virtualenv` and `virtualenvwrapper` (using `sudo` if necessary):
+It's recommended you use a `virtualenv` (virtual environment) for development. Create a virtualenv for this project:
 
 ```bash
-pip3 install virtualenv virtualenvwrapper
-```
-
-Create a virtualenv for this project:
-
-```bash
-cd congress
 python3 -m venv congress
 source congress/bin/activate
 ```
