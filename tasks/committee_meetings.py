@@ -307,7 +307,7 @@ def extract_meeting_package(eventurl, event_id, options):
 
     ## read zipfile
     try:
-        request_bytes = io.StringIO(request.read())
+        request_bytes = io.BytesIO(request.read())
         package = zipfile.ZipFile(request_bytes)
     except:
         message = "Problem downloading zipfile: %s" % (event_id)
