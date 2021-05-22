@@ -716,7 +716,7 @@ def require_congress_legislators_repo():
         # Update the repo so we have the latest.
         logging.warn("Updating the congress-legislators repo...")
         # these two == git pull, but git pull ignores -q on the merge part so is less quiet
-        os.system("cd congress-legislators; git fetch -pq; git merge --ff-only -q origin/master")
+        os.system("cd congress-legislators; git fetch -pq; git merge --ff-only -q origin/main")
 
     # We now have the congress-legislators repo.
     has_congress_legislators_repo = True
