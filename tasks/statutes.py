@@ -54,19 +54,19 @@
 # 102nd Congresses, fill in the text-versions files like so:
 # ./run statutes --volumes=87-106 --textversions
 
-import logging
-import time
 import datetime
-from lxml import etree
 import glob
 import json
+import logging
 import os.path
 import subprocess
+import time
 
-import utils
 import bill_info
 import bill_versions
 import fdsys
+import utils
+from lxml import etree
 
 
 def run(options):

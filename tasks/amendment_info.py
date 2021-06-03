@@ -8,6 +8,7 @@ from tasks import utils
 from tasks.bill_info import action_for
 from tasks.bill_info import sponsor_for as sponsor_for_bill
 
+
 def process_amendment(amdt_data, bill_id, options):
     amdt = build_amendment_json_dict(amdt_data, options)
     path = output_for_amdt(amdt['amendment_id'], "json")

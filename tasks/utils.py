@@ -18,7 +18,6 @@ import scrapelib
 from lxml import etree
 from pytz import timezone
 
-
 # read in an opt-in config file for changing directories and supplying email settings
 # returns None if it's not there, and this should always be handled gracefully
 path = "config.yml"
@@ -408,8 +407,8 @@ def uniq(seq):
     seen_add = seen.add
     return [x for x in seq if x not in seen and not seen_add(x)]
 
-import os
 import errno
+import os
 
 # mkdir -p in python, from:
 # http://stackoverflow.com/questions/600268/mkdir-p-functionality-in-python
@@ -595,9 +594,10 @@ def slice_map(m, *args):
 def direct_yaml_load(filename):
     import yaml
     try:
-        from yaml import CLoader as Loader, CDumper as Dumper
+        from yaml import CDumper as Dumper
+        from yaml import CLoader as Loader
     except ImportError:
-        from yaml import Loader, Dumper
+        from yaml import Dumper, Loader
     return yaml.load(open(filename), Loader=Loader)
 
 # Load a pickle file.

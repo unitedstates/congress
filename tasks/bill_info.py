@@ -7,7 +7,6 @@ from lxml import etree
 from tasks import utils
 
 
-
 def create_govtrack_xml(bill, options):
     govtrack_type_codes = {'hr': 'h', 's': 's', 'hres': 'hr', 'sres': 'sr', 'hjres': 'hj', 'sjres': 'sj', 'hconres': 'hc', 'sconres': 'sc'}
     root = etree.Element("bill")

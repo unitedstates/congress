@@ -14,6 +14,7 @@ from time import mktime
 import lxml.etree
 import mechanize
 import requests
+
 from tasks import utils
 
 # to get text files their is a new dependency; you need to have pdftotext. 

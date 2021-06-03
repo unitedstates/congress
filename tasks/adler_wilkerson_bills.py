@@ -3,8 +3,8 @@
 # 80th through 92nd Congress,
 
 import csv
-import zipfile
 import datetime
+import zipfile
 
 import utils
 
