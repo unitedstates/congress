@@ -62,8 +62,7 @@ def run(options):
             meetings = fetch_house_committee_meetings(committees, options)
         else:
             print("Fetching House meetings by event_id...")
-            meetings = fetch_meeting_from_event_id(
-                committees, options, load_by)
+            meetings = fetch_meeting_from_event_id(committees, options, load_by)
 
         print("Writing House meeting data to disk.")
         utils.write_json(meetings, output_for("house"))
@@ -155,8 +154,7 @@ def fetch_senate_committee_meetings(committees, options):
             r"(hr|s|hconres|sconres|hjres|sjres|hres|sres)\s?(\d+)", re.I
         )
         for bill_match in bill_number_re.findall(topic.replace(".", "")):
-            bills.append(bill_match[0].lower() +
-                         bill_match[1] + "-" + str(congress))
+            bills.append(bill_match[0].lower() + bill_match[1] + "-" + str(congress))
 
         # Create the meeting event.
         if options.get("debug", False):
@@ -573,8 +571,7 @@ def parse_house_committee_meeting(
             else:
                 document["type_name"] = None
 
-        document["bioguide_id"] = doc.xpath(
-            "string(filename-metadata/bioguideID)")
+        document["bioguide_id"] = doc.xpath("string(filename-metadata/bioguideID)")
         if document["bioguide_id"] == "":
             document["bioguide_id"] = None
 
@@ -585,8 +582,7 @@ def parse_house_committee_meeting(
         bill_id = doc.xpath("string(filename-metadata/legis-num)")
         document["bill_id"] = house_bill_id_formatter(bill_id, congress)
 
-        document["version_code"] = doc.xpath(
-            "string(filename-metadata/legis-stage)")
+        document["version_code"] = doc.xpath("string(filename-metadata/legis-stage)")
         if document["version_code"] == "":
             document["version_code"] = None
 

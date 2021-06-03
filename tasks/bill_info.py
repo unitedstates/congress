@@ -34,14 +34,12 @@ def create_govtrack_xml(bill, options):
                         # remap "bioguide_id" attributes to govtrack "id"
                         k = "id"
                         v = str(
-                            utils.translate_legislator_id(
-                                "bioguide", v, "govtrack")
+                            utils.translate_legislator_id("bioguide", v, "govtrack")
                         )
                     if k == "thomas_id":
                         # remap "thomas_id" attributes to govtrack "id"
                         k = "id"
-                        v = str(utils.translate_legislator_id(
-                            "thomas", v, "govtrack"))
+                        v = str(utils.translate_legislator_id("thomas", v, "govtrack"))
                     attrs2[k] = v
             attrs = attrs2
 
@@ -64,8 +62,7 @@ def create_govtrack_xml(bill, options):
     old_status = make_node(root, "status", None)
     make_node(
         old_status,
-        "introduced" if bill["status"] in (
-            "INTRODUCED", "REFERRED") else "unknown",
+        "introduced" if bill["status"] in ("INTRODUCED", "REFERRED") else "unknown",
         None,
         datetime=bill["status_at"],
     )  # dummy for the sake of comparison
@@ -89,15 +86,13 @@ def create_govtrack_xml(bill, options):
 
     if bill["sponsor"]:
         # TODO: Sponsored by committee?
-        make_node(root, "sponsor", None, **
-                  get_legislator_id_attr(bill["sponsor"]))
+        make_node(root, "sponsor", None, **get_legislator_id_attr(bill["sponsor"]))
     else:
         make_node(root, "sponsor", None)
 
     cosponsors = make_node(root, "cosponsors", None)
     for cosp in bill["cosponsors"]:
-        n = make_node(cosponsors, "cosponsor", None,
-                      **get_legislator_id_attr(cosp))
+        n = make_node(cosponsors, "cosponsor", None, **get_legislator_id_attr(cosp))
         if cosp["sponsored_at"]:
             n.set("joined", cosp["sponsored_at"])
         if cosp["withdrawn_at"]:
@@ -158,8 +153,7 @@ def create_govtrack_xml(bill, options):
         if action.get("in_committee"):
             make_node(a, "committee", None, name=action["in_committee"])
         for cr in action["references"]:
-            make_node(a, "reference", None,
-                      ref=cr["reference"], label=cr["type"])
+            make_node(a, "reference", None, ref=cr["reference"], label=cr["type"])
 
     committees = make_node(root, "committees", None)
     for cmt in bill["committees"]:
@@ -171,8 +165,7 @@ def create_govtrack_xml(bill, options):
             if cmt.get("subcommittee_id", None)
             else cmt["committee_id"],
             name=cmt["committee"],
-            subcommittee=cmt.get("subcommittee").replace(
-                "Subcommittee on ", "")
+            subcommittee=cmt.get("subcommittee").replace("Subcommittee on ", "")
             if cmt.get("subcommittee")
             else "",
             activity=", ".join(c.title() for c in cmt["activity"]),
@@ -181,8 +174,7 @@ def create_govtrack_xml(bill, options):
     relatedbills = make_node(root, "relatedbills", None)
     for rb in bill["related_bills"]:
         if rb["type"] == "bill":
-            rb_bill_type, rb_number, rb_congress = utils.split_bill_id(
-                rb["bill_id"])
+            rb_bill_type, rb_number, rb_congress = utils.split_bill_id(rb["bill_id"])
             make_node(
                 relatedbills,
                 "bill",
@@ -490,8 +482,7 @@ def actions_for(action_list, bill_id, title):
                 if (
                     item["actionDate"] == closure["prev"]["actionDate"]
                     and (
-                        item.get("actionTime") == closure["prev"].get(
-                            "actionTime")
+                        item.get("actionTime") == closure["prev"].get("actionTime")
                         or not item.get("actionTime")
                         or not closure["prev"].get("actionTime")
                     )
@@ -566,7 +557,7 @@ def action_for(item):
     match = re.search("\s*\(([^)]+)\)\s*$", text)
     if match:
         # remove the matched section
-        text = text[0: match.start()] + text[match.end():]
+        text = text[0 : match.start()] + text[match.end() :]
 
         types = match.group(1)
 
@@ -667,8 +658,7 @@ def related_bills_for(related_bills_list):
             .strip()
             .lower(),
             "bill_id": "{0}{1}-{2}".format(
-                item["type"].replace(".", "").lower(
-                ), item["number"], item["congress"]
+                item["type"].replace(".", "").lower(), item["number"], item["congress"]
             ),
             "type": "bill",
             "identified_by": item["relationshipDetails"]["item"][0]["identifiedBy"],
@@ -1292,8 +1282,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         action["committee"] = m.group(1)
         action["type"] = "hearings"
 
-    m = re.search(
-        r"Committee on (.*)\. Discharged (by Unanimous Consent)?", line, re.I)
+    m = re.search(r"Committee on (.*)\. Discharged (by Unanimous Consent)?", line, re.I)
     if m is not None:
         action["committee"] = m.group(1)
         action["type"] = "discharged"
@@ -1322,13 +1311,11 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             action["type"] = "vetoed"
             status = "PROV_KILL:VETO"
 
-    m = re.search(
-        "Sent to Archivist of the United States unsigned", line, re.I)
+    m = re.search("Sent to Archivist of the United States unsigned", line, re.I)
     if m is not None:
         status = "ENACTED:TENDAYRULE"
 
-    m = re.search(
-        "^(?:Became )?(Public|Private) Law(?: No:)? ([\d\-]+)\.", line, re.I)
+    m = re.search("^(?:Became )?(Public|Private) Law(?: No:)? ([\d\-]+)\.", line, re.I)
     if m is not None:
         action["law"] = m.group(1).lower()
         pieces = m.group(2).split("-")

@@ -15,8 +15,7 @@ for rec in csv.reader(open("tasks/voteview_codedoptions.csv")):
         continue  # header
     special_vote_options[rec[1]] = (
         rec[2],
-        dict((int(r.split(":", 1)[0]), r.split(":", 1)[1])
-             for r in rec[3].split(";")),
+        dict((int(r.split(":", 1)[0]), r.split(":", 1)[1]) for r in rec[3].split(";")),
     )
 
 
@@ -54,8 +53,7 @@ def vote_list_source_urls_for(congress, chamber, options):
         ("house" if chamber == "h" else "senate"),
         congress,
     )
-    index_page = utils.download(url, cache_file_for(
-        congress, chamber, "html"), options)
+    index_page = utils.download(url, cache_file_for(congress, chamber, "html"), options)
     if index_page is None:
         raise Exception("No data.")  # should only happen on a 404
 
@@ -63,8 +61,7 @@ def vote_list_source_urls_for(congress, chamber, options):
         matches = re.findall(pattern, index_page, re.I)
         if len(matches) != 1:
             raise ValueError(
-                "Index page %s did not match one value for pattern %s." % (
-                    url, pattern)
+                "Index page %s did not match one value for pattern %s." % (url, pattern)
             )
         return matches[0]
 
@@ -309,8 +306,7 @@ def parse_rollcall_dtl_date(rollcall_dtl_date):
 
     for potential_date_format in potential_date_formats:
         try:
-            parsed_date = datetime.strptime(
-                rollcall_dtl_date, potential_date_format)
+            parsed_date = datetime.strptime(rollcall_dtl_date, potential_date_format)
         except ValueError:
             pass
         else:
@@ -564,11 +560,9 @@ def parse_rollcall_dtl_list_file(rollcall_dtl_list_file, congress):
         elif rollcall_dtl_list_line_info["line"] == 3:
             rollcall_info["description"] = rollcall_dtl_list_line_info["text"]
         else:
-            rollcall_info["description"] += " " + \
-                rollcall_dtl_list_line_info["text"]
+            rollcall_info["description"] += " " + rollcall_dtl_list_line_info["text"]
 
-        rollcall_dtl_list_info[rollcall_dtl_list_line_info["vote"]
-                               ] = rollcall_info
+        rollcall_dtl_list_info[rollcall_dtl_list_line_info["vote"]] = rollcall_info
 
     return rollcall_dtl_list_info
 
@@ -680,8 +674,7 @@ def build_votes_dict(votes_list, rollcall):
                     v["vote"] = vote_codes[v["vote"]]
                 except KeyError:
                     logging.error(
-                        'Vote "%s" had a "%d" vote.' % (
-                            original_description, v["vote"])
+                        'Vote "%s" had a "%d" vote.' % (original_description, v["vote"])
                     )
                     v["vote"] = "Unknown"
 
@@ -698,7 +691,8 @@ def build_votes_dict(votes_list, rollcall):
     ret = {
         choice: [v for v in votes_list if v["vote"] == choice]
         for choice in set(v["vote"] for v in votes_list)
-        if choice is not None  # legislators who were not serving at the time of the vote
+        if choice
+        is not None  # legislators who were not serving at the time of the vote
     }
 
     # No longer need the "vote" keys.
@@ -743,8 +737,7 @@ def get_votes(chamber, congress, options, session_dates):
     for rollcall_number in rollcall_list:
         rollcall = rollcall_list[rollcall_number]
         if rollcall["date"]:
-            d_congress, d_session = session_from_date(
-                rollcall["date"], session_dates)
+            d_congress, d_session = session_from_date(rollcall["date"], session_dates)
             if d_congress != congress:
                 rollcall["date"] = None
 
@@ -795,8 +788,7 @@ def get_votes(chamber, congress, options, session_dates):
             )
             continue
 
-        s_congress, session = session_from_date(
-            rollcall["date"], session_dates)
+        s_congress, session = session_from_date(rollcall["date"], session_dates)
         if s_congress != congress:
             # should not occur - handled above
             logging.error(

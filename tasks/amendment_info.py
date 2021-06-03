@@ -13,13 +13,11 @@ def process_amendment(amdt_data, bill_id, options):
     amdt = build_amendment_json_dict(amdt_data, options)
     path = output_for_amdt(amdt["amendment_id"], "json")
 
-    logging.info("[%s] Saving %s to %s..." %
-                 (bill_id, amdt["amendment_id"], path))
+    logging.info("[%s] Saving %s to %s..." % (bill_id, amdt["amendment_id"], path))
 
     # output JSON - so easy!
     utils.write(
-        json.dumps(amdt, sort_keys=True, indent=2,
-                   default=utils.format_datetime), path
+        json.dumps(amdt, sort_keys=True, indent=2, default=utils.format_datetime), path
     )
 
     with open(output_for_amdt(amdt["amendment_id"], "xml"), "wb") as xml_file:
@@ -37,16 +35,14 @@ def build_amendment_json_dict(amdt_dict, options):
         amdt_dict["type"].lower(), amdt_dict["number"], amdt_dict["congress"]
     )
 
-    amends_bill = amends_bill_for(amdt_dict.get(
-        "amendedBill"))  # almost always present
+    amends_bill = amends_bill_for(amdt_dict.get("amendedBill"))  # almost always present
     # amends_treaty_for(amdt_dict) # the bulk data does not provide amendments to treaties (THOMAS did)
     amends_treaty = None
     amends_amendment = amends_amendment_for(
         amdt_dict.get("amendedAmendment")
     )  # sometimes present
     if not amends_bill and not amends_treaty:
-        raise Exception(
-            "Choked finding out what bill or treaty the amendment amends.")
+        raise Exception("Choked finding out what bill or treaty the amendment amends.")
 
     actions = actions_for(amdt_dict["actions"]["actions"])
 
@@ -166,8 +162,7 @@ def create_govtrack_xml(amdt, options):
         if action.get("in_committee"):
             make_node(a, "committee", None, name=action["in_committee"])
         for cr in action["references"]:
-            make_node(a, "reference", None,
-                      ref=cr["reference"], label=cr["type"])
+            make_node(a, "reference", None, ref=cr["reference"], label=cr["type"])
 
     return etree.tostring(root, pretty_print=True)
 
@@ -180,8 +175,7 @@ def amends_bill_for(amends_bill):
     from bills import build_bill_id
 
     bill_id = build_bill_id(
-        amends_bill["type"].lower(
-        ), amends_bill["number"], amends_bill["congress"]
+        amends_bill["type"].lower(), amends_bill["number"], amends_bill["congress"]
     )
     return {
         "bill_id": bill_id,
@@ -196,8 +190,7 @@ def amends_amendment_for(amends_amdt):
         return None
 
     amdt_id = build_amendment_id(
-        amends_amdt["type"].lower(
-        ), amends_amdt["number"], amends_amdt["congress"]
+        amends_amdt["type"].lower(), amends_amdt["number"], amends_amdt["congress"]
     )
     return {
         "amendment_id": amdt_id,
@@ -268,8 +261,7 @@ def parse_amendment_actions(actions):
                 action["roll"] = int(m.group(9))
 
         # Withdrawn
-        m = re.match(
-            r"Proposed amendment SA \d+ withdrawn in Senate", action["text"])
+        m = re.match(r"Proposed amendment SA \d+ withdrawn in Senate", action["text"])
         if m:
             action["type"] = "withdrawn"
 

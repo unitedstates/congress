@@ -102,8 +102,7 @@ def get_bills_to_process(options):
                 if os.path.exists(fn):
                     # The GovInfo.gov bulk data file exists. Does our JSON data
                     # file need to be updated?
-                    bulkfile_lastmod = utils.read(
-                        fn.replace(".xml", "-lastmod.txt"))
+                    bulkfile_lastmod = utils.read(fn.replace(".xml", "-lastmod.txt"))
                     parse_lastmod = utils.read(
                         get_data_path(
                             congress,
@@ -142,10 +141,8 @@ def process_bill(bill_id, options):
     # Mark this bulk data file as processed by saving its lastmod
     # file under a new path.
     utils.write(
-        utils.read(_path_to_billstatus_file(
-            bill_id).replace(".xml", "-lastmod.txt")),
-        os.path.join(os.path.dirname(fdsys_xml_path),
-                     "data-fromfdsys-lastmod.txt"),
+        utils.read(_path_to_billstatus_file(bill_id).replace(".xml", "-lastmod.txt")),
+        os.path.join(os.path.dirname(fdsys_xml_path), "data-fromfdsys-lastmod.txt"),
     )
 
     return {
@@ -163,8 +160,7 @@ def _path_to_billstatus_file(bill_id):
 def read_fdsys_bulk_bill_status_file(fn, bill_id):
     fdsys_billstatus = utils.read(fn)
     return xmltodict.parse(
-        fdsys_billstatus, force_list=(
-            "item", "amendment", "committeeReport", "link")
+        fdsys_billstatus, force_list=("item", "amendment", "committeeReport", "link")
     )
 
 
@@ -180,8 +176,7 @@ def form_bill_json_dict(xml_as_dict):
 
     bill_dict = xml_as_dict["billStatus"]["bill"]
     bill_id = build_bill_id(
-        bill_dict["billType"].lower(
-        ), bill_dict["billNumber"], bill_dict["congress"]
+        bill_dict["billType"].lower(), bill_dict["billNumber"], bill_dict["congress"]
     )
     titles = bill_info.titles_for(bill_dict["titles"]["item"])
     actions = bill_info.actions_for(
@@ -307,8 +302,7 @@ def reparse_actions(bill_id, options):
     title = bill_info.current_title_for(bill_data["titles"], "official")
     old_status = None
     for action in bill_data["actions"]:
-        new_action, new_status = parse_bill_action(
-            action, old_status, bill_id, title)
+        new_action, new_status = parse_bill_action(action, old_status, bill_id, title)
         if new_status:
             old_status = new_status
             action["status"] = new_status

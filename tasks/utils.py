@@ -240,8 +240,7 @@ def download(url, destination=None, options={}):
     urlopen_kwargs = {"timeout": timeout}
 
     # caller cares about actually bytes or only success/fail
-    needs_content = options.get(
-        "needs_content", True) or not is_binary or postdata
+    needs_content = options.get("needs_content", True) or not is_binary or postdata
 
     # form the path to the file if we intend on saving it to disk
     if destination:
@@ -333,8 +332,7 @@ def download(url, destination=None, options={}):
                 if isinstance(body, str):
                     raise ValueError("Binary content improperly decoded.")
         except scrapelib.HTTPError as e:
-            logging.error("Error downloading %s:\n\n%s" %
-                          (url, format_exception(e)))
+            logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
             if options.get("return_status_code_on_error"):
                 return e.response.status_code
             return None
@@ -395,8 +393,7 @@ def write(content, destination, options={}):
 
 def write_json(data, destination):
     return write(
-        json.dumps(data, sort_keys=True, indent=2,
-                   default=format_datetime), destination
+        json.dumps(data, sort_keys=True, indent=2, default=format_datetime), destination
     )
 
 
@@ -487,8 +484,7 @@ def extract_bills(text, session):
     if bill_matches:
         for b in bill_matches:
             bill_text = "%s-%s" % (
-                b[0].lower().replace(" ", "").replace(
-                    ".", "").replace("con", "c"),
+                b[0].lower().replace(" ", "").replace(".", "").replace("con", "c"),
                 session,
             )
             if bill_text not in bill_ids:
@@ -570,8 +566,7 @@ def send_email(message):
     msg = MIMEText(message)
     msg.set_unixfrom("author")
     msg["To"] = email.utils.formataddr(("Recipient", settings["to"]))
-    msg["From"] = email.utils.formataddr(
-        (settings["from_name"], settings["from"]))
+    msg["From"] = email.utils.formataddr((settings["from_name"], settings["from"]))
     msg["Subject"] = settings["subject"]
 
     server = smtplib.SMTP(settings["hostname"])
@@ -788,13 +783,10 @@ def lookup_legislator(
             for moc in yaml_load("congress-legislators/%s.yaml" % (filename)):
                 for term in moc["terms"]:
                     for c in range(
-                        congress_from_legislative_year(
-                            int(term["start"][0:4])) - 1,
-                        congress_from_legislative_year(
-                            int(term["end"][0:4])) + 1 + 1,
+                        congress_from_legislative_year(int(term["start"][0:4])) - 1,
+                        congress_from_legislative_year(int(term["end"][0:4])) + 1 + 1,
                     ):
-                        lookup_legislator_cache.setdefault(
-                            c, []).append((moc, term))
+                        lookup_legislator_cache.setdefault(c, []).append((moc, term))
 
     def to_ascii(name):
         name = name.replace("-", " ")
@@ -925,8 +917,7 @@ def translate_legislator_id(source_id_type, source_id, dest_id_type):
             for moc in yaml_load("congress-legislators/%s.yaml" % (filename)):
                 for id_type, id_value in moc["id"].items():
                     try:
-                        _translate_legislator_id_cache[(
-                            id_type, id_value)] = moc["id"]
+                        _translate_legislator_id_cache[(id_type, id_value)] = moc["id"]
                     except TypeError:
                         # The 'fec' id is a list which is not hashable
                         # and so cannot go in the key of a cached entry.
@@ -961,8 +952,7 @@ class NoInterrupt(object):
             ):  # sig=sig ensures the variable is captured by value
                 self.signal_received[sig] = (s, frame)
                 # Note: in Python 3.5, you can use signal.Signals(sig).name
-                logging.info(
-                    "Signal %s received. Delaying KeyboardInterrupt." % sig)
+                logging.info("Signal %s received. Delaying KeyboardInterrupt." % sig)
 
             self.old_handlers[sig] = signal.signal(sig, handler)
 

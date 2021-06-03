@@ -97,8 +97,7 @@ def output_vote(vote, options, id_type=None):
 
     # output JSON - so easy!
     utils.write(
-        json.dumps(vote, sort_keys=True, indent=2,
-                   default=utils.format_datetime),
+        json.dumps(vote, sort_keys=True, indent=2, default=utils.format_datetime),
         output_for_vote(vote["vote_id"], "json"),
         options=options,
     )
@@ -119,8 +118,7 @@ def output_vote(vote, options, id_type=None):
     if "voteview" in vote["source_url"]:
         root.set("source", "keithpoole")
     else:
-        root.set(
-            "source", "house.gov" if vote["chamber"] == "h" else "senate.gov")
+        root.set("source", "house.gov" if vote["chamber"] == "h" else "senate.gov")
 
     root.set("datetime", utils.format_datetime(vote["date"]))
     root.set("updated", utils.format_datetime(vote["updated_at"]))
@@ -228,16 +226,14 @@ def output_vote(vote, options, id_type=None):
             else:
                 n.set(
                     "id",
-                    str(utils.translate_legislator_id(
-                        id_type, v["id"], "govtrack")),
+                    str(utils.translate_legislator_id(id_type, v["id"], "govtrack")),
                 )
             n.set("vote", option_keys[option])
             n.set("value", option)
             if v != "VP":
                 n.set("state", v["state"])
                 if v.get("voteview_votecode_extra") is not None:
-                    n.set("voteview_votecode_extra",
-                          v["voteview_votecode_extra"])
+                    n.set("voteview_votecode_extra", v["voteview_votecode_extra"])
 
     xmloutput = etree.tostring(root, pretty_print=True, encoding="unicode")
 
@@ -245,8 +241,7 @@ def output_vote(vote, options, id_type=None):
     xmloutput = re.sub('(source=".*?") ', r"\1\n  ", xmloutput)
     xmloutput = re.sub('(updated=".*?") ', r"\1\n  ", xmloutput)
 
-    utils.write(xmloutput, output_for_vote(
-        vote["vote_id"], "xml"), options=options)
+    utils.write(xmloutput, output_for_vote(vote["vote_id"], "xml"), options=options)
 
 
 def output_for_vote(vote_id, format):
@@ -274,8 +269,7 @@ def parse_senate_vote(dom, vote):
         )  # some votes like s1-110.2008 don't have a modify_date
     vote["question"] = str(dom.xpath("string(vote_question_text)"))
     if vote["question"] == "":
-        vote["question"] = str(
-            dom.xpath("string(question)"))  # historical votes?
+        vote["question"] = str(dom.xpath("string(question)"))  # historical votes?
     vote["type"] = str(dom.xpath("string(vote_question)"))
     if vote["type"] == "":
         vote["type"] = vote["question"]
@@ -358,8 +352,7 @@ def parse_senate_vote(dom, vote):
                 "purpose": str(dom.xpath("string(amendment/amendment_purpose)")),
             }
 
-        amendment_to = str(
-            dom.xpath("string(amendment/amendment_to_document_number)"))
+        amendment_to = str(dom.xpath("string(amendment/amendment_to_document_number)"))
         if "Treaty" in amendment_to:
             treaty, number = amendment_to.split("-")
             vote["treaty"] = {
@@ -373,8 +366,7 @@ def parse_senate_vote(dom, vote):
                 "type": bill_types[bill_type],
                 "number": int(bill_number),
                 "title": str(
-                    dom.xpath(
-                        "string(amendment/amendment_to_document_short_title)")
+                    dom.xpath("string(amendment/amendment_to_document_short_title)")
                 ),
             }
         else:
@@ -531,8 +523,7 @@ def parse_house_vote(dom, vote):
             ": Amendment %s to [unknown bill]" % vote["amendment"]["number"]
         )
     elif "bill" in vote:
-        vote["question"] += ": " + \
-            str(dom.xpath("string(vote-metadata/legis-num)"))
+        vote["question"] += ": " + str(dom.xpath("string(vote-metadata/legis-num)"))
         if "subject" in vote:
             vote["question"] += " " + vote["subject"]
     elif "subject" in vote:
@@ -647,8 +638,7 @@ def parse_house_vote(dom, vote):
                 % (vote["vote_id"], display_name, v["state"], v["party"], vote["date"])
             )
             raise Exception(
-                "No bioguide ID for %s (%s-%s)" % (display_name,
-                                                   v["state"], v["party"])
+                "No bioguide ID for %s (%s-%s)" % (display_name, v["state"], v["party"])
             )
         else:
             if vote["congress"] > 107:

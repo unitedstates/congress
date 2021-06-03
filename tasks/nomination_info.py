@@ -26,8 +26,7 @@ def fetch_nomination(nomination_id, options={}):
     logging.info("\n[%s] Fetching..." % nomination_id)
 
     # fetch committee name map, if it doesn't already exist
-    nomination_type, number, congress = utils.split_nomination_id(
-        nomination_id)
+    nomination_type, number, congress = utils.split_nomination_id(nomination_id)
     if not number:
         return {
             "saved": False,
@@ -67,8 +66,7 @@ def fetch_nomination(nomination_id, options={}):
 
 
 def parse_nomination(nomination_id, body, options):
-    nomination_type, number, congress = utils.split_nomination_id(
-        nomination_id)
+    nomination_type, number, congress = utils.split_nomination_id(nomination_id)
 
     # remove (and store) comments, which contain some info for the nomination
     # but also mess up the parser
@@ -107,7 +105,7 @@ def parse_nomination(nomination_id, body, options):
                 )
 
                 # join rest back together (in case action itself has a hyphen)
-                text = str.join(" - ", pieces[1: len(pieces)])
+                text = str.join(" - ", pieces[1 : len(pieces)])
 
                 info["actions"].append(
                     {
@@ -161,8 +159,7 @@ def parse_nomination(nomination_id, body, options):
                     try:
                         name = re.search("(.+?),", name).groups()[0]
                     except Exception as e:
-                        raise Exception(
-                            "Couldn't parse nominee entry: %s" % name)
+                        raise Exception("Couldn't parse nominee entry: %s" % name)
 
                     # Some begin "One nomination,...", so 'List of Nominees' will get it
                     if "nomination" in name:
@@ -172,12 +169,10 @@ def parse_nomination(nomination_id, body, options):
                     if facts[-5]:
                         position = facts[-5]
                     else:
-                        raise Exception(
-                            "Couldn't find the position in the comments.")
+                        raise Exception("Couldn't find the position in the comments.")
 
                     info["nominees"] = [
-                        {"name": name, "position": position,
-                            "state": facts[-6][2:]}
+                        {"name": name, "position": position, "state": facts[-6][2:]}
                     ]
 
                 elif label.lower() == "nominees":
@@ -235,8 +230,7 @@ def parse_nomination(nomination_id, body, options):
 
 
 def output_for_nomination(nomination_id, format):
-    nomination_type, number, congress = utils.split_nomination_id(
-        nomination_id)
+    nomination_type, number, congress = utils.split_nomination_id(nomination_id)
     return "%s/%s/nominations/%s/%s" % (
         utils.data_dir(),
         congress,
@@ -246,8 +240,7 @@ def output_for_nomination(nomination_id, format):
 
 
 def nomination_url_for(nomination_id):
-    nomination_type, number, congress = utils.split_nomination_id(
-        nomination_id)
+    nomination_type, number, congress = utils.split_nomination_id(nomination_id)
 
     # numbers can be either of the form "63" or "64-01"
     number_pieces = number.split("-")
@@ -263,8 +256,7 @@ def nomination_url_for(nomination_id):
 
 
 def nomination_cache_for(nomination_id, file):
-    nomination_type, number, congress = utils.split_nomination_id(
-        nomination_id)
+    nomination_type, number, congress = utils.split_nomination_id(nomination_id)
     return "%s/nominations/%s/%s" % (congress, number, file)
 
 
@@ -273,7 +265,6 @@ def output_nomination(nomination, options):
 
     # output JSON - so easy!
     utils.write(
-        json.dumps(nomination, sort_keys=True, indent=2,
-                   default=utils.format_datetime),
+        json.dumps(nomination, sort_keys=True, indent=2, default=utils.format_datetime),
         output_for_nomination(nomination["nomination_id"], "json"),
     )

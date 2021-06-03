@@ -146,8 +146,7 @@ def update_sitemap2(
     if download:
         logging.warn("Downloading: %s" % url)
     body = utils.download(
-        url, cache_file, utils.merge(
-            options, {"force": download, "binary": True})
+        url, cache_file, utils.merge(options, {"force": download, "binary": True})
     )
     if not body:
         logging.error("Failed to download %s. Skipping." % url)
@@ -172,8 +171,7 @@ def update_sitemap2(
             # Get URL and lastmod date of the sitemap.
             url = str(node.xpath("string(x:loc)", namespaces=ns))
             lastmod = str(node.xpath("string(x:lastmod)", namespaces=ns))
-            sitemap_results = update_sitemap(
-                url, lastmod, how_we_got_here, options)
+            sitemap_results = update_sitemap(url, lastmod, how_we_got_here, options)
             if sitemap_results is not None:
                 results = results + sitemap_results
 
@@ -241,8 +239,7 @@ def update_sitemap2(
 
     else:
         raise Exception(
-            "Unknown sitemap type (%s) at the root sitemap of %s." % (
-                sitemap.tag, url)
+            "Unknown sitemap type (%s) at the root sitemap of %s." % (sitemap.tag, url)
         )
 
     return results
@@ -250,13 +247,11 @@ def update_sitemap2(
 
 def should_skip_sitemap(url, options):
     # Don't skip sitemap indexes.
-    m = re.match(re.escape(GOVINFO_BASE_URL) +
-                 r"sitemap/(\w+)_sitemap_index.xml", url)
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_sitemap_index.xml", url)
     if m:
         return False
     m = re.match(
-        re.escape(GOVINFO_BASE_URL) +
-        r"sitemap/bulkdata/(\w+)/sitemapindex.xml", url
+        re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/sitemapindex.xml", url
     )
     if m:
         return False
@@ -266,8 +261,7 @@ def should_skip_sitemap(url, options):
 
     # Regular collections are grouped by publication year.
     # Which years should we download? All if none is specified.
-    m = re.match(re.escape(GOVINFO_BASE_URL) +
-                 r"sitemap/(\w+)_(\d+)_sitemap.xml", url)
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_(\d+)_sitemap.xml", url)
     if m:
         year = m.group(2)
         if year_filter != "" and year not in year_filter.split(","):
@@ -277,8 +271,7 @@ def should_skip_sitemap(url, options):
     # represent years (as in the FR collection) or other types of groupings
     # like Congress + Bill Type for the BILLSTATUS collection.
     m = re.match(
-        re.escape(GOVINFO_BASE_URL) +
-        r"sitemap/bulkdata/(\w+)/(\d+)(.*)/sitemap.xml",
+        re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/(\d+)(.*)/sitemap.xml",
         url,
     )
     if m:
@@ -296,26 +289,22 @@ def get_sitemap_cache_file(url):
     # that stores its <lastmod> date for when we last downloaded it? Returns
     # a path relative to the cache root.
 
-    m = re.match(re.escape(GOVINFO_BASE_URL) +
-                 r"sitemap/(\w+)_sitemap_index.xml", url)
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_sitemap_index.xml", url)
     if m:
         return m.group(1)
 
-    m = re.match(re.escape(GOVINFO_BASE_URL) +
-                 r"sitemap/(\w+)_(\d+)_sitemap.xml", url)
+    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_(\d+)_sitemap.xml", url)
     if m:
         return m.group(1) + "/" + m.group(2)
 
     m = re.match(
-        re.escape(GOVINFO_BASE_URL) +
-        r"sitemap/bulkdata/(\w+)/sitemapindex.xml", url
+        re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/sitemapindex.xml", url
     )
     if m:
         return m.group(1) + "-bulkdata"
 
     m = re.match(
-        re.escape(GOVINFO_BASE_URL) +
-        r"sitemap/bulkdata/(\w+)/(.+)/sitemap.xml", url
+        re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/(.+)/sitemap.xml", url
     )
     if m:
         return m.group(1) + "-bulkdata/" + m.group(2)
@@ -373,8 +362,7 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
     # not empty) but it is missing, force a re-download by clearing the lastmod cache.
     if lastmod_cache and not os.path.exists(file_path):
         logging.error(
-            "Missing: " + file_path +
-            " (previously: " + repr(lastmod_cache) + ")"
+            "Missing: " + file_path + " (previously: " + repr(lastmod_cache) + ")"
         )
         lastmod_cache.clear()
 
@@ -496,8 +484,7 @@ def extract_package_files(
             package_path = package_path.format(
                 collection=collection, package_name=package_name
             )
-            local_path = os.path.join(
-                os.path.dirname(package_file), local_path)
+            local_path = os.path.join(os.path.dirname(package_file), local_path)
 
             # Extract it.
             try:
@@ -540,8 +527,7 @@ def extract_package_files(
 def get_bill_id_for_package(package_name, with_version=True, restrict_to_congress=None):
     m = re.match(r"(\d+)([a-z]+)(\d+)([a-z][a-z0-9]*|)$", package_name)
     if not m:
-        raise Exception(
-            "Unmatched bill document package name: " + package_name)
+        raise Exception("Unmatched bill document package name: " + package_name)
     congress, bill_type, bill_number, version_code = m.groups()
 
     if restrict_to_congress and int(congress) != int(restrict_to_congress):
@@ -591,8 +577,7 @@ def get_output_path(collection, package_name, options):
 
     else:
         # Store in govinfo/COLLECTION/PKGNAME.
-        path = "%s/govinfo/%s/%s" % (utils.data_dir(),
-                                     collection, package_name)
+        path = "%s/govinfo/%s/%s" % (utils.data_dir(), collection, package_name)
         return path
 
 
@@ -617,12 +602,10 @@ def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
         from bills import output_for_bill
 
         bill_id, version_code = get_bill_id_for_package(
-            os.path.splitext(os.path.basename(
-                item_path.replace("BILLSTATUS-", "")))[0],
+            os.path.splitext(os.path.basename(item_path.replace("BILLSTATUS-", "")))[0],
             with_version=False,
         )
-        path = output_for_bill(
-            bill_id, FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
+        path = output_for_bill(bill_id, FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
 
     # Where should we store the lastmod found in the sitemap so that
     # we can tell later if the file has changed?

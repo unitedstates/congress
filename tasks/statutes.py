@@ -73,16 +73,14 @@ def run(options):
     root_dir = utils.data_dir() + "/fdsys/STATUTE"
 
     if "volume" in options:
-        to_fetch = glob.glob(root_dir + "/*/STATUTE-" +
-                             str(int(options["volume"])))
+        to_fetch = glob.glob(root_dir + "/*/STATUTE-" + str(int(options["volume"])))
     elif "volumes" in options:
         start, end = options["volumes"].split("-")
         to_fetch = []
         for v in range(int(start), int(end) + 1):
             to_fetch.extend(glob.glob(root_dir + "/*/STATUTE-" + str(v)))
     elif "year" in options:
-        to_fetch = glob.glob(
-            root_dir + "/" + str(int(options["year"])) + "/STATUTE-*")
+        to_fetch = glob.glob(root_dir + "/" + str(int(options["year"])) + "/STATUTE-*")
     elif "years" in options:
         start, end = options["years"].split("-")
         to_fetch = []
@@ -134,13 +132,11 @@ def proc_statute_volume(path, options):
         )
         if len(bill_elements) == 0:
             logging.error(
-                "No bill number identified for '%s' (%s)" % (
-                    title_text, source_url)
+                "No bill number identified for '%s' (%s)" % (title_text, source_url)
             )
             continue
         elif len(bill_elements) > 1:
-            logging.error(
-                "Multiple bill numbers identified for '%s'" % title_text)
+            logging.error("Multiple bill numbers identified for '%s'" % title_text)
             for be in bill_elements:
                 logging.error("  -- " + etree.tostring(be).strip())
             logging.error("  @ " + source_url)
@@ -171,8 +167,7 @@ def proc_statute_volume(path, options):
 
         # Committees
         committees = []
-        cong_committee = bill.find(
-            "mods:extension/mods:congCommittee", mods_ns)
+        cong_committee = bill.find("mods:extension/mods:congCommittee", mods_ns)
         if cong_committee is not None:
             chambers = {"H": "House", "S": "Senate", "J": "Joint"}
             committee = (
@@ -190,8 +185,7 @@ def proc_statute_volume(path, options):
             committees.append(committee_info)
 
         # The 'granuleDate' is the enactment date?
-        granule_date = bill.find(
-            "mods:extension/mods:granuleDate", mods_ns).text
+        granule_date = bill.find("mods:extension/mods:granuleDate", mods_ns).text
 
         sources = [
             {
@@ -220,8 +214,7 @@ def proc_statute_volume(path, options):
                     "type": "vote",
                     "vote_type": "vote2",
                     "where": other_chamber[
-                        bill.find(
-                            "mods:extension/mods:originChamber", mods_ns).text
+                        bill.find("mods:extension/mods:originChamber", mods_ns).text
                     ],
                     "result": "pass",  # XXX
                     "how": "unknown",  # XXX
@@ -335,8 +328,7 @@ def proc_statute_volume(path, options):
                 logging.error("Running pdftotext on %s..." % pdf_file)
                 if (
                     subprocess.call(
-                        ["pdftotext", "-layout", pdf_file,
-                            dst_path + "/document.txt"]
+                        ["pdftotext", "-layout", pdf_file, dst_path + "/document.txt"]
                     )
                     != 0
                 ):
