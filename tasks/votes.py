@@ -16,18 +16,21 @@ def run(options):
     vote_id = options.get("vote_id", None)
 
     if vote_id:
-        vote_chamber, vote_number, congress, session_year = utils.split_vote_id(vote_id)
+        vote_chamber, vote_number, congress, session_year = utils.split_vote_id(
+            vote_id)
         to_fetch = [vote_id]
     else:
         congress = options.get("congress", None)
         if congress:
             session_year = options.get("session", None)
             if not session_year:
-                logging.error("If you provide a --congress, provide a --session year.")
+                logging.error(
+                    "If you provide a --congress, provide a --session year.")
                 return None
         else:
             congress = utils.current_congress()
-            session_year = options.get("session", str(utils.current_legislative_year()))
+            session_year = options.get("session", str(
+                utils.current_legislative_year()))
 
         chamber = options.get("chamber", None)
 
@@ -42,7 +45,8 @@ def run(options):
 
         if not to_fetch:
             if not options.get("fast", False):
-                logging.error("Error figuring out which votes to download, aborting.")
+                logging.error(
+                    "Error figuring out which votes to download, aborting.")
             else:
                 logging.warn("No new or recent votes.")
             return None
@@ -77,7 +81,8 @@ def vote_ids_for_house(congress, session_year, options):
 
     # download index page, find the matching links to the paged listing of votes
     page = utils.download(
-        index_page, "%s/votes/%s/pages/house.html" % (congress, session_year), options
+        index_page, "%s/votes/%s/pages/house.html" % (
+            congress, session_year), options
     )
 
     if not page:
@@ -125,7 +130,8 @@ def vote_ids_for_house(congress, session_year, options):
 
 
 def vote_ids_for_senate(congress, session_year, options):
-    session_num = int(session_year) - utils.get_congress_first_year(int(congress)) + 1
+    session_num = int(session_year) - \
+        utils.get_congress_first_year(int(congress)) + 1
 
     vote_ids = []
 
@@ -140,7 +146,8 @@ def vote_ids_for_senate(congress, session_year, options):
     )
 
     if not page or b"Requested Page Not Found (404)" in page:
-        logging.error("Couldn't download Senate vote XML index %s, skipping" % url)
+        logging.error(
+            "Couldn't download Senate vote XML index %s, skipping" % url)
         return None
 
     dom = etree.fromstring(page)

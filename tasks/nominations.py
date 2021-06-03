@@ -9,7 +9,8 @@ def run(options):
     nomination_id = options.get("nomination_id", None)
 
     if nomination_id:
-        nomination_type, number, congress = utils.split_nomination_id(nomination_id)
+        nomination_type, number, congress = utils.split_nomination_id(
+            nomination_id)
         to_fetch = [nomination_id]
     else:
         congress = options.get("congress", utils.current_congress())
@@ -28,10 +29,13 @@ def run(options):
             to_fetch = to_fetch[: int(limit)]
 
     logging.warn(
-        "Going to fetch %i nominations from congress #%s" % (len(to_fetch), congress)
+        "Going to fetch %i nominations from congress #%s" % (
+            len(to_fetch), congress)
     )
 
-    utils.process_set(to_fetch, nomination_info.fetch_nomination, options)
+    utils.process_set(
+        to_fetch, nomination_info.fetch_nomination, options
+    )
 
 
 # page through listings for bills of a particular congress
@@ -98,5 +102,6 @@ def page_for(congress, options):
     # unused: never cache search listing
     page_cache_for(congress)
 
-    page = utils.download("http://thomas.loc.gov/cgi-bin/thomas", None, post_options)
+    page = utils.download(
+        "http://thomas.loc.gov/cgi-bin/thomas", None, post_options)
     return page

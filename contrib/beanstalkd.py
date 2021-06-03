@@ -85,7 +85,8 @@ def process_bill_wrapper(process_bill):
                 logging.warn("Queued {} to beanstalkd.".format(bill))
                 break
             except beanstalkc.SocketError:
-                logging.warn("Lost connection to beanstalkd. Attempting to reconnect.")
+                logging.warn(
+                    "Lost connection to beanstalkd. Attempting to reconnect.")
                 (conn, config) = init_guard(reconnect=True)
             except Exception as e:
                 logging.warn(
@@ -104,9 +105,11 @@ def process_bill_wrapper(process_bill):
 def process_amendment_wrapper(process_amendment):
     @wraps(process_amendment)
     def _process_amendment(amdt_dict, bill_id, options, *args, **kwargs):
-        orig_result = process_amendment(amdt_dict, bill_id, options, *args, **kwargs)
+        orig_result = process_amendment(
+            amdt_dict, bill_id, options, *args, **kwargs)
         amdt = amendment_info.build_amendment_id(
-            amdt_dict["type"].lower(), amdt_dict["number"], amdt_dict["congress"]
+            amdt_dict["type"].lower(
+            ), amdt_dict["number"], amdt_dict["congress"]
         )
 
         (conn, config) = init_guard()
@@ -117,7 +120,8 @@ def process_amendment_wrapper(process_amendment):
                 logging.warn("Queued {} to beanstalkd.".format(amdt))
                 break
             except beanstalkc.SocketError:
-                logging.warn("Lost connection to beanstalkd. Attempting to reconnect.")
+                logging.warn(
+                    "Lost connection to beanstalkd. Attempting to reconnect.")
                 (conn, config) = init_guard(reconnect=True)
             except Exception as e:
                 logging.warn(
@@ -143,10 +147,12 @@ def output_vote_wrapper(output_vote):
             try:
                 conn.use(config["tubes"]["votes"])
                 conn.put(vote["vote_id"])
-                logging.warn("Queued {} to beanstalkd.".format(vote["vote_id"]))
+                logging.warn(
+                    "Queued {} to beanstalkd.".format(vote["vote_id"]))
                 break
             except beanstalkc.SocketError:
-                logging.warn("Lost connection to beanstalkd. Attempting to reconnect.")
+                logging.warn(
+                    "Lost connection to beanstalkd. Attempting to reconnect.")
                 (conn, config) = init_guard(reconnect=True)
             except Exception as e:
                 logging.warn(

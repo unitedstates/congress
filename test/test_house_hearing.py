@@ -41,8 +41,10 @@ class HearingInfo(unittest.TestCase):
             test_output["meeting_documents"][0]["description"],
             "H.R. 4435 (as introduced)",
         )
-        self.assertEqual(test_output["meeting_documents"][0]["bill_id"], "hr4435-113")
-        self.assertEqual(test_output["meeting_documents"][0]["version_code"], "ih")
+        self.assertEqual(
+            test_output["meeting_documents"][0]["bill_id"], "hr4435-113")
+        self.assertEqual(
+            test_output["meeting_documents"][0]["version_code"], "ih")
         self.assertEqual(test_output["meeting_documents"][0]["type"], "BR")
         self.assertEqual(
             test_output["meeting_documents"][0]["urls"],
@@ -80,7 +82,8 @@ class HearingInfo(unittest.TestCase):
         )["hearing_witness_info"]
 
         self.assertEqual(test_output[0]["documents"][0]["type"], "WB")
-        self.assertEqual(test_output[0]["documents"][0]["description"], "Cochrane Bio")
+        self.assertEqual(test_output[0]["documents"]
+                         [0]["description"], "Cochrane Bio")
         self.assertEqual(
             test_output[0]["documents"][0]["urls"],
             [

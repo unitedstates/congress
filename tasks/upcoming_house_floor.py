@@ -54,7 +54,8 @@ def run_for_week(for_the_week, options):
         logging.warn("Nothing posted for the week of %s" % for_the_week)
         return
 
-    output_file = "%s/upcoming_house_floor/%s.json" % (utils.data_dir(), for_the_week)
+    output_file = "%s/upcoming_house_floor/%s.json" % (
+        utils.data_dir(), for_the_week)
     output = json.dumps(
         house_floor, sort_keys=True, indent=2, default=utils.format_datetime
     )
@@ -177,7 +178,8 @@ def fetch_floor_week(for_the_week, options):
             file_format = file.get("doc-type").lower()
 
             logging.warn(
-                "\t%s file for %s: %s" % (file_format.upper(), bill_number, filename)
+                "\t%s file for %s: %s" % (
+                    file_format.upper(), bill_number, filename)
             )
 
             file_field = {
@@ -193,10 +195,12 @@ def fetch_floor_week(for_the_week, options):
             if not download:
                 continue
             try:
-                file_path = "upcoming_house_floor/%s/%s" % (for_the_week, filename)
+                file_path = "upcoming_house_floor/%s/%s" % (
+                    for_the_week, filename)
                 try:
                     os.makedirs(
-                        os.path.join(utils.data_dir(), os.path.dirname(file_path))
+                        os.path.join(utils.data_dir(),
+                                     os.path.dirname(file_path))
                     )
                 except OSError:
                     pass  # directory exists
@@ -206,7 +210,8 @@ def fetch_floor_week(for_the_week, options):
                 # force binary mode, no file escaping
                 options3["binary"] = True
                 utils.download(
-                    file_url, os.path.join(utils.data_dir(), file_path), options3
+                    file_url, os.path.join(
+                        utils.data_dir(), file_path), options3
                 )
                 file_field["path"] = file_path
             except IOError:
@@ -237,7 +242,8 @@ def fetch_floor_week(for_the_week, options):
 
                 # extract embedded XML
                 for line in subprocess.check_output(
-                    ["pdfdetach", "-list", os.path.join(utils.data_dir(), file_path)],
+                    ["pdfdetach", "-list",
+                        os.path.join(utils.data_dir(), file_path)],
                     universal_newlines=True,
                 ).split("\n"):
                     m = re.match(r"(\d+):\s*(.*)", line)
@@ -264,12 +270,14 @@ def fetch_floor_week(for_the_week, options):
             # Save this bill data to the bill's bill text directory.
             text_data_path = output_for_bill(
                 bill["bill_id"],
-                os.path.join("text-versions", "dhg-" + bill["floor_item_id"] + ".json"),
+                os.path.join("text-versions", "dhg-" +
+                             bill["floor_item_id"] + ".json"),
                 is_data_dot=False,
             )
             try:
                 os.makedirs(
-                    os.path.join(utils.data_dir(), os.path.dirname(text_data_path))
+                    os.path.join(utils.data_dir(),
+                                 os.path.dirname(text_data_path))
                 )
             except OSError:
                 pass  # directory exists
@@ -340,7 +348,8 @@ def bill_id_for(bill_number, congress):
 
 
 def draft_bill_id_for(bill_number, published_at, congress):
-    number = bill_number.replace(".", "").replace(" ", "").replace("_", "").lower()
+    number = bill_number.replace(".", "").replace(
+        " ", "").replace("_", "").lower()
     epoch = time.mktime(published_at.timetuple())
     return "%s%i-%i" % (number, epoch, congress)
 
