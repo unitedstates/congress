@@ -46,7 +46,7 @@ source congress/bin/activate
 Finally, with your virtual environment activated, install Python packages:
 
 ```bash
-pip3 install -r requirements.txt
+pip3 install -r requirements.txt -r requirements-test.txt
 ```
 
 ### Collecting the data
@@ -101,7 +101,7 @@ The best way to file a bug is to [open a ticket](https://github.com/unitedstates
 To run this project's unit tests:
 
 ```bash
-./test/run
+pytest test
 ```
 
 ### Who's Using This Data
