@@ -1,5 +1,6 @@
 import unittest
-import bill_info
+
+from tasks import bill_info
 
 # parsing various kinds of action text to extract metadata and establish state
 

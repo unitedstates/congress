@@ -1,6 +1,7 @@
-import unittest
-from amendment_info import parse_amendment_actions
 import datetime
+import unittest
+
+from tasks.amendment_info import parse_amendment_actions
 
 # parsing various kinds of action text to extract metadata and establish state
 
