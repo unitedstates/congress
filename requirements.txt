@@ -10,3 +10,4 @@ BeautifulSoup4
 mock
 xmltodict
 rtyaml
+click==8.0.1

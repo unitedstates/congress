@@ -1,36 +1,42 @@
-import utils
-import os
-import os.path
-import re
-from lxml import html, etree
 import logging
 
 import nomination_info
+import utils
+from lxml import html
 
 
 def run(options):
-    nomination_id = options.get('nomination_id', None)
+    nomination_id = options.get("nomination_id", None)
 
     if nomination_id:
-        nomination_type, number, congress = utils.split_nomination_id(nomination_id)
+        nomination_type, number, congress = utils.split_nomination_id(
+            nomination_id)
         to_fetch = [nomination_id]
     else:
-        congress = options.get('congress', utils.current_congress())
+        congress = options.get("congress", utils.current_congress())
         to_fetch = nomination_ids_for(congress, options)
         if not to_fetch:
             if options.get("fast", False):
                 logging.warn("No nominations changed.")
             else:
-                logging.error("Error figuring out which nominations to download, aborting.")
+                logging.error(
+                    "Error figuring out which nominations to download, aborting."
+                )
             return None
 
-        limit = options.get('limit', None)
+        limit = options.get("limit", None)
         if limit:
-            to_fetch = to_fetch[:int(limit)]
+            to_fetch = to_fetch[: int(limit)]
 
-    logging.warn("Going to fetch %i nominations from congress #%s" % (len(to_fetch), congress))
+    logging.warn(
+        "Going to fetch %i nominations from congress #%s" % (
+            len(to_fetch), congress)
+    )
 
-    saved_nominations = utils.process_set(to_fetch, nomination_info.fetch_nomination, options)
+    utils.process_set(
+        to_fetch, nomination_info.fetch_nomination, options
+    )
+
 
 # page through listings for bills of a particular congress
 
@@ -49,7 +55,7 @@ def nomination_ids_for(congress, options={}):
     nomination_ids = []
 
     for raw_id in raw_nomination_ids:
-        pieces = raw_id.split(' ')
+        pieces = raw_id.split(" ")
 
         # ignore these
         if raw_id in ["PDF", "Text", "split into two or more parts"]:
@@ -66,6 +72,7 @@ def nomination_ids_for(congress, options={}):
 def page_cache_for(congress):
     return "%s/nominations/pages/search.html" % congress
 
+
 # unlike bills.py, we're going to fetch the page instead of producing the URL,
 # since a POST is required.
 
@@ -74,7 +81,7 @@ def page_for(congress, options):
     congress = int(congress)
     postdata = {
         "database": "nominations",
-        "MaxDocs": '5000',
+        "MaxDocs": "5000",
         "submit": "SEARCH",
         "querytype": "phrase",
         "query": "",
@@ -89,14 +96,12 @@ def page_for(congress, options):
         "sort": "sh_docid_rc",
     }
 
-    post_options = {'postdata': postdata}
+    post_options = {"postdata": postdata}
     post_options.update(options)
 
     # unused: never cache search listing
-    cache = page_cache_for(congress)
+    page_cache_for(congress)
 
-    page = utils.download("http://thomas.loc.gov/cgi-bin/thomas",
-                          None,
-                          post_options
-                          )
+    page = utils.download(
+        "http://thomas.loc.gov/cgi-bin/thomas", None, post_options)
     return page

@@ -1,62 +1,70 @@
-import utils
-import json
-from iso8601 import iso8601
 import datetime
+import json
+import logging
 import os
 import os.path
 import re
 import urllib.parse
-import time
-import datetime
-from lxml import html, etree
-import logging
 
-import vote_info
+from iso8601 import iso8601
+from lxml import etree, html
+
+from tasks import utils, vote_info
 
 
 def run(options):
-    vote_id = options.get('vote_id', None)
+    vote_id = options.get("vote_id", None)
 
     if vote_id:
-        vote_chamber, vote_number, congress, session_year = utils.split_vote_id(vote_id)
+        vote_chamber, vote_number, congress, session_year = utils.split_vote_id(
+            vote_id)
         to_fetch = [vote_id]
     else:
-        congress = options.get('congress', None)
+        congress = options.get("congress", None)
         if congress:
-            session_year = options.get('session', None)
+            session_year = options.get("session", None)
             if not session_year:
-                logging.error("If you provide a --congress, provide a --session year.")
+                logging.error(
+                    "If you provide a --congress, provide a --session year.")
                 return None
         else:
             congress = utils.current_congress()
-            session_year = options.get('session', str(utils.current_legislative_year()))
+            session_year = options.get("session", str(
+                utils.current_legislative_year()))
 
-        chamber = options.get('chamber', None)
+        chamber = options.get("chamber", None)
 
         if chamber == "house":
             to_fetch = vote_ids_for_house(congress, session_year, options)
         elif chamber == "senate":
             to_fetch = vote_ids_for_senate(congress, session_year, options)
         else:
-            to_fetch = (vote_ids_for_house(congress, session_year, options) or []) + (vote_ids_for_senate(congress, session_year, options) or [])
+            to_fetch = (vote_ids_for_house(congress, session_year, options) or []) + (
+                vote_ids_for_senate(congress, session_year, options) or []
+            )
 
         if not to_fetch:
             if not options.get("fast", False):
-                logging.error("Error figuring out which votes to download, aborting.")
+                logging.error(
+                    "Error figuring out which votes to download, aborting.")
             else:
                 logging.warn("No new or recent votes.")
             return None
 
-        limit = options.get('limit', None)
+        limit = options.get("limit", None)
         if limit:
-            to_fetch = to_fetch[:int(limit)]
+            to_fetch = to_fetch[: int(limit)]
 
-    if options.get('pages_only', False):
+    if options.get("pages_only", False):
         return None
 
-    logging.warn("Going to fetch %i votes from congress #%s session %s" % (len(to_fetch), congress, session_year))
+    logging.warn(
+        "Going to fetch %i votes from congress #%s session %s"
+        % (len(to_fetch), congress, session_year)
+    )
 
     utils.process_set(to_fetch, vote_info.fetch_vote, options)
+
 
 # page through listing of House votes of a particular congress and session
 
@@ -66,13 +74,16 @@ def vote_ids_for_house(congress, session_year, options):
 
     index_page = "http://clerk.house.gov/evs/%s/index.asp" % session_year
     group_page = r"ROLL_(\d+)\.asp"
-    link_pattern = r"http://clerk.house.gov/cgi-bin/vote.asp\?year=%s&rollnumber=(\d+)" % session_year
+    link_pattern = (
+        r"http://clerk.house.gov/cgi-bin/vote.asp\?year=%s&rollnumber=(\d+)"
+        % session_year
+    )
 
     # download index page, find the matching links to the paged listing of votes
     page = utils.download(
-        index_page,
-        "%s/votes/%s/pages/house.html" % (congress, session_year),
-        options)
+        index_page, "%s/votes/%s/pages/house.html" % (
+            congress, session_year), options
+    )
 
     if not page:
         logging.error("Couldn't download House vote index page, skipping")
@@ -82,7 +93,8 @@ def vote_ids_for_house(congress, session_year, options):
     doc = html.document_fromstring(page)
     links = doc.xpath(
         "//a[re:match(@href, '%s')]" % group_page,
-        namespaces={"re": "http://exslt.org/regular-expressions"})
+        namespaces={"re": "http://exslt.org/regular-expressions"},
+    )
 
     for link in links:
         # get some identifier for this inside page for caching
@@ -92,16 +104,20 @@ def vote_ids_for_house(congress, session_year, options):
         page = utils.download(
             urllib.parse.urljoin(index_page, link.get("href")),
             "%s/votes/%s/pages/house_%s.html" % (congress, session_year, grp),
-            options)
+            options,
+        )
 
         if not page:
-            logging.error("Couldn't download House vote group page (%s), aborting" % grp)
+            logging.error(
+                "Couldn't download House vote group page (%s), aborting" % grp
+            )
             continue
 
         doc = html.document_fromstring(page)
         votelinks = doc.xpath(
             "//a[re:match(@href, '%s')]" % link_pattern,
-            namespaces={"re": "http://exslt.org/regular-expressions"})
+            namespaces={"re": "http://exslt.org/regular-expressions"},
+        )
 
         for votelink in votelinks:
             num = re.match(link_pattern, votelink.get("href")).group(1)
@@ -114,29 +130,40 @@ def vote_ids_for_house(congress, session_year, options):
 
 
 def vote_ids_for_senate(congress, session_year, options):
-    session_num = int(session_year) - utils.get_congress_first_year(int(congress)) + 1
+    session_num = int(session_year) - \
+        utils.get_congress_first_year(int(congress)) + 1
 
     vote_ids = []
 
-    url = "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%d.xml" % (congress, session_num)
+    url = (
+        "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%d.xml"
+        % (congress, session_num)
+    )
     page = utils.download(
         url,
         "%s/votes/%s/pages/senate.xml" % (congress, session_year),
-        utils.merge(options, {'binary': True})
+        utils.merge(options, {"binary": True}),
     )
 
     if not page or b"Requested Page Not Found (404)" in page:
-        logging.error("Couldn't download Senate vote XML index %s, skipping" % url)
+        logging.error(
+            "Couldn't download Senate vote XML index %s, skipping" % url)
         return None
 
     dom = etree.fromstring(page)
 
     # Sanity checks.
     if int(congress) != int(dom.xpath("congress")[0].text):
-        logging.error("Senate vote XML returns the wrong Congress: %s" % dom.xpath("congress")[0].text)
+        logging.error(
+            "Senate vote XML returns the wrong Congress: %s"
+            % dom.xpath("congress")[0].text
+        )
         return None
     if int(session_year) != int(dom.xpath("congress_year")[0].text):
-        logging.error("Senate vote XML returns the wrong session: %s" % dom.xpath("congress_year")[0].text)
+        logging.error(
+            "Senate vote XML returns the wrong session: %s"
+            % dom.xpath("congress_year")[0].text
+        )
         return None
 
     # Get vote list.

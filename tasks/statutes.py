@@ -54,33 +54,35 @@
 # 102nd Congresses, fill in the text-versions files like so:
 # ./run statutes --volumes=87-106 --textversions
 
-import logging
-import time
 import datetime
-from lxml import etree
 import glob
 import json
+import logging
 import os.path
 import subprocess
+import time
 
-import utils
 import bill_info
 import bill_versions
 import fdsys
+import utils
+from lxml import etree
 
 
 def run(options):
-    root_dir = utils.data_dir() + '/fdsys/STATUTE'
+    root_dir = utils.data_dir() + "/fdsys/STATUTE"
 
     if "volume" in options:
-        to_fetch = glob.glob(root_dir + "/*/STATUTE-" + str(int(options["volume"])))
+        to_fetch = glob.glob(root_dir + "/*/STATUTE-" +
+                             str(int(options["volume"])))
     elif "volumes" in options:
         start, end = options["volumes"].split("-")
         to_fetch = []
         for v in range(int(start), int(end) + 1):
             to_fetch.extend(glob.glob(root_dir + "/*/STATUTE-" + str(v)))
     elif "year" in options:
-        to_fetch = glob.glob(root_dir + "/" + str(int(options["year"])) + "/STATUTE-*")
+        to_fetch = glob.glob(
+            root_dir + "/" + str(int(options["year"])) + "/STATUTE-*")
     elif "years" in options:
         start, end = options["years"].split("-")
         to_fetch = []
@@ -110,20 +112,35 @@ def proc_statute_volume(path, options):
     for bill in mods.findall("/mods:relatedItem", mods_ns):
         # MODS files also contain information about:
         # ['BACKMATTER', 'FRONTMATTER', 'CONSTAMEND', 'PROCLAMATION', 'REORGPLAN']
-        if bill.find("mods:extension/mods:granuleClass", mods_ns).text not in ["PUBLICLAW", "PRIVATELAW", "HCONRES", "SCONRES"]:
+        if bill.find("mods:extension/mods:granuleClass", mods_ns).text not in [
+            "PUBLICLAW",
+            "PRIVATELAW",
+            "HCONRES",
+            "SCONRES",
+        ]:
             continue
 
         # Get the title and source URL (used in error messages).
-        title_text = bill.find("mods:titleInfo/mods:title", mods_ns).text.replace('""', '"')
-        source_url = bill.find("mods:location/mods:url[@displayLabel='Content Detail']", mods_ns).text
+        title_text = bill.find("mods:titleInfo/mods:title", mods_ns).text.replace(
+            '""', '"'
+        )
+        source_url = bill.find(
+            "mods:location/mods:url[@displayLabel='Content Detail']", mods_ns
+        ).text
 
         # Bill number
-        bill_elements = bill.findall("mods:extension/mods:bill[@priority='primary']", mods_ns)
+        bill_elements = bill.findall(
+            "mods:extension/mods:bill[@priority='primary']", mods_ns
+        )
         if len(bill_elements) == 0:
-            logging.error("No bill number identified for '%s' (%s)" % (title_text, source_url))
+            logging.error(
+                "No bill number identified for '%s' (%s)" % (
+                    title_text, source_url)
+            )
             continue
         elif len(bill_elements) > 1:
-            logging.error("Multiple bill numbers identified for '%s'" % title_text)
+            logging.error(
+                "Multiple bill numbers identified for '%s'" % title_text)
             for be in bill_elements:
                 logging.error("  -- " + etree.tostring(be).strip())
             logging.error("  @ " + source_url)
@@ -136,12 +153,14 @@ def proc_statute_volume(path, options):
 
         # Title
         titles = []
-        titles.append({
-            "title": title_text,
-            "as": "enacted",
-            "type": "official",
-            "is_for_portion": False,
-        })
+        titles.append(
+            {
+                "title": title_text,
+                "as": "enacted",
+                "type": "official",
+                "is_for_portion": False,
+            }
+        )
 
         # Subject
         descriptor = bill.find("mods:extension/mods:descriptor", mods_ns)
@@ -152,29 +171,42 @@ def proc_statute_volume(path, options):
 
         # Committees
         committees = []
-        cong_committee = bill.find("mods:extension/mods:congCommittee", mods_ns)
+        cong_committee = bill.find(
+            "mods:extension/mods:congCommittee", mods_ns)
         if cong_committee is not None:
             chambers = {"H": "House", "S": "Senate", "J": "Joint"}
-            committee = chambers[cong_committee.attrib["chamber"]] + " " + cong_committee.find("mods:name", mods_ns).text
+            committee = (
+                chambers[cong_committee.attrib["chamber"]]
+                + " "
+                + cong_committee.find("mods:name", mods_ns).text
+            )
             committee_info = {
                 "committee": committee,
                 "activity": [],  # XXX
-                "committee_id": utils.committee_names[committee] if committee in utils.committee_names else None,
+                "committee_id": utils.committee_names[committee]
+                if committee in utils.committee_names
+                else None,
             }
             committees.append(committee_info)
 
         # The 'granuleDate' is the enactment date?
-        granule_date = bill.find("mods:extension/mods:granuleDate", mods_ns).text
+        granule_date = bill.find(
+            "mods:extension/mods:granuleDate", mods_ns).text
 
-        sources = [{
-            "source": "statutes",
-            "package_id": package_id,
-            "access_id": bill.find("mods:extension/mods:accessId", mods_ns).text,
-            "source_url": source_url,
-            "volume": bill.find("mods:extension/mods:volume", mods_ns).text,
-            "page": bill.find("mods:part[@type='article']/mods:extent[@unit='pages']/mods:start", mods_ns).text,
-            "position": bill.find("mods:extension/mods:pagePosition", mods_ns).text,
-        }]
+        sources = [
+            {
+                "source": "statutes",
+                "package_id": package_id,
+                "access_id": bill.find("mods:extension/mods:accessId", mods_ns).text,
+                "source_url": source_url,
+                "volume": bill.find("mods:extension/mods:volume", mods_ns).text,
+                "page": bill.find(
+                    "mods:part[@type='article']/mods:extent[@unit='pages']/mods:start",
+                    mods_ns,
+                ).text,
+                "position": bill.find("mods:extension/mods:pagePosition", mods_ns).text,
+            }
+        ]
 
         law_elements = bill.findall("mods:extension/mods:law", mods_ns)
 
@@ -183,88 +215,110 @@ def proc_statute_volume(path, options):
         if (law_elements is None) or (len(law_elements) != 1):
             other_chamber = {"HOUSE": "s", "SENATE": "h"}
 
-            actions = [{
-                "type": "vote",
-                "vote_type": "vote2",
-                "where": other_chamber[bill.find("mods:extension/mods:originChamber", mods_ns).text],
-                "result": "pass",  # XXX
-                "how": "unknown",  # XXX
-                #        "text": "",
-                "acted_at": granule_date,  # XXX
-                "status": "PASSED:CONCURRENTRES",
-                "references": [],  # XXX
-            }]
+            actions = [
+                {
+                    "type": "vote",
+                    "vote_type": "vote2",
+                    "where": other_chamber[
+                        bill.find(
+                            "mods:extension/mods:originChamber", mods_ns).text
+                    ],
+                    "result": "pass",  # XXX
+                    "how": "unknown",  # XXX
+                    #        "text": "",
+                    "acted_at": granule_date,  # XXX
+                    "status": "PASSED:CONCURRENTRES",
+                    "references": [],  # XXX
+                }
+            ]
         else:
             law_congress = law_elements[0].attrib["congress"]
             law_number = law_elements[0].attrib["number"]
-            law_type = ("private" if (law_elements[0].attrib["isPrivate"] == "true") else "public")
+            law_type = (
+                "private"
+                if (law_elements[0].attrib["isPrivate"] == "true")
+                else "public"
+            )
 
             # Check for typos in the metadata.
             if law_congress != bill_congress:
-                logging.error("Congress mismatch for %s%s: %s or %s? (%s)" % (bill_type, bill_number, bill_congress, law_congress, source_url))
+                logging.error(
+                    "Congress mismatch for %s%s: %s or %s? (%s)"
+                    % (bill_type, bill_number, bill_congress, law_congress, source_url)
+                )
                 continue
 
-            actions = [{
-                "congress": law_congress,
-                "number": law_number,
-                "type": "enacted",
-                "law": law_type,
-                "text": "Became %s Law No: %s-%s." % (law_type.capitalize(), law_congress, law_number),
-                "acted_at": granule_date,  # XXX
-                "status": "ENACTED:SIGNED",  # XXX: Check for overridden vetoes!
-                "references": [],  # XXX
-            }]
+            actions = [
+                {
+                    "congress": law_congress,
+                    "number": law_number,
+                    "type": "enacted",
+                    "law": law_type,
+                    "text": "Became %s Law No: %s-%s."
+                    % (law_type.capitalize(), law_congress, law_number),
+                    "acted_at": granule_date,  # XXX
+                    "status": "ENACTED:SIGNED",  # XXX: Check for overridden vetoes!
+                    "references": [],  # XXX
+                }
+            ]
 
         status, status_date = bill_info.latest_status(actions)
 
         bill_data = {
-            'bill_id': bill_id,
-            'bill_type': bill_type,
-            'number': bill_number,
-            'congress': bill_congress,
-
-            'introduced_at': None,  # XXX
-            'sponsor': None,  # XXX
-            'cosponsors': [],  # XXX
-
-            'actions': actions,  # XXX
-            'history': bill_info.history_from_actions(actions),
-            'status': status,
-            'status_at': status_date,
-            'enacted_as': bill_info.slip_law_from(actions),
-
-            'titles': titles,
-            'official_title': bill_info.current_title_for(titles, "official"),
-            'short_title': bill_info.current_title_for(titles, "short"),  # XXX
-            'popular_title': bill_info.current_title_for(titles, "popular"),  # XXX
-
-            'subjects_top_term': subject,
-            'subjects': [],
-
-            'related_bills': [],  # XXX: <associatedBills> usually only lists the current bill.
-            'committees': committees,
-            'amendments': [],  # XXX
-
-            'sources': sources,
-            'updated_at': datetime.datetime.fromtimestamp(time.time()),
+            "bill_id": bill_id,
+            "bill_type": bill_type,
+            "number": bill_number,
+            "congress": bill_congress,
+            "introduced_at": None,  # XXX
+            "sponsor": None,  # XXX
+            "cosponsors": [],  # XXX
+            "actions": actions,  # XXX
+            "history": bill_info.history_from_actions(actions),
+            "status": status,
+            "status_at": status_date,
+            "enacted_as": bill_info.slip_law_from(actions),
+            "titles": titles,
+            "official_title": bill_info.current_title_for(titles, "official"),
+            "short_title": bill_info.current_title_for(titles, "short"),  # XXX
+            # XXX
+            "popular_title": bill_info.current_title_for(titles, "popular"),
+            "subjects_top_term": subject,
+            "subjects": [],
+            # XXX: <associatedBills> usually only lists the current bill.
+            "related_bills": [],
+            "committees": committees,
+            "amendments": [],  # XXX
+            "sources": sources,
+            "updated_at": datetime.datetime.fromtimestamp(time.time()),
         }
 
-        if not options.get('textversions', False):
+        if not options.get("textversions", False):
             bill_info.output_bill(bill_data, options)
 
         # XXX: Can't use bill_versions.fetch_version() because it depends on fdsys.
         version_code = "enr"
-        bill_version_id = "%s%s-%s-%s" % (bill_type, bill_number, bill_congress, version_code)
+        bill_version_id = "%s%s-%s-%s" % (
+            bill_type,
+            bill_number,
+            bill_congress,
+            version_code,
+        )
         bill_version = {
-            'bill_version_id': bill_version_id,
-            'version_code': version_code,
-            'issued_on': status_date,
-            'urls': {"pdf": bill.find("mods:location/mods:url[@displayLabel='PDF rendition']", mods_ns).text},
-            'sources': sources,
+            "bill_version_id": bill_version_id,
+            "version_code": version_code,
+            "issued_on": status_date,
+            "urls": {
+                "pdf": bill.find(
+                    "mods:location/mods:url[@displayLabel='PDF rendition']", mods_ns
+                ).text
+            },
+            "sources": sources,
         }
         utils.write(
-            json.dumps(bill_version, sort_keys=True, indent=2, default=utils.format_datetime),
-            bill_versions.output_for_bill_version(bill_version_id)
+            json.dumps(
+                bill_version, sort_keys=True, indent=2, default=utils.format_datetime
+            ),
+            bill_versions.output_for_bill_version(bill_version_id),
         )
 
         # Process the granule PDF.
@@ -272,12 +326,20 @@ def proc_statute_volume(path, options):
         # - Run "pdftotext -layout" to convert it to plain text and save it in the bill text location.
         pdf_file = path + "/" + sources[0]["access_id"] + "/document.pdf"
         if os.path.exists(pdf_file):
-            dst_path = fdsys.output_for_bill(bill_data["bill_id"], "text-versions/" + version_code, is_data_dot=False)
+            dst_path = fdsys.output_for_bill(
+                bill_data["bill_id"], "text-versions/" + version_code, is_data_dot=False
+            )
             if options.get("linkpdf", False):
                 os.link(pdf_file, dst_path + "/document.pdf")  # a good idea
             if options.get("extracttext", False):
                 logging.error("Running pdftotext on %s..." % pdf_file)
-                if subprocess.call(["pdftotext", "-layout", pdf_file, dst_path + "/document.txt"]) != 0:
+                if (
+                    subprocess.call(
+                        ["pdftotext", "-layout", pdf_file,
+                            dst_path + "/document.txt"]
+                    )
+                    != 0
+                ):
                     raise Exception("pdftotext failed on %s" % pdf_file)
 
-    return {'ok': True, 'saved': True}
+    return {"ok": True, "saved": True}

@@ -38,25 +38,28 @@
 #   --cached|--force
 #   Always/never use the cache.
 
-from lxml import etree, html
-import glob
 import json
-import re
 import logging
 import os
 import os.path
+import re
 import zipfile
-import utils
 
 import rtyaml
+from lxml import etree, html
 
+from tasks import utils
 
 # globals
 GOVINFO_BASE_URL = "https://www.govinfo.gov/"
 COLLECTION_BASE_URL = GOVINFO_BASE_URL + "app/details/"
 BULKDATA_BASE_URL = GOVINFO_BASE_URL + "bulkdata/"
-COLLECTION_SITEMAPINDEX_PATTERN = GOVINFO_BASE_URL + "sitemap/{collection}_sitemap_index.xml"
-BULKDATA_SITEMAPINDEX_PATTERN = GOVINFO_BASE_URL + "sitemap/bulkdata/{collection}/sitemapindex.xml"
+COLLECTION_SITEMAPINDEX_PATTERN = (
+    GOVINFO_BASE_URL + "sitemap/{collection}_sitemap_index.xml"
+)
+BULKDATA_SITEMAPINDEX_PATTERN = (
+    GOVINFO_BASE_URL + "sitemap/bulkdata/{collection}/sitemapindex.xml"
+)
 FDSYS_BILLSTATUS_FILENAME = "fdsys_billstatus.xml"
 
 # for xpath
@@ -65,14 +68,26 @@ ns = {"x": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
 # Main entry point
 
+
 def run(options):
     # Process sitemaps.
     for collection in sorted(options.get("collections", "").split(",")):
         if collection != "":
-            update_sitemap(COLLECTION_SITEMAPINDEX_PATTERN.format(collection=collection), None, [], options)
+            update_sitemap(
+                COLLECTION_SITEMAPINDEX_PATTERN.format(collection=collection),
+                None,
+                [],
+                options,
+            )
     for collection in sorted(options.get("bulkdata", "").split(",")):
         if collection != "":
-            update_sitemap(BULKDATA_SITEMAPINDEX_PATTERN.format(collection=collection), None, [], options)
+            update_sitemap(
+                BULKDATA_SITEMAPINDEX_PATTERN.format(collection=collection),
+                None,
+                [],
+                options,
+            )
+
 
 def update_sitemap(url, current_lastmod, how_we_got_here, options):
     """Updates the local cache of a sitemap file."""
@@ -94,13 +109,15 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options):
     lastmod_cache_file = cache_file.replace(".xml", "-lastmod.yaml")
     lastmod_cache_file = os.path.join(utils.cache_dir(), lastmod_cache_file)
     if not os.path.exists(lastmod_cache_file):
-        lastmod_cache = { }
+        lastmod_cache = {}
     else:
         with open(lastmod_cache_file) as f:
             lastmod_cache = rtyaml.load(f)
 
     try:
-        return update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cache, cache_file)
+        return update_sitemap2(
+            url, current_lastmod, how_we_got_here, options, lastmod_cache, cache_file
+        )
     finally:
         # Write the updated last modified dates to disk so we know the next time whether
         # we need to fetch the files. If we didn't download anything, no need to write an
@@ -110,7 +127,9 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options):
                 rtyaml.dump(lastmod_cache, f)
 
 
-def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cache, cache_file):
+def update_sitemap2(
+    url, current_lastmod, how_we_got_here, options, lastmod_cache, cache_file
+):
     # Return a list of files we downloaded.
     results = []
 
@@ -119,18 +138,17 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
     # If we're not downloading it, load it from disk because we still have
     # to process each sitemap to ensure we've downloaded all of the package
     # files the user wants.
-    download = should_download_sitemap(lastmod_cache.get("lastmod"), current_lastmod, options)
+    download = should_download_sitemap(
+        lastmod_cache.get("lastmod"), current_lastmod, options
+    )
 
     # Download, or just retreive from cache.
     if download:
         logging.warn("Downloading: %s" % url)
     body = utils.download(
-        url,
-        cache_file,
-        utils.merge(options, {
-            'force': download,
-            'binary': True
-        }))
+        url, cache_file, utils.merge(
+            options, {"force": download, "binary": True})
+    )
     if not body:
         logging.error("Failed to download %s. Skipping." % url)
         return results
@@ -154,7 +172,8 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
             # Get URL and lastmod date of the sitemap.
             url = str(node.xpath("string(x:loc)", namespaces=ns))
             lastmod = str(node.xpath("string(x:lastmod)", namespaces=ns))
-            sitemap_results = update_sitemap(url, lastmod, how_we_got_here, options)
+            sitemap_results = update_sitemap(
+                url, lastmod, how_we_got_here, options)
             if sitemap_results is not None:
                 results = results + sitemap_results
 
@@ -171,11 +190,24 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
             if m:
                 collection = m.group(1)
                 package_name = m.group(2)
-                if options.get("filter") and not re.search(options["filter"], package_name): continue
+                if options.get("filter") and not re.search(
+                    options["filter"], package_name
+                ):
+                    continue
                 try:
-                    mirror_results = mirror_package(collection, package_name, lastmod, lastmod_cache.setdefault("packages", {}), options)
+                    mirror_results = mirror_package(
+                        collection,
+                        package_name,
+                        lastmod,
+                        lastmod_cache.setdefault("packages", {}),
+                        options,
+                    )
                 except:
-                    logging.exception("Error fetching package {} in collection {} from {}.".format(package_name, collection, url))
+                    logging.exception(
+                        "Error fetching package {} in collection {} from {}.".format(
+                            package_name, collection, url
+                        )
+                    )
                     mirror_results = []
                 results.extend(mirror_results)
 
@@ -183,29 +215,49 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
                 # This is a bulk data item. Extract components of the URL.
                 m = re.match(BULKDATA_BASE_URL + r"([^/]+)/(.*)", url)
                 if not m:
-                    raise Exception("Unmatched bulk data file URL (%s) at %s." % (url, "->".join(how_we_got_here)))
+                    raise Exception(
+                        "Unmatched bulk data file URL (%s) at %s."
+                        % (url, "->".join(how_we_got_here))
+                    )
                 collection = m.group(1)
                 item_path = m.group(2)
-                if options.get("filter") and not re.search(options["filter"], item_path): continue
+                if options.get("filter") and not re.search(
+                    options["filter"], item_path
+                ):
+                    continue
                 try:
-                    mirror_results = mirror_bulkdata_file(collection, url, item_path, lastmod, options)
+                    mirror_results = mirror_bulkdata_file(
+                        collection, url, item_path, lastmod, options
+                    )
                 except:
-                    logging.exception("Error fetching file {} in collection {} from {}.".format(item_path, collection, url))
+                    logging.exception(
+                        "Error fetching file {} in collection {} from {}.".format(
+                            item_path, collection, url
+                        )
+                    )
                     mirror_results = None
                 if mirror_results is not None and len(mirror_results) > 0:
                     results = results + mirror_results
 
     else:
-        raise Exception("Unknown sitemap type (%s) at the root sitemap of %s." % (sitemap.tag, url))
+        raise Exception(
+            "Unknown sitemap type (%s) at the root sitemap of %s." % (
+                sitemap.tag, url)
+        )
 
     return results
 
+
 def should_skip_sitemap(url, options):
     # Don't skip sitemap indexes.
-    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_sitemap_index.xml", url)
+    m = re.match(re.escape(GOVINFO_BASE_URL) +
+                 r"sitemap/(\w+)_sitemap_index.xml", url)
     if m:
         return False
-    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/sitemapindex.xml", url)
+    m = re.match(
+        re.escape(GOVINFO_BASE_URL) +
+        r"sitemap/bulkdata/(\w+)/sitemapindex.xml", url
+    )
     if m:
         return False
 
@@ -214,7 +266,8 @@ def should_skip_sitemap(url, options):
 
     # Regular collections are grouped by publication year.
     # Which years should we download? All if none is specified.
-    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_(\d+)_sitemap.xml", url)
+    m = re.match(re.escape(GOVINFO_BASE_URL) +
+                 r"sitemap/(\w+)_(\d+)_sitemap.xml", url)
     if m:
         year = m.group(2)
         if year_filter != "" and year not in year_filter.split(","):
@@ -223,7 +276,11 @@ def should_skip_sitemap(url, options):
     # Bulk data collections are grouped into subdirectories that can
     # represent years (as in the FR collection) or other types of groupings
     # like Congress + Bill Type for the BILLSTATUS collection.
-    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/(\d+)(.*)/sitemap.xml", url)
+    m = re.match(
+        re.escape(GOVINFO_BASE_URL) +
+        r"sitemap/bulkdata/(\w+)/(\d+)(.*)/sitemap.xml",
+        url,
+    )
     if m:
         numeric_grouping = m.group(2)
         if year_filter != "" and numeric_grouping not in year_filter.split(","):
@@ -233,28 +290,38 @@ def should_skip_sitemap(url, options):
 
     return False
 
+
 def get_sitemap_cache_file(url):
     # Where should we store the local cache of the sitemap XML and a file
     # that stores its <lastmod> date for when we last downloaded it? Returns
     # a path relative to the cache root.
 
-    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_sitemap_index.xml", url)
+    m = re.match(re.escape(GOVINFO_BASE_URL) +
+                 r"sitemap/(\w+)_sitemap_index.xml", url)
     if m:
         return m.group(1)
 
-    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/(\w+)_(\d+)_sitemap.xml", url)
+    m = re.match(re.escape(GOVINFO_BASE_URL) +
+                 r"sitemap/(\w+)_(\d+)_sitemap.xml", url)
     if m:
         return m.group(1) + "/" + m.group(2)
 
-    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/sitemapindex.xml", url)
+    m = re.match(
+        re.escape(GOVINFO_BASE_URL) +
+        r"sitemap/bulkdata/(\w+)/sitemapindex.xml", url
+    )
     if m:
         return m.group(1) + "-bulkdata"
 
-    m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/(.+)/sitemap.xml", url)
+    m = re.match(
+        re.escape(GOVINFO_BASE_URL) +
+        r"sitemap/bulkdata/(\w+)/(.+)/sitemap.xml", url
+    )
     if m:
         return m.group(1) + "-bulkdata/" + m.group(2)
 
     raise ValueError(url)
+
 
 def should_download_sitemap(lastmod_cache, current_lastmod, options):
     # Download a sitemap or just read from our cache?
@@ -288,7 +355,7 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
     # file system layout (for BILLS, we put bill text along where the
     # bills scraper puts bills).
     path = get_output_path(collection, package_name, options)
-    if not path: # should skip
+    if not path:  # should skip
         return []
 
     # Go to the part of the lastmod_cache for this package.
@@ -305,12 +372,17 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
     # If the file was supposedly downloaded before (i.e. lastmod_cache is
     # not empty) but it is missing, force a re-download by clearing the lastmod cache.
     if lastmod_cache and not os.path.exists(file_path):
-        logging.error("Missing: " + file_path + " (previously: " + repr(lastmod_cache) + ")")
+        logging.error(
+            "Missing: " + file_path +
+            " (previously: " + repr(lastmod_cache) + ")"
+        )
         lastmod_cache.clear()
 
     # Download the package ZIP file if it's updated.
     downloaded_files = []
-    if mirror_package_zipfile(collection, package_name, file_path, lastmod, lastmod_cache, options):
+    if mirror_package_zipfile(
+        collection, package_name, file_path, lastmod, lastmod_cache, options
+    ):
         downloaded_files.append(file_path)
 
     # Extract files from the package ZIP file depending on the --extract
@@ -319,7 +391,9 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
     # the caller may want to extract files after having already gotten the
     # package ZIP file.
     try:
-        extracted_files = extract_package_files(collection, package_name, file_path, lastmod_cache, options)
+        extracted_files = extract_package_files(
+            collection, package_name, file_path, lastmod_cache, options
+        )
         downloaded_files.extend(extracted_files)
     except zipfile.BadZipfile as e:
         # Sometimes files don't download properly. If the ZIP file is
@@ -329,7 +403,10 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
 
     return downloaded_files
 
-def mirror_package_zipfile(collection, package_name, file_path, lastmod, lastmod_cache, options):
+
+def mirror_package_zipfile(
+    collection, package_name, file_path, lastmod, lastmod_cache, options
+):
     # Do we already have this file updated?
     if lastmod_cache.get("package") == lastmod:
         if not options.get("force", False):
@@ -340,41 +417,68 @@ def mirror_package_zipfile(collection, package_name, file_path, lastmod, lastmod
         return
 
     # Download.
-    file_url = GOVINFO_BASE_URL + "content/pkg/{}-{}.zip".format(collection, package_name)
+    file_url = GOVINFO_BASE_URL + "content/pkg/{}-{}.zip".format(
+        collection, package_name
+    )
     logging.warn("Downloading: " + file_path)
-    data = utils.download(file_url, file_path, utils.merge(options, {
-        'binary': True,
-        'force': True, # decision to cache was made above
-        'to_cache': False,
-        'needs_content': False,
-    }))
+    data = utils.download(
+        file_url,
+        file_path,
+        utils.merge(
+            options,
+            {
+                "binary": True,
+                "force": True,  # decision to cache was made above
+                "to_cache": False,
+                "needs_content": False,
+            },
+        ),
+    )
 
     # Update the lastmod of the downloaded file.
-    lastmod_cache['package'] = lastmod
+    lastmod_cache["package"] = lastmod
     return True
 
-def extract_package_files(collection, package_name, package_file, lastmod_cache, options):
+
+def extract_package_files(
+    collection, package_name, package_file, lastmod_cache, options
+):
     # Extract files from the package ZIP file depending on the --extract
     # command-line argument. When extracting a file, mark the extracted
     # file's lastmod as the same as the package's lastmod.
 
     # Get the formats that the user wants to extract.
-    extract_formats = set(format for format in options.get("extract", "").split(",") if format.strip())
+    extract_formats = set(
+        format for format in options.get("extract", "").split(",") if format.strip()
+    )
 
     # Make a mapping from file formats to a tuple of the filename found in the package ZIP
     # file and the filename that we will use to store the extracted format locally.
     format_paths = {
-        'pdf': ("{collection}-{package_name}/pdf/{collection}-{package_name}.pdf",  "document.pdf"),
-       'text': ("{collection}-{package_name}/html/{collection}-{package_name}.htm", "document.html"), # text wrapped in HTML!
-        'xml': ("{collection}-{package_name}/xml/{collection}-{package_name}.xml",  "document.xml"),
-       'mods': ("{collection}-{package_name}/mods.xml",                             "mods.xml"),
-     'premis': ("{collection}-{package_name}/premis.xml",                           "premis.xml")
+        "pdf": (
+            "{collection}-{package_name}/pdf/{collection}-{package_name}.pdf",
+            "document.pdf",
+        ),
+        "text": (
+            "{collection}-{package_name}/html/{collection}-{package_name}.htm",
+            "document.html",
+        ),  # text wrapped in HTML!
+        "xml": (
+            "{collection}-{package_name}/xml/{collection}-{package_name}.xml",
+            "document.xml",
+        ),
+        "mods": ("{collection}-{package_name}/mods.xml", "mods.xml"),
+        "premis": ("{collection}-{package_name}/premis.xml", "premis.xml"),
     }
 
     # Extract only files if the package lastmod is newer than the file's lastmod.
-    extract_formats = { format for format in extract_formats
-        if lastmod_cache.get(format) is None or lastmod_cache[format] < lastmod_cache['package'] }
-    
+    extract_formats = {
+        format
+        for format in extract_formats
+        if lastmod_cache.get(format) is None
+        or lastmod_cache[format] < lastmod_cache["package"]
+    }
+
     # Don't even bother opening the ZIP file if there are no new files to extract.
     if not extract_formats:
         return []
@@ -389,13 +493,16 @@ def extract_package_files(collection, package_name, package_file, lastmod_cache,
 
             # Construct the expected path in the package ZIP file and the desired local filename.
             package_path, local_path = format_paths[format]
-            package_path = package_path.format(collection=collection, package_name=package_name)
-            local_path = os.path.join(os.path.dirname(package_file), local_path)
+            package_path = package_path.format(
+                collection=collection, package_name=package_name
+            )
+            local_path = os.path.join(
+                os.path.dirname(package_file), local_path)
 
             # Extract it.
             try:
                 with package.open(package_path) as f1:
-                    with open(local_path, 'wb') as f2:
+                    with open(local_path, "wb") as f2:
                         f2.write(f1.read())
             except KeyError:
                 # No file of this format is present in this package.
@@ -405,7 +512,7 @@ def extract_package_files(collection, package_name, package_file, lastmod_cache,
                 # because not all packages have documents of all formats, update
                 # the format's file's lastmod in our cache so that we don't try
                 # to extract it again later, unless the package is updated.
-                lastmod_cache[format] = lastmod_cache['package']
+                lastmod_cache[format] = lastmod_cache["package"]
 
             logging.warn("Extracted: " + local_path)
             extracted_files.append(local_path)
@@ -423,7 +530,9 @@ def extract_package_files(collection, package_name, package_file, lastmod_cache,
                 # When we download bill files, also create the text-versions/data.json file
                 # which extracts commonly used components of the MODS XML, whenever we update
                 # that MODS file.
-                extract_bill_version_metadata(package_name, os.path.dirname(package_file))
+                extract_bill_version_metadata(
+                    package_name, os.path.dirname(package_file)
+                )
 
     return extracted_files
 
@@ -431,7 +540,8 @@ def extract_package_files(collection, package_name, package_file, lastmod_cache,
 def get_bill_id_for_package(package_name, with_version=True, restrict_to_congress=None):
     m = re.match(r"(\d+)([a-z]+)(\d+)([a-z][a-z0-9]*|)$", package_name)
     if not m:
-        raise Exception("Unmatched bill document package name: " + package_name)
+        raise Exception(
+            "Unmatched bill document package name: " + package_name)
     congress, bill_type, bill_number, version_code = m.groups()
 
     if restrict_to_congress and int(congress) != int(restrict_to_congress):
@@ -449,12 +559,19 @@ def get_output_path(collection, package_name, options):
     # The path will depend a bit on the collection.
     if collection == "BILLS":
         # Store with the other bill data ([congress]/bills/[billtype]/[billtype][billnumber]).
-        bill_and_ver = get_bill_id_for_package(package_name, with_version=False, restrict_to_congress=options.get("congress"))
+        bill_and_ver = get_bill_id_for_package(
+            package_name,
+            with_version=False,
+            restrict_to_congress=options.get("congress"),
+        )
         if not bill_and_ver:
             return None  # congress number does not match options["congress"]
         from bills import output_for_bill
+
         bill_id, version_code = bill_and_ver
-        return output_for_bill(bill_id, "text-versions/" + version_code, is_data_dot=False)
+        return output_for_bill(
+            bill_id, "text-versions/" + version_code, is_data_dot=False
+        )
 
     elif collection == "CRPT":
         # Store committee reports in [congress]/crpt/[reporttype].
@@ -464,11 +581,18 @@ def get_output_path(collection, package_name, options):
         congress, report_type, report_number = m.groups()
         if options.get("congress") and congress != options.get("congress"):
             return None  # congress number does not match options["congress"]
-        return "%s/%s/%s/%s/%s" % (utils.data_dir(), congress, collection.lower(), report_type, report_type + report_number)
-    
+        return "%s/%s/%s/%s/%s" % (
+            utils.data_dir(),
+            congress,
+            collection.lower(),
+            report_type,
+            report_type + report_number,
+        )
+
     else:
         # Store in govinfo/COLLECTION/PKGNAME.
-        path = "%s/govinfo/%s/%s" % (utils.data_dir(), collection, package_name)
+        path = "%s/govinfo/%s/%s" % (utils.data_dir(),
+                                     collection, package_name)
         return path
 
 
@@ -491,8 +615,14 @@ def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
     # status data.
     if collection == "BILLSTATUS":
         from bills import output_for_bill
-        bill_id, version_code = get_bill_id_for_package(os.path.splitext(os.path.basename(item_path.replace("BILLSTATUS-", "")))[0], with_version=False)
-        path = output_for_bill(bill_id, FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
+
+        bill_id, version_code = get_bill_id_for_package(
+            os.path.splitext(os.path.basename(
+                item_path.replace("BILLSTATUS-", "")))[0],
+            with_version=False,
+        )
+        path = output_for_bill(
+            bill_id, FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
 
     # Where should we store the lastmod found in the sitemap so that
     # we can tell later if the file has changed?
@@ -509,11 +639,18 @@ def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
 
     # Download.
     logging.warn("Downloading: " + path)
-    data = utils.download(url, path, utils.merge(options, {
-        'binary': True,
-        'force': True, # decision to cache was made above
-        'to_cache': False,
-    }))
+    data = utils.download(
+        url,
+        path,
+        utils.merge(
+            options,
+            {
+                "binary": True,
+                "force": True,  # decision to cache was made above
+                "to_cache": False,
+            },
+        ),
+    )
     results.append(path)
 
     if not data:
@@ -530,12 +667,14 @@ def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
 def extract_bill_version_metadata(package_name, text_path):
     bill_version_id = get_bill_id_for_package(package_name)
 
-    bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
+    bill_type, number, congress, version_code = utils.split_bill_version_id(
+        bill_version_id
+    )
 
     bill_version = {
-        'bill_version_id': bill_version_id,
-        'version_code': version_code,
-        'urls': {},
+        "bill_version_id": bill_version_id,
+        "version_code": version_code,
+        "urls": {},
     }
 
     mods_ns = {"mods": "http://www.loc.gov/mods/v3"}
@@ -543,7 +682,7 @@ def extract_bill_version_metadata(package_name, text_path):
     locations = doc.xpath("//mods:location/mods:url", namespaces=mods_ns)
 
     for location in locations:
-        label = location.attrib['displayLabel']
+        label = location.attrib["displayLabel"]
         if "HTML" in label:
             format = "html"
         elif "PDF" in label:
@@ -554,13 +693,27 @@ def extract_bill_version_metadata(package_name, text_path):
             format = "unknown"
         bill_version["urls"][format] = location.text
 
-    bill_version["issued_on"] = doc.xpath("string(//mods:dateIssued)", namespaces=mods_ns)
-
-    utils.write(
-        json.dumps(bill_version, sort_keys=True, indent=2, default=utils.format_datetime),
-        output_for_bill_version(bill_version_id)
+    bill_version["issued_on"] = doc.xpath(
+        "string(//mods:dateIssued)", namespaces=mods_ns
     )
 
+    utils.write(
+        json.dumps(
+            bill_version, sort_keys=True, indent=2, default=utils.format_datetime
+        ),
+        output_for_bill_version(bill_version_id),
+    )
+
+
 def output_for_bill_version(bill_version_id):
-    bill_type, number, congress, version_code = utils.split_bill_version_id(bill_version_id)
-    return "%s/%s/bills/%s/%s%s/text-versions/%s/data.json" % (utils.data_dir(), congress, bill_type, bill_type, number, version_code)
+    bill_type, number, congress, version_code = utils.split_bill_version_id(
+        bill_version_id
+    )
+    return "%s/%s/bills/%s/%s%s/text-versions/%s/data.json" % (
+        utils.data_dir(),
+        congress,
+        bill_type,
+        bill_type,
+        number,
+        version_code,
+    )

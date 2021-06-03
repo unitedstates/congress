@@ -1,4 +1,5 @@
 import unittest
+
 import bill_info
 
 # parsing various kinds of action text to extract metadata and establish state
@@ -9,7 +10,6 @@ def parse_bill_action(line, state, bill_id, title):
 
 
 class BillActions(unittest.TestCase):
-
     def test_veto(self):
         bill_id = "hjres64-111"
         title = "Making further continuing appropriations for fiscal year 2010, and for other purposes."
@@ -17,7 +17,7 @@ class BillActions(unittest.TestCase):
         line = "Vetoed by President."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vetoed")
+        self.assertEqual(new_action["type"], "vetoed")
         self.assertEqual(new_state, "PROV_KILL:VETO")
 
     def test_pocket_veto(self):
@@ -27,8 +27,8 @@ class BillActions(unittest.TestCase):
         line = "Pocket Vetoed by President."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vetoed")
-        self.assertEqual(new_action['pocket'], "1")
+        self.assertEqual(new_action["type"], "vetoed")
+        self.assertEqual(new_action["pocket"], "1")
         self.assertEqual(new_state, "VETOED:POCKET")
 
     def test_reported_from_committee(self):
@@ -39,7 +39,7 @@ class BillActions(unittest.TestCase):
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
 
-        self.assertEqual(new_action['type'], 'calendar')
+        self.assertEqual(new_action["type"], "calendar")
         # self.assertEqual(new_action['committee'], "Committee on the Judiciary")
         self.assertEqual(new_state, "REPORTED")
 
@@ -51,10 +51,10 @@ class BillActions(unittest.TestCase):
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
 
-        self.assertEqual(new_action['type'], 'calendar')
-        self.assertEqual(new_action['calendar'], "Senate Legislative")
-        self.assertEqual(new_action['under'], "General Orders")
-        self.assertEqual(new_action['number'], "70")
+        self.assertEqual(new_action["type"], "calendar")
+        self.assertEqual(new_action["calendar"], "Senate Legislative")
+        self.assertEqual(new_action["under"], "General Orders")
+        self.assertEqual(new_action["number"], "70")
         self.assertEqual(new_state, None)
 
     def test_enacted_as_public_law(self):
@@ -64,10 +64,10 @@ class BillActions(unittest.TestCase):
         line = "Became Public Law No: 111-148."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "enacted")
-        self.assertEqual(new_action['congress'], "111")
-        self.assertEqual(new_action['number'], "148")
-        self.assertEqual(new_action['law'], "public")
+        self.assertEqual(new_action["type"], "enacted")
+        self.assertEqual(new_action["congress"], "111")
+        self.assertEqual(new_action["number"], "148")
+        self.assertEqual(new_action["law"], "public")
 
     def test_cleared_for_whitehouse(self):
         bill_id = "hr3590-111"
@@ -87,7 +87,7 @@ class BillActions(unittest.TestCase):
         line = "Presented to President."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], 'topresident')
+        self.assertEqual(new_action["type"], "topresident")
 
     def test_signed_by_president(self):
         bill_id = "hr3590-111"
@@ -96,7 +96,7 @@ class BillActions(unittest.TestCase):
         line = "Signed by President."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], 'signed')
+        self.assertEqual(new_action["type"], "signed")
 
     # voting tests
 
@@ -108,12 +108,12 @@ class BillActions(unittest.TestCase):
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
 
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "vote")
-        self.assertEqual(new_action['where'], "h")
-        self.assertEqual(new_action['how'], "roll")
-        self.assertEqual(new_action['result'], "pass")
-        self.assertEqual(new_action['roll'], "768")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "vote")
+        self.assertEqual(new_action["where"], "h")
+        self.assertEqual(new_action["how"], "roll")
+        self.assertEqual(new_action["result"], "pass")
+        self.assertEqual(new_action["roll"], "768")
 
         self.assertEqual(new_state, "PASS_OVER:HOUSE")
 
@@ -125,12 +125,12 @@ class BillActions(unittest.TestCase):
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
 
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "vote2")
-        self.assertEqual(new_action['where'], "s")
-        self.assertEqual(new_action['how'], "roll")
-        self.assertEqual(new_action['result'], "pass")
-        self.assertEqual(new_action['roll'], "396")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "vote2")
+        self.assertEqual(new_action["where"], "s")
+        self.assertEqual(new_action["how"], "roll")
+        self.assertEqual(new_action["result"], "pass")
+        self.assertEqual(new_action["roll"], "396")
 
         self.assertEqual(new_state, "PASS_BACK:SENATE")
 
@@ -142,12 +142,12 @@ class BillActions(unittest.TestCase):
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
 
-        self.assertEqual(new_action['type'], "vote-aux")
-        self.assertEqual(new_action['vote_type'], "cloture")
-        self.assertEqual(new_action['where'], "s")
-        self.assertEqual(new_action['how'], "roll")
-        self.assertEqual(new_action['result'], "pass")
-        self.assertEqual(new_action['roll'], "44")
+        self.assertEqual(new_action["type"], "vote-aux")
+        self.assertEqual(new_action["vote_type"], "cloture")
+        self.assertEqual(new_action["where"], "s")
+        self.assertEqual(new_action["how"], "roll")
+        self.assertEqual(new_action["result"], "pass")
+        self.assertEqual(new_action["roll"], "44")
 
         self.assertEqual(new_state, None)
 
@@ -158,12 +158,12 @@ class BillActions(unittest.TestCase):
         line = "On motion that the House agree to the Senate amendments Agreed to by recorded vote: 219 - 212 (Roll no. 165)."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['roll'], "165")
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "pingpong")
-        self.assertEqual(new_action['where'], "h")
-        self.assertEqual(new_action['how'], "roll")
-        self.assertEqual(new_action['result'], "pass")
+        self.assertEqual(new_action["roll"], "165")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "pingpong")
+        self.assertEqual(new_action["where"], "h")
+        self.assertEqual(new_action["how"], "roll")
+        self.assertEqual(new_action["result"], "pass")
 
     def test_vote_cloture(self):
         bill_id = "hr3590-111"
@@ -172,12 +172,12 @@ class BillActions(unittest.TestCase):
         line = "Cloture on the motion to proceed to the bill invoked in Senate by Yea-Nay Vote. 60 - 39. Record Vote Number: 353."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['roll'], "353")
-        self.assertEqual(new_action['type'], "vote-aux")
-        self.assertEqual(new_action['vote_type'], "cloture")
-        self.assertEqual(new_action['where'], "s")
-        self.assertEqual(new_action['how'], "roll")
-        self.assertEqual(new_action['result'], "pass")
+        self.assertEqual(new_action["roll"], "353")
+        self.assertEqual(new_action["type"], "vote-aux")
+        self.assertEqual(new_action["vote_type"], "cloture")
+        self.assertEqual(new_action["where"], "s")
+        self.assertEqual(new_action["how"], "roll")
+        self.assertEqual(new_action["result"], "pass")
 
         self.assertEqual(new_state, None)  # unchanged
 
@@ -188,12 +188,12 @@ class BillActions(unittest.TestCase):
         line = "Cloture invoked in Senate by Yea-Nay Vote. 60 - 39. Record Vote Number: 395."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['roll'], "395")
-        self.assertEqual(new_action['type'], "vote-aux")
-        self.assertEqual(new_action['vote_type'], "cloture")
-        self.assertEqual(new_action['where'], "s")
-        self.assertEqual(new_action['how'], "roll")
-        self.assertEqual(new_action['result'], "pass")
+        self.assertEqual(new_action["roll"], "395")
+        self.assertEqual(new_action["type"], "vote-aux")
+        self.assertEqual(new_action["vote_type"], "cloture")
+        self.assertEqual(new_action["where"], "s")
+        self.assertEqual(new_action["how"], "roll")
+        self.assertEqual(new_action["result"], "pass")
 
         self.assertEqual(new_state, None)  # unchanged
 
@@ -270,13 +270,13 @@ class BillActions(unittest.TestCase):
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
 
-        self.assertEqual(new_action['type'], 'vote')
-        self.assertEqual(new_action['vote_type'], 'conference')
-        self.assertEqual(new_action['how'], 'roll')
-        self.assertEqual(new_action['where'], 'h')
-        self.assertEqual(new_action['result'], 'pass')
-        self.assertEqual(new_action['roll'], "72")
-        self.assertEqual(new_state, 'CONFERENCE:PASSED:HOUSE')
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "conference")
+        self.assertEqual(new_action["how"], "roll")
+        self.assertEqual(new_action["where"], "h")
+        self.assertEqual(new_action["result"], "pass")
+        self.assertEqual(new_action["roll"], "72")
+        self.assertEqual(new_state, "CONFERENCE:PASSED:HOUSE")
 
     def test_vote_conference_report_senate_pass(self):
         bill_id = "hr3630-112"
@@ -286,13 +286,13 @@ class BillActions(unittest.TestCase):
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
 
-        self.assertEqual(new_action['type'], 'vote')
-        self.assertEqual(new_action['vote_type'], 'conference')
-        self.assertEqual(new_action['how'], 'roll')
-        self.assertEqual(new_action['where'], 's')
-        self.assertEqual(new_action['result'], 'pass')
-        self.assertEqual(new_action['roll'], "22")
-        self.assertEqual(new_state, 'PASSED:BILL')
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "conference")
+        self.assertEqual(new_action["how"], "roll")
+        self.assertEqual(new_action["where"], "s")
+        self.assertEqual(new_action["result"], "pass")
+        self.assertEqual(new_action["roll"], "22")
+        self.assertEqual(new_state, "PASSED:BILL")
 
     def test_vote_veto_override_fail(self):
         bill_id = "hjres64-111"
@@ -301,9 +301,9 @@ class BillActions(unittest.TestCase):
         line = "On passage, the objections of the President to the contrary notwithstanding Failed by the Yeas and Nays: (2/3 required): 143 - 245, 1 Present (Roll no. 2).On passage, the objections of the President to the contrary notwithstanding Failed by the Yeas and Nays: (2/3 required): 143 - 245, 1 Present (Roll no. 2)."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "override")
-        self.assertEqual(new_action['where'], "h")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "override")
+        self.assertEqual(new_action["where"], "h")
         self.assertEqual(new_action["result"], "fail")
         self.assertEqual(new_action["how"], "roll")
         self.assertEqual(new_action["roll"], "2")
@@ -316,9 +316,9 @@ class BillActions(unittest.TestCase):
         line = "Two-thirds of the Members present having voted in the affirmative the bill is passed, Passed by the Yeas and Nays: (2/3 required): 383 - 41 (Roll no. 491)."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "override")
-        self.assertEqual(new_action['where'], "h")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "override")
+        self.assertEqual(new_action["where"], "h")
         self.assertEqual(new_action["result"], "pass")
         self.assertEqual(new_action["how"], "roll")
         self.assertEqual(new_action["roll"], "491")
@@ -328,12 +328,14 @@ class BillActions(unittest.TestCase):
         bill_id = "hr6331-110"
         title = "Medicare Improvements for Patients and Providers Act of 2008"
         state = "VETOED:OVERRIDE_PASS_OVER:HOUSE"
-        line = "Passed Senate over veto by Yea-Nay Vote. 70 - 26. Record Vote Number: 177."
+        line = (
+            "Passed Senate over veto by Yea-Nay Vote. 70 - 26. Record Vote Number: 177."
+        )
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "override")
-        self.assertEqual(new_action['where'], "s")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "override")
+        self.assertEqual(new_action["where"], "s")
         self.assertEqual(new_action["result"], "pass")
         self.assertEqual(new_action["how"], "roll")
         self.assertEqual(new_action["roll"], "177")
@@ -351,9 +353,9 @@ class BillActions(unittest.TestCase):
         line = "On passage Passed by the Yeas and Nays: (2/3 required): 286 - 130 (Roll no. 296)."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "vote2")
-        self.assertEqual(new_action['where'], "h")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "vote2")
+        self.assertEqual(new_action["where"], "h")
         self.assertEqual(new_action["result"], "pass")
         self.assertEqual(new_action["how"], "roll")
         self.assertEqual(new_action["roll"], "296")
@@ -366,9 +368,9 @@ class BillActions(unittest.TestCase):
         line = "Received in the Senate, considered, and agreed to without amendment by Unanimous Consent."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "vote2")
-        self.assertEqual(new_action['where'], "s")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "vote2")
+        self.assertEqual(new_action["where"], "s")
         self.assertEqual(new_action["result"], "pass")
         self.assertEqual(new_action["how"], "by Unanimous Consent")
         self.assertEqual(new_state, "PASSED:CONCURRENTRES")
@@ -380,24 +382,26 @@ class BillActions(unittest.TestCase):
         line = "On agreeing to the resolution, as amended Agreed to by the Yeas and Nays: 253 - 175 (Roll no. 16)."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "vote")
-        self.assertEqual(new_action['where'], "h")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "vote")
+        self.assertEqual(new_action["where"], "h")
         self.assertEqual(new_action["result"], "pass")
         self.assertEqual(new_action["how"], "roll")
-        self.assertEqual(new_action['roll'], "16")
+        self.assertEqual(new_action["roll"], "16")
         self.assertEqual(new_state, "PASSED:SIMPLERES")
 
     def test_passed_simple_resolution_senate(self):
         bill_id = "sres484-112"
-        title = "A resolution designating June 7, 2012, as \"National Hunger Awareness Day\"."
+        title = (
+            'A resolution designating June 7, 2012, as "National Hunger Awareness Day".'
+        )
         state = "REPORTED"
         line = "Submitted in the Senate, considered, and agreed to without amendment and with a preamble by Unanimous Consent."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "vote")
-        self.assertEqual(new_action['where'], "s")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "vote")
+        self.assertEqual(new_action["where"], "s")
         self.assertEqual(new_action["result"], "pass")
         self.assertEqual(new_action["how"], "by Unanimous Consent")
         self.assertEqual(new_state, "PASSED:SIMPLERES")
@@ -409,9 +413,9 @@ class BillActions(unittest.TestCase):
         line = "Disagreed to in Senate by Voice Vote."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "vote")
-        self.assertEqual(new_action['where'], "s")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "vote")
+        self.assertEqual(new_action["where"], "s")
         self.assertEqual(new_action["result"], "fail")
         self.assertEqual(new_action["how"], "by Voice Vote")
         self.assertEqual(new_state, "FAIL:ORIGINATING:SENATE")
@@ -423,12 +427,12 @@ class BillActions(unittest.TestCase):
         line = "On motion to suspend the rules and pass the bill Failed by the Yeas and Nays: (2/3 required): 97 - 318, 7 Present (Roll no. 379)."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "vote")
-        self.assertEqual(new_action['where'], "h")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "vote")
+        self.assertEqual(new_action["where"], "h")
         self.assertEqual(new_action["result"], "fail")
         self.assertEqual(new_action["how"], "roll")
-        self.assertEqual(new_action['roll'], "379")
+        self.assertEqual(new_action["roll"], "379")
         self.assertEqual(new_state, "PROV_KILL:SUSPENSIONFAILED")
 
     def test_passed_by_special_rule(self):
@@ -438,14 +442,14 @@ class BillActions(unittest.TestCase):
         line = "Passed House pursuant to H. Res. 241."
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
-        self.assertEqual(new_action['type'], "vote")
-        self.assertEqual(new_action['vote_type'], "vote")
-        self.assertEqual(new_action['where'], "h")
+        self.assertEqual(new_action["type"], "vote")
+        self.assertEqual(new_action["vote_type"], "vote")
+        self.assertEqual(new_action["where"], "h")
         self.assertEqual(new_action["result"], "pass")
         self.assertEqual(new_action["how"], "by special rule")
         self.assertEqual(new_state, "PASSED:SIMPLERES")
 
-        self.assertEqual(new_action['bill_ids'], ["hres241-109"])
+        self.assertEqual(new_action["bill_ids"], ["hres241-109"])
 
     def test_referral_committee(self):
         bill_id = "hr547-113"
@@ -455,7 +459,7 @@ class BillActions(unittest.TestCase):
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
 
-        self.assertEqual(new_action['type'], "referral")
+        self.assertEqual(new_action["type"], "referral")
         self.assertEqual(new_state, "REFERRED")
 
     def test_referral_subcommittee(self):
@@ -466,7 +470,7 @@ class BillActions(unittest.TestCase):
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
 
-        self.assertEqual(new_action['type'], "referral")
+        self.assertEqual(new_action["type"], "referral")
         self.assertEqual(new_state, "REFERRED")
 
     def test_hearings_held(self):
@@ -477,6 +481,6 @@ class BillActions(unittest.TestCase):
 
         new_action, new_state = parse_bill_action(line, state, bill_id, title)
 
-        self.assertEqual(new_action['type'], "hearings")
+        self.assertEqual(new_action["type"], "hearings")
         # self.assertEqual(new_action['committees'], "Committee on the Judiciary Subcommittee on the Constitution, Civil Rights and Human Rights")
         self.assertEqual(new_state, None)  # did not change state
