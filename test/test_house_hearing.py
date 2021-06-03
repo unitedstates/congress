@@ -1,8 +1,8 @@
 import unittest
 
-import committee_meetings
+from tasks import committee_meetings
 import lxml.etree
-import utils
+from tasks import utils
 
 # Parsing the House hearing info
 

@@ -14,7 +14,7 @@ from time import mktime
 import lxml.etree
 import mechanize
 import requests
-import utils
+from tasks import utils
 
 # to get text files their is a new dependency; you need to have pdftotext.
 # On Ubuntu, apt-get install poppler-utils. On OS X, install it via MacPorts

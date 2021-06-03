@@ -1,5 +1,6 @@
+autoflake==1.4
+autopep8==1.5.7
 black==21.5b2
 flake8==3.9.2
 isort==5.8.0
-autopep8==1.5.7
-autoflake==1.4
+pytest==6.2.4
