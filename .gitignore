@@ -60,3 +60,6 @@ docs/_build/
 
 # IDE's & Editors
 .vscode/
+
+# SonarQube
+.scannerwork/
