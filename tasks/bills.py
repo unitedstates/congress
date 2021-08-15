@@ -105,6 +105,12 @@ def process_bill(bill_id, options):
     # Read FDSys bulk data file.
     xml_as_dict = read_fdsys_bulk_bill_status_file(fdsys_xml_path, bill_id)
     bill_data = form_bill_json_dict(xml_as_dict)
+    if isinstance(bill_data, str): # Non-error failure
+        return {
+            "ok": True,
+            "saved": False,
+            "reason": bill_data,
+        }
 
     # Convert and write out data.json and data.xml.
     utils.write(
@@ -151,6 +157,10 @@ def form_bill_json_dict(xml_as_dict):
     titles = bill_info.titles_for(bill_dict['titles']['item'])
     actions = bill_info.actions_for(bill_dict['actions']['item'], bill_id, bill_info.current_title_for(titles, 'official'))
     status, status_date = bill_info.latest_status(actions, bill_dict.get('introducedDate', ''))
+
+    if bill_dict['sponsors'] is None and bill_dict['titles']['item'][0]['title'].startswith("Reserved "):
+        logging.info("[%s] Skipping reserved bill number with no sponsor (%s)" % (bill_id, bill_dict['titles']['item'][0]['title']))
+        return bill_dict['titles']['item'][0]['title'] # becomes the 'reason'
 
     bill_data = {
         'bill_id': bill_id,
