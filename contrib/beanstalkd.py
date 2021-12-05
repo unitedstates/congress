@@ -55,7 +55,7 @@ def init_guard(reconnect=False):
     global _Config, _Connection
     if _Config is None:
         with open('config.yml', 'r') as conffile:
-            config = yaml.load(conffile)
+            config = yaml.load(conffile, yaml.SafeLoader)
             assert 'beanstalk' in config
             assert 'connection' in config['beanstalk']
             assert 'host' in config['beanstalk']['connection']
