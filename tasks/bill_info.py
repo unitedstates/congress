@@ -394,7 +394,7 @@ def actions_for(action_list, bill_id, title):
 
         keep = True
         if closure['prev']:
-            if item['sourceSystem']['code'] == "9":
+            if 'sourceSystem' in item and item['sourceSystem']['code'] == "9":
                 # Date must match previous action..
                 # If both this and previous have a time, the times must match.
                 # The text must approximately match. Sometimes the LOC text has a prefix
