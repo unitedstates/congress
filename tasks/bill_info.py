@@ -163,7 +163,7 @@ def sponsor_for(sponsor_dict):
         return None
 
     # TODO: Don't do regex matching here. Find another way.
-    m = re.match(r'(?P<title>(Rep\.|Sen\.|Del\.|Resident Commissioner)) (?P<name>.*?) +\[(?P<party>[DRIL])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large|None))?\]$',
+    m = re.match(r'(?P<title>(Rep\.|Sen\.|Del\.|Resident Commissioner)) (?P<name>.*?) +\[(?P<party>[A-Z]+)-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large|None))?\]$',
         sponsor_dict['fullName'])
 
     if not m:
@@ -394,7 +394,7 @@ def actions_for(action_list, bill_id, title):
 
         keep = True
         if closure['prev']:
-            if item['sourceSystem']['code'] == "9":
+            if 'sourceSystem' in item and item['sourceSystem']['code'] == "9":
                 # Date must match previous action..
                 # If both this and previous have a time, the times must match.
                 # The text must approximately match. Sometimes the LOC text has a prefix
