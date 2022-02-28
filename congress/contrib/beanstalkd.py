@@ -4,7 +4,7 @@ A module that monkey-patches the output_bill method to push the bill identifier
 onto a task queue after the data file has been written to disk. To use this
 module, invoke the bills scraper with the --patch option like so:
 
-  ./run bills --patch=contrib.beanstalkd
+  usc-run bills --patch=contrib.beanstalkd
 
 You must include a 'beakstalk' section in config.yml with this structure
 (though the values are up to you):
@@ -34,9 +34,7 @@ import beanstalkc
 
 # The patch module is loaded after the task module is loaded, so all task
 # modules are on the import path.
-import bills
-import amendment_info
-import vote_info
+from congress.tasks import bills, amendment_info, vote_info
 
 
 __all__ = [

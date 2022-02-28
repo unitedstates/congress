@@ -4,10 +4,7 @@ import os
 import re
 import xmltodict
 
-import bill_info
-import amendment_info
-import govinfo
-import utils
+from congress.tasks import bill_info, amendment_info, govinfo, utils
 
 
 def run(options):

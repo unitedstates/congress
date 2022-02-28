@@ -3,12 +3,12 @@
 # https://www.govinfo.gov/sitemaps for a list of collections.
 # This service was formerly called "Fdsys."
 #
-# ./run govinfo--collections=BILLS,STATUTE,...
+# usc-run govinfo --collections=BILLS,STATUTE,...
 # Download bill text (from the BILLS collection; there's also a bulk
 # data BILLS collection but it has less in it), the Statues at Large,
 # and other documents from GovInfo.gov's non-bulk-data collections.
 #
-# ./run govinfo --bulkdata=BILLSTATUS,FR,...
+# usc-run govinfo --bulkdata=BILLSTATUS,FR,...
 # Download bill status, the Federal Register, and other documents
 # from GovInfo.gov's bulk data collections. (The BILLS collection occurs
 # both as a regular collection (bill text in multiple formats) and as
@@ -46,7 +46,7 @@ import logging
 import os
 import os.path
 import zipfile
-import utils
+from congress.tasks import utils
 
 import rtyaml
 

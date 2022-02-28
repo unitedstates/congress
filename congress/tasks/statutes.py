@@ -12,15 +12,15 @@
 #
 # First download the Statutes at Large from GPO:
 #
-# ./run fdsys --collections=STATUTE --store=mods
+# usc-run fdsys --collections=STATUTE --store=mods
 #
 # To process statute text, get the text PDFs:
 #
-# ./run fdsys --collections=STATUTE --store=pdfs --granules
+# usc-run fdsys --collections=STATUTE --store=pdfs --granules
 #
 # Then run this script:
 #
-# ./run statutes
+# usc-run statutes
 #
 # Processes all downloaded statutes files and saves bill files:
 #   data/82/bills/hr/hr1/data.json and
@@ -41,10 +41,10 @@
 # UTF-8 encoded and have form-feed characters marking page breaks.
 #
 # Examples:
-# ./run statutes --volume=65
-# ./run statutes --volumes=65-86
-# ./run statutes --year=1951
-# ./run statutes --years=1951-1972
+# usc-run statutes --volume=65
+# usc-run statutes --volumes=65-86
+# usc-run statutes --year=1951
+# usc-run statutes --years=1951-1972
 # Processes just the indicated volume or range of volumes.
 # Starting with the 93rd Congress (1973-1974, corresponding
 # to volume 78 of the Statutes of Large), we have bill
@@ -52,7 +52,7 @@
 #
 # With bill text missing from THOMAS/GPO from the 93rd to
 # 102nd Congresses, fill in the text-versions files like so:
-# ./run statutes --volumes=87-106 --textversions
+# usc-run statutes --volumes=87-106 --textversions
 
 import logging
 import time
@@ -63,9 +63,7 @@ import json
 import os.path
 import subprocess
 
-import utils
-import bill_info
-import bill_versions
+from congress.tasks import utils, bill_info, bill_versions
 import fdsys
 
 

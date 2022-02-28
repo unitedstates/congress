@@ -40,7 +40,7 @@ RUN mkdir -p /opt/theunitedstates.io/
 ADD . /opt/theunitedstates.io/congress/
 WORKDIR /opt/theunitedstates.io/congress/
 
-RUN pip install -r requirements.txt
+RUN pip install .
 
 RUN echo "/opt/theunitedstates.io/congress/" > /usr/lib/python3.6/dist-packages/congress.pth
 
@@ -48,4 +48,4 @@ RUN mkdir -p /congress
 WORKDIR /congress
 
 CMD []
-ENTRYPOINT ["/opt/theunitedstates.io/congress/run"]
+ENTRYPOINT ["/opt/theunitedstates.io/congress/congress/run.py"]
