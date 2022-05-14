@@ -19,6 +19,9 @@ def run(options):
     if bill_id:
         to_fetch = bill_id.split(",")
     else:
+        if options.get("matching_action_regex"):
+            options["matching_action_regex"] = re.compile(options["matching_action_regex"])
+
         to_fetch = get_bills_to_process(options)
 
         if not to_fetch:
@@ -61,6 +64,12 @@ def get_bills_to_process(options):
                     # Not an integer.
                     continue
         congresses = sorted(filter_ints(os.listdir(get_data_path())))
+
+        # If we're reprocessing actions, start with the 93rd Congress.
+        # Before that we may have bill data from other sources that don't
+        # conform to the usual action parsing logic.
+        if options.get("reparse_actions"):
+            congresses = filter(lambda c : c >= 93, congresses)
     else:
         congresses = sorted([int(c) for c in options['congress'].split(',')])
 
@@ -71,19 +80,34 @@ def get_bills_to_process(options):
 
         # walk through all bill types in that congress
         # (sort by bill type so that we proceed in a stable order each run)
-
-        bill_types = [bill_type for bill_type in os.listdir(get_data_path(congress)) if not bill_type.startswith(".")]
+        path = get_data_path(congress)
+        if not os.path.exists(path): continue
+        bill_types = [bill_type for bill_type in os.listdir(path) if not bill_type.startswith(".")]
 
         for bill_type in sorted(bill_types):
 
             # walk through each bill in that congress and bill type
             # (sort by bill number so that we proceed in a normal order)
-
-            bills = [bill for bill in os.listdir(get_data_path(congress, bill_type)) if not bill.startswith(".")]
+            path = get_data_path(congress, bill_type)
+            if not os.path.exists(path): continue
+            bills = [bill for bill in os.listdir(path) if not bill.startswith(".")]
             for bill_type_and_number in sorted(
                 bills,
                 key = lambda x : int(x.replace(bill_type, ""))
                 ):
+
+                bill_id = bill_type_and_number + "-" + congress
+
+                if options.get("matching_action_regex"):
+                    # Include bills that have an action that matches a regular expression.
+                    fn = get_data_path(congress, bill_type, bill_type_and_number, "data.json")
+                    if os.path.exists(fn):
+                        with open(fn) as f:
+                            bill = json.load(f)
+                            for action in bill['actions']:
+                                if action.get('text') and options["matching_action_regex"].search(action['text']):
+                                    yield bill_id
+                    continue # don't check modification dates
 
                 fn = get_data_path(congress, bill_type, bill_type_and_number, govinfo.FDSYS_BILLSTATUS_FILENAME)
                 if os.path.exists(fn):
@@ -92,7 +116,6 @@ def get_bills_to_process(options):
                     bulkfile_lastmod = utils.read(fn.replace(".xml", "-lastmod.txt"))
                     parse_lastmod = utils.read(get_data_path(congress, bill_type, bill_type_and_number, "data-fromfdsys-lastmod.txt"))
                     if bulkfile_lastmod != parse_lastmod or options.get("force"):
-                        bill_id = bill_type_and_number + "-" + congress
                         yield bill_id
 
 def process_bill(bill_id, options):
@@ -236,42 +259,41 @@ def process_amendments(bill_id, bill_amendments, options):
 def reparse_actions(bill_id, options):
     # Load an existing bill status JSON file.
     data_json_fn = output_for_bill(bill_id, 'json')
+    if not os.path.exists(data_json_fn):
+        return {
+            "ok": True,
+            "saved": False,
+            "reason": "no file",
+        }
     source = utils.read(data_json_fn)
     bill_data = json.loads(source)
 
     # Munge data.
     from bill_info import parse_bill_action
     title = bill_info.current_title_for(bill_data['titles'], 'official')
-    old_status = None
+    old_status = "INTRODUCED"
     for action in bill_data['actions']:
       new_action, new_status = parse_bill_action(action, old_status, bill_id, title)
       if new_status:
         old_status = new_status
         action['status'] = new_status
+      elif 'status' in action:
+        del action['status']
       # clear out deleted keys
       for key in ('vote_type', 'how', 'where', 'result', 'roll', 'suspension', 'calendar', 'under', 'number', 'committee', 'pocket', 'law', 'congress'):
         if key in action and key not in new_action:
-          del action['key']
+          del action[key]
       action.update(new_action)
 
     status, status_date = bill_info.latest_status(bill_data['actions'], bill_data['introduced_at'])
     bill_data['status'] = status
     bill_data['status_at'] = status_date
 
-    # Show user a diff on the console to accept changes.
-    def show_diff_ask_ok(source, revised, fn):
-      if source == revised: return False # nothing to do
-      def split_lines(s): return [l+"\n" for l in s.split("\n")]
-      import sys
-      from difflib import unified_diff
-      sys.stdout.writelines(unified_diff(split_lines(source), split_lines(revised), fromfile=fn, tofile=fn))
-      return input("Apply change? (y/n) ").strip() == "y"
-
     wrote_any = False
 
     # Write new data.json file.
     revised = json.dumps(bill_data, indent=2, sort_keys=True)
-    if show_diff_ask_ok(source, revised, data_json_fn):
+    if utils.show_diff_ask_ok(source, revised, data_json_fn):
       utils.write(revised, data_json_fn)
       wrote_any = True
 
@@ -281,7 +303,7 @@ def reparse_actions(bill_id, options):
     with open(data_xml_fn, 'r') as xml_file:
         source = xml_file.read()
     revised = create_govtrack_xml(bill_data, options)
-    if show_diff_ask_ok(source, revised.decode("utf8"), data_xml_fn):
+    if utils.show_diff_ask_ok(source, revised.decode("utf8"), data_xml_fn):
       with open(data_xml_fn, 'wb') as xml_file:
         xml_file.write(revised)
       wrote_any = True
@@ -291,4 +313,3 @@ def reparse_actions(bill_id, options):
         "saved": wrote_any,
         "reason": "no changes or changes skipped by user",
     }
-
