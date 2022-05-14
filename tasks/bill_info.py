@@ -847,6 +847,32 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         if new_status:
             status = new_status
 
+    m = re.search(r"Pursuant to .* the following bills passed under suspension of the rules: (.*)\.$", line, re.I)
+    if m:
+        # The list should certainly include this bill, but was it passed "as amended"?
+        as_amended = None
+        bill_list = m.group(1)
+        bill_list = bill_list.replace("and the following resolution was agreed to under suspension of the rules: ", "")
+        bill_list = bill_list.replace("and the following resolutions were agreed to under suspension of the rules: ", "")
+        bill_list = bill_list.replace("and ", "")
+        bill_list = re.split(r"\s*(?:;|,(?! as amended))\s*", bill_list)
+        for bill_item in bill_list:
+            bill_item = bill_item.lower().replace(".", "").replace(" ", "").split(",")
+            if bill_item[0] == (bill_type + number):
+                as_amended = len(bill_item) > 1
+        if as_amended is None: raise ValueError("Did not find bill in list: " + line)
+
+        vote_type = "vote" if (bill_type[0] == "h") else "vote2"
+        pass_fail = "pass"
+        action["type"] = "vote"
+        action["vote_type"] = vote_type
+        action["how"] = "by special rule"
+        action["where"] = "h"
+        action["result"] = pass_fail
+        new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, as_amended, title, prev_status)
+        if new_status:
+            status = new_status
+
     # House motions to table adversely dispose of a pending matter, if agreed to. An agreed-to "motion to table the measure",
     # which is very infrequent, kills the legislation. If not agreed to, nothing changes. So this regex only captures
     # agreed-to motions to table.
