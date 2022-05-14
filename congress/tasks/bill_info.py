@@ -860,7 +860,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
 
         # In order to classify this as resulting in the same thing as regular failed vote on passage, new_status_after_vote
         # needs to know if this was a vote in the originating chamber or not.
-        if prev_status == "INTRODUCED" or bill_id.startswith("hres"):
+        if prev_status in ("INTRODUCED", "REPORTED") or bill_id.startswith("hres"):
             vote_type = "vote"
         elif False:
             vote_type = "vote2"
@@ -999,27 +999,25 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         if new_status:
             status = new_status
 
-    # PSUDO-REPORTING (because GovTrack did this, but should be changed)
-
-    # TODO: Make a new status for this as pre-reported.
-    m = re.search(r"Placed on (the )?([\w ]+) Calendar( under ([\w ]+))?[,\.] Calendar No\. (\d+)\.|Committee Agreed to Seek Consideration Under Suspension of the Rules|Ordered to be Reported", line, re.I)
+    # Useless. But GovTrack has had it.
+    m = re.search(r"Placed on (the )?([\w ]+) Calendar( under ([\w ]+))?[,\.] Calendar No\. (\d+)\.", line, re.I)
     if m != None:
-        # TODO: This makes no sense.
-        if prev_status in ("INTRODUCED", "REFERRED"):
-            status = "REPORTED"
-
         action["type"] = "calendar"
-
-        # TODO: Useless. But good for GovTrack compatibility.
-        if m.group(2):  # not 'Ordered to be Reported'
-            action["calendar"] = m.group(2)
-            action["under"] = m.group(4)
-            action["number"] = m.group(5)
+        action["calendar"] = m.group(2)
+        action["under"] = m.group(4)
+        action["number"] = m.group(5)
 
     # COMMITTEE ACTIONS
 
+    # Ordered Reported (because GovTrack did this, but maybe should be changed to not combine with actual reported bills)
+    m = re.search(r"Ordered to be Reported|Committee Agreed to Seek Consideration Under Suspension of the Rules", line, re.I)
+    if m != None:
+        action["type"] = "ordered-reported"
+        if prev_status in ("INTRODUCED", "REFERRED"):
+            status = "REPORTED"
+
     # reported
-    m = re.search(r"Committee on (.*)\. Reported by", line, re.I)
+    m = re.search(r"Committee on (.*)\. (Original measure )?[Rr]eported (to Senate )?by", line, re.I)
     if m != None:
         action["type"] = "reported"
         action["committee"] = m.group(1)
