@@ -382,6 +382,19 @@ def write(content, destination, options={}):
         f.write(content)
     f.close()
 
+
+def show_diff_ask_ok(source, revised, fn):
+    # Show user a diff on the console to accept changes.
+    source = re.sub(r"\s*\n", "\n", source) # old files had trailing spaces
+    revised = re.sub(r"\s*\n", "\n", revised) # be consistent in normalization
+    if source == revised: return False # nothing to do
+    def split_lines(s): return [l+"\n" for l in s.split("\n")]
+    import sys
+    from difflib import unified_diff
+    sys.stdout.writelines(unified_diff(split_lines(source), split_lines(revised), fromfile=fn, tofile=fn))
+    return input("Apply change? (y/n) ").strip() == "y"
+
+
 def write_json(data, destination):
     return write(
         json.dumps(data,
