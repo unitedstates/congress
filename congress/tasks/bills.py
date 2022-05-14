@@ -135,7 +135,10 @@ def process_bill(bill_id, options):
     # Convert and write out data.json and data.xml.
     utils.write(
         json.dumps(bill_data, indent=2, sort_keys=True),
-        os.path.dirname(fdsys_xml_path) + '/data.json')
+        os.path.dirname(fdsys_xml_path) + '/data.json',
+        {
+            "diff": options.get("diff")
+        })
 
     from bill_info import create_govtrack_xml
     with open(os.path.dirname(fdsys_xml_path) + '/data.xml', 'wb') as xml_file:
@@ -148,7 +151,10 @@ def process_bill(bill_id, options):
     # file under a new path.
     utils.write(
         utils.read(_path_to_billstatus_file(bill_id).replace(".xml", "-lastmod.txt")),
-        os.path.join(os.path.dirname(fdsys_xml_path), "data-fromfdsys-lastmod.txt"))
+        os.path.join(os.path.dirname(fdsys_xml_path), "data-fromfdsys-lastmod.txt"),
+        {
+            "diff": options.get("diff")
+        })
 
     return {
         "ok": True,
@@ -291,9 +297,18 @@ def reparse_actions(bill_id, options):
 
     wrote_any = False
 
+    if options.get("diff"):
+        confirmer = utils.show_diff_ask_ok
+    else:
+        # If no --diff is given, just check that
+        # the content hasn't changed --- don't bother
+        # writing out anything with identical content.
+        def confirmer(source, revised, fn):
+            return source != revised
+
     # Write new data.json file.
     revised = json.dumps(bill_data, indent=2, sort_keys=True)
-    if utils.show_diff_ask_ok(source, revised, data_json_fn):
+    if confirmer(source, revised, data_json_fn):
       utils.write(revised, data_json_fn)
       wrote_any = True
 
@@ -303,7 +318,7 @@ def reparse_actions(bill_id, options):
     with open(data_xml_fn, 'r') as xml_file:
         source = xml_file.read()
     revised = create_govtrack_xml(bill_data, options)
-    if utils.show_diff_ask_ok(source, revised.decode("utf8"), data_xml_fn):
+    if confirmer(source, revised.decode("utf8"), data_xml_fn):
       with open(data_xml_fn, 'wb') as xml_file:
         xml_file.write(revised)
       wrote_any = True
