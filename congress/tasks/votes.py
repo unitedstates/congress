@@ -64,7 +64,7 @@ def run(options):
 def vote_ids_for_house(congress, session_year, options):
     vote_ids = []
 
-    index_page = "http://clerk.house.gov/evs/%s/index.asp" % session_year
+    index_page = "https://clerk.house.gov/evs/%s/index.asp" % session_year
     group_page = r"ROLL_(\d+)\.asp"
     link_pattern = r"http://clerk.house.gov/cgi-bin/vote.asp\?year=%s&rollnumber=(\d+)" % session_year
 
@@ -118,7 +118,7 @@ def vote_ids_for_senate(congress, session_year, options):
 
     vote_ids = []
 
-    url = "http://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%d.xml" % (congress, session_num)
+    url = "https://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_%s_%d.xml" % (congress, session_num)
     page = utils.download(
         url,
         "%s/votes/%s/pages/senate.xml" % (congress, session_year),
