@@ -88,7 +88,7 @@ def fetch_senate_committee_meetings(committees, options):
     meetings = []
 
     dom = lxml.etree.fromstring(utils.download(
-        "http://www.senate.gov/general/committee_schedules/hearings.xml",
+        "https://www.senate.gov/general/committee_schedules/hearings.xml",
         "committee_schedule/senate.xml",
         options))
 
