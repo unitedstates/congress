@@ -40,8 +40,8 @@ brew install wget
 It's recommended you use a `virtualenv` (virtual environment) for development. Create a virtualenv for this project:
 
 ```bash
-python3 -m venv congress
-source congress/bin/activate
+python3 -m venv env
+source env/bin/activate
 ```
 Finally, with your virtual environment activated, install the package, which
 will automatically pull in the Python dependencies:
