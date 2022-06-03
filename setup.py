@@ -30,6 +30,7 @@ setuptools.setup(
         'pyyaml',
         'scrapelib',
         'xmltodict',
+        'python-dotenv',
     ],
     entry_points={
         'console_scripts': [
