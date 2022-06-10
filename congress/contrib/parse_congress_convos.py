@@ -52,8 +52,7 @@ class hearing_parser():
         speaker_groups = self.group_speakers(speakers_and_text)
         return speaker_groups
 
-
-    def group_speakers(self, speakers_and_text):
+    def group_speakers(self, speakers_and_text: List[str]) -> Dict[str, List[str]]:
         speaker_groups = {}
 
         for speaker_group in [speakers_and_text[x:x+3] for x in range(1, len(speakers_and_text), 3)]:
