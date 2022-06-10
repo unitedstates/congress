@@ -33,7 +33,7 @@ class hearing_parser():
         pattern = ''
         title_patterns = '|'.join(self.TITLE_PATTERNS)
         enlongated_title = '(?: of \w+)?' # ex: mr. doe of miami
-        title_patterns = f'\n\s*((?:{title_patterns}) \w+{enlongated_title}\.)'
+        title_patterns = f'\n\s*((?:{title_patterns}) (\w+){enlongated_title}\.)'
         #TODO what about 2 last names?
         #TODO add one offs
         pattern = title_patterns
@@ -49,9 +49,21 @@ class hearing_parser():
 
     def parse_hearing(self, content: BeautifulSoup) -> Dict[str, List[str]]: 
         speakers_and_text = re.split(self.regex_pattern, content.text, flags=re.I)
-        group_speakers = self.group_speakers(speakers_and_text)
-        return speakers_and_text
+        speaker_groups = self.group_speakers(speakers_and_text)
+        return speaker_groups
 
+
+    def group_speakers(self, speakers_and_text):
+        speaker_groups = {}
+
+        for speaker_group in [speakers_and_text[x:x+3] for x in range(1, len(speakers_and_text), 3)]:
+            speaker_group = [x.lower().strip() for x in speaker_group]
+            match, name, text = speaker_group
+            # TODO: in 117hhrg47271 they wrote goodpseed instead of goodspeed. 
+            # Probably too much of an edge case, but keep it in mind
+            speaker_groups[name] = speaker_groups.get(name, []) + [text]
+
+        return speaker_groups
 
 
 with open(f"hearings/CHRG-117hhrg47271.html", "r") as file:
