@@ -43,4 +43,5 @@ for collection in collections['packages']:
     url = f"https://api.govinfo.gov/packages/{collection['packageId']}/htm"
     page = requests.get(url, params=package_fields)
     soup = BeautifulSoup(page.content, 'html.parser')
-    hearing_parser(collection = collection, soup = soup)
+    parser = hearing_parser()
+    info = parser.parse_hearing(soup)
