@@ -1,7 +1,8 @@
+Honestly, `CHRG-117shrg29104953` sucks and maybe
+should be detected as something that isn't parseable
+
 ## Ways Speakers are Indicated
 
-There is a members present section in 
-`CHRG-117hhrg47062.html`
 
 ### Open Questions
 We only want info on the members of congress, but I think we need
@@ -25,7 +26,9 @@ The Chairman., The CHAIRWOMAN.
 Mr. Garcia of Illinois.
 Ms. Williams of Georgia.
 
-
+### Questions Submitted for the Record
+In `CHRG-117hhrg47278` there is a question on answer section
+who is speaking is not clear
 
 ### A section at the top with those presen
 some prepared statements start with the person's name, some dont
@@ -33,3 +36,37 @@ some prepared statements start with the person's name, some dont
 prepared statement by senator james inhofe
 [The prepared statement of Mr. Smith follows:]
 Prepared Statement by Brad Smith
+
+or
+
+`CHRG-117hhrg47278`
+```
+    [The prepared statement of Mr. Hoskin follows:]
+  Prepared Statement of Chuck Hoskin, Jr., Cherokee Nation Principal 
+                                 Chief
+```
+
+## Headlines and non speaking text
+
+Last section of non text at top is usually `Present:`
+
+#### Examples
+`----------------`
+```
+
+ ALL CAPS WORDS STARTING WITH
+ TESTIMONY(S), OPENING(S), STATEMENT(S)
+ A P P E N D I X
+
+
+```
+
+```
+
+                                 ______
+                                 
+```
+`[GRAPHICS NOT AVAILABLE IN TIFF FORMAT]`
+`[No response.]`
+`[The statement of the Chairperson follows:]`
+`[Whereupon, at 1:27 p.m., the committee was adjourned.]`

@@ -47,8 +47,18 @@ class hearing_parser():
         with open(f"hearings/{self.id}.html", "w") as file:
             file.write(str(self.soup))
 
-    def parse_hearing(self, content: BeautifulSoup) -> Dict[str, List[str]]: 
-        speakers_and_text = re.split(self.regex_pattern, content.text, flags=re.I)
+    def clean_hearing_text(self, text: str) -> str:
+        additional_notes_pattern = r'\n*\[.*?\]'
+        # text_to_be_removed = re.findall(additional_notes_pattern, text)
+        cleaned_text = re.sub(additional_notes_pattern, '\n', text)
+        return cleaned_text
+
+    def parse_hearing(self, content: BeautifulSoup) -> Dict[str, List[str]]:
+        # TODO: add check to see if the hearing is in a good format to parse
+        # maybe by looking for a `present:` section
+
+        cleaned_text = self.clean_hearing_text(content.get_text())
+        speakers_and_text = re.split(self.regex_pattern, cleaned_text, flags=re.I)
         speaker_groups = self.group_speakers(speakers_and_text)
         return speaker_groups
 
@@ -65,7 +75,7 @@ class hearing_parser():
         return speaker_groups
 
 
-with open(f"hearings/CHRG-117hhrg47271.html", "r") as file:
+with open(f"hearings/CHRG-117shrg47360.html", "r") as file:
     parser = hearing_parser()
     content = BeautifulSoup(file.read(), 'html.parser')
     # speakers_and_text = re.split(contruct_regex(), content.text, flags=re.I)
