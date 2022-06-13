@@ -26,7 +26,7 @@ url = f'https://api.govinfo.gov/collections/{collection}/{last_date}'
 collection_fields = {
     'api_key': api_key,
     'offset': 0,
-    'pageSize': 10,
+    'pageSize': 50,
 }
 
 r = requests.get(url, params=collection_fields)
@@ -35,13 +35,22 @@ if r.status_code != 200:
     exit(1)
 collections = r.json()
 package_fields = {'api_key': api_key}
+parser = hearing_parser()
 
+all_speakers = {}
 for collection in collections['packages']:
-    url = collection['packageLink']
-
     # TODO: maybe verify that htm is a format which exists for this package
-    url = f"https://api.govinfo.gov/packages/{collection['packageId']}/htm"
-    page = requests.get(url, params=package_fields)
-    soup = BeautifulSoup(page.content, 'html.parser')
-    parser = hearing_parser()
-    info = parser.parse_hearing(soup)
+    url = f"https://api.govinfo.gov/packages/{collection['packageId']}"
+
+    htm = requests.get(url+'/htm', params=package_fields)
+    htm_soup = BeautifulSoup(htm.content, 'html.parser')
+
+    mods = requests.get(url + '/mods', params=package_fields)
+    mods_soup = BeautifulSoup(mods.content, 'xml')
+
+    speakers = parser.parse_hearing(htm_soup, mods_soup)
+    print(len(speakers))
+    for name, words in speakers.items():
+        all_speakers[name] = {collection['packageId']: words}
+
+all_speakers
