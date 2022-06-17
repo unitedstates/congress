@@ -15,6 +15,9 @@ Maybe use the names of those attending?
 hearings/CHRG-117hhrg47271.html
 What does this mean `Mr. McHenry. ``Dr. McHenry.'' Thank you, Madam Chairwoman.`
 
+## Miss spelling
+In `117hhrg47271` they wrote goodpseed instead of goodspeed. 
+Probably too much of an edge case, but keep it in mind
 
 ### two words, begining of paragraph, followed by period
 
