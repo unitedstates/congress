@@ -2,7 +2,8 @@ from bs4 import BeautifulSoup
 import re
 from typing import Dict, List, Set
 from dataclasses import dataclass, field
-from parse_congress_member_info import CongressMemberInfo 
+from parse_congress_member_info import CongressMemberInfo
+
 
 @dataclass
 class SpeakerInfo:
@@ -14,13 +15,18 @@ class SpeakerInfo:
     statements: List[str] = field(default_factory=list)
 
     def __eq__(self, other):
-        return (self.last_name == other.last_name and self.full_match == other.full_match and
-            self.title == other.title and self.state == other.state)
+        return (
+            self.last_name == other.last_name
+            and self.full_match == other.full_match
+            and self.title == other.title
+            and self.state == other.state
+        )
 
     def __hash__(self):
         return hash((self.last_name, self.full_match, self.title, self.state))
 
-class hearing_parser():
+
+class hearing_parser:
     """
     Used to parse the text of a hearing.
 
@@ -40,24 +46,31 @@ class hearing_parser():
     """
 
     TITLE_PATTERNS = [
-        'chairwoman', 'chairman', 'mr.', 'ms.', 'mrs.',
-        'dr.', 'senator', 'general', 'hon.'
+        "chairwoman",
+        "chairman",
+        "mr.",
+        "ms.",
+        "mrs.",
+        "dr.",
+        "senator",
+        "general",
+        "hon.",
     ]
 
-    ONE_OFF = ['the chairwoman', 'the chairman']
+    ONE_OFF = ["the chairwoman", "the chairman"]
 
     def construct_regex(self):
-        pattern = ''
-        title_patterns = '|'.join(self.TITLE_PATTERNS)
-        enlongated_title = '(?: of (?P<state>\w+))?' # ex: mr. doe of miami
-        title_patterns = f'\n\s+((?P<title>{title_patterns}) (\w+){enlongated_title}\.)'
-        #TODO what about 2 last names?
-        #TODO add one offs
+        pattern = ""
+        title_patterns = "|".join(self.TITLE_PATTERNS)
+        enlongated_title = "(?: of (?P<state>\w+))?"  # ex: mr. doe of miami
+        title_patterns = f"\n\s+((?P<title>{title_patterns}) (\w+){enlongated_title}\.)"
+        # TODO what about 2 last names?
+        # TODO add one offs
         pattern = title_patterns
 
         # Each group included in regex (to be used in group_speakers),
         # plus the full match and inbetween text
-        self._num_regex_groups = len(re.findall(r'\((?!\?:).*?\)', pattern))+2
+        self._num_regex_groups = len(re.findall(r"\((?!\?:).*?\)", pattern)) + 2
 
         return pattern
 
@@ -65,19 +78,27 @@ class hearing_parser():
         self.regex_pattern = self.construct_regex()
 
     def clean_hearing_text(self, text: str) -> str:
-        additional_notes_pattern = r'\n*\[.*?\]'
+        additional_notes_pattern = r"\n*\[.*?\]"
         # text_to_be_removed = re.findall(additional_notes_pattern, text)
-        cleaned_text = re.sub(additional_notes_pattern, '\n', text)
+        cleaned_text = re.sub(additional_notes_pattern, "\n", text)
         return cleaned_text
 
     def group_speakers(self, speakers_and_text: List[str]) -> Set[SpeakerInfo]:
         speakers = set()
 
-        for speaker_group in [speakers_and_text[x:x+self._num_regex_groups] for x in range(1, len(speakers_and_text), self._num_regex_groups)]:
+        for speaker_group in [
+            speakers_and_text[x : x + self._num_regex_groups]
+            for x in range(1, len(speakers_and_text), self._num_regex_groups)
+        ]:
             speaker_group = [x.lower().strip() if x else x for x in speaker_group]
             match, title, l_name, state, statement = speaker_group
-            new_speaker = SpeakerInfo(last_name = l_name, full_match = match, title = title,
-                state=state, statements=[statement])
+            new_speaker = SpeakerInfo(
+                last_name=l_name,
+                full_match=match,
+                title=title,
+                state=state,
+                statements=[statement],
+            )
 
             match = next((x for x in speakers if x == new_speaker), None)
             if match:
@@ -87,20 +108,28 @@ class hearing_parser():
 
         return speakers
 
-    def parse_hearing(self, content: BeautifulSoup, congress_info: List[CongressMemberInfo]) -> Dict[str, List[str]]:
+    def parse_hearing(
+        self,
+        hearing_id: str,
+        content: BeautifulSoup,
+        congress_info: List[CongressMemberInfo],
+    ) -> Dict[str, List[str]]:
         # TODO: add check to see if the hearing is in a good format to parse
         # maybe by looking for a `present:` section
 
         cleaned_text = self.clean_hearing_text(content.get_text())
         speakers_and_text = re.split(self.regex_pattern, cleaned_text, flags=re.I)
-        present_people = re.findall(r'present: (.*?)\.', speakers_and_text[0], flags=re.I | re.DOTALL)
+        present_people = re.findall(
+            r"present: (.*?)\.", speakers_and_text[0], flags=re.I | re.DOTALL
+        )
         speaker_groups = self.group_speakers(speakers_and_text)
         return speaker_groups
+
 
 if __name__ == "__main__":
     with open(f"hearings/CHRG-117hhrg47278.html", "r") as file:
         parser = hearing_parser()
-        content = BeautifulSoup(file.read(), 'html.parser')
+        content = BeautifulSoup(file.read(), "html.parser")
         # speakers_and_text = re.split(contruct_regex(), content.text, flags=re.I)
         parser.parse_hearing(content, [])
         content.text
