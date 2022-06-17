@@ -8,6 +8,7 @@ import os
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from parse_congress_convos import hearing_parser
+from parse_congress_member_info import CongressMemberParser
 
 load_dotenv()
 
@@ -34,8 +35,11 @@ if r.status_code != 200:
     print('Error:', r.status_code)
     exit(1)
 collections = r.json()
-package_fields = {'api_key': api_key}
+package_fields = {'api_key': api_key,
+    'offset': 0,
+    'pageSize': 50,}
 parser = hearing_parser()
+congress_member_parser = CongressMemberParser()
 
 all_speakers = {}
 for collection in collections['packages']:
@@ -47,10 +51,18 @@ for collection in collections['packages']:
 
     mods = requests.get(url + '/mods', params=package_fields)
     mods_soup = BeautifulSoup(mods.content, 'xml')
+    congress_info = congress_member_parser.grab_congress_info(mods_soup)
 
-    speakers = parser.parse_hearing(htm_soup, mods_soup)
+    # gran = requests.get(url+'/granules', params=package_fields)
+    # gran_0 = gran.json()['granules'][0]
+    # gran_id = gran_0['granuleId']
+
+    speakers = parser.parse_hearing(htm_soup, congress_info)
     print(len(speakers))
-    for name, words in speakers.items():
-        all_speakers[name] = {collection['packageId']: words}
+    # for name, words in speakers.items():
+    #     cur_words = all_speakers.get(name, {})
+    #     cur_words[collection['packageId']] = words
+    #     all_speakers[name] = cur_words
 
-all_speakers
+print(f'total len: {len(all_speakers)}')
+# [speaker for speaker, hearing in all_speakers.items() if len(hearing.keys())>1]

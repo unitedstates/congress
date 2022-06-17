@@ -1,18 +1,24 @@
 from bs4 import BeautifulSoup
 import re
-from typing import Dict, List
+from typing import Dict, List, Set
 from dataclasses import dataclass, field
+from parse_congress_member_info import CongressMemberInfo 
 
 @dataclass
-class MemberInfo:
-    name: str
-    name_parsed: str
+class SpeakerInfo:
     last_name: str
-    bioGuideId: str
-    authorityId: str
-    role: str
+    full_match: str
+    title: str
     state: str
+    congress_member_info: CongressMemberInfo = None
     statements: List[str] = field(default_factory=list)
+
+    def __eq__(self, other):
+        return (self.last_name == other.last_name and self.full_match == other.full_match and
+            self.title == other.title and self.state == other.state)
+
+    def __hash__(self):
+        return hash((self.last_name, self.full_match, self.title, self.state))
 
 class hearing_parser():
     """
@@ -43,11 +49,15 @@ class hearing_parser():
     def construct_regex(self):
         pattern = ''
         title_patterns = '|'.join(self.TITLE_PATTERNS)
-        enlongated_title = '(?: of \w+)?' # ex: mr. doe of miami
-        title_patterns = f'\n\s*((?:{title_patterns}) (\w+){enlongated_title}\.)'
+        enlongated_title = '(?: of (?P<state>\w+))?' # ex: mr. doe of miami
+        title_patterns = f'\n\s+((?P<title>{title_patterns}) (\w+){enlongated_title}\.)'
         #TODO what about 2 last names?
         #TODO add one offs
         pattern = title_patterns
+
+        # Each group included in regex (to be used in group_speakers),
+        # plus the full match and inbetween text
+        self._num_regex_groups = len(re.findall(r'\((?!\?:).*?\)', pattern))+2
 
         return pattern
 
@@ -60,55 +70,26 @@ class hearing_parser():
         cleaned_text = re.sub(additional_notes_pattern, '\n', text)
         return cleaned_text
 
-    def group_speakers(self, speakers_and_text: List[str]) -> Dict[str, List[str]]:
-        speaker_groups = {}
+    def group_speakers(self, speakers_and_text: List[str]) -> Set[SpeakerInfo]:
+        speakers = set()
 
-        for speaker_group in [speakers_and_text[x:x+3] for x in range(1, len(speakers_and_text), 3)]:
-            speaker_group = [x.lower().strip() for x in speaker_group]
-            match, name, text = speaker_group
-            # TODO: in 117hhrg47271 they wrote goodpseed instead of goodspeed. 
-            # Probably too much of an edge case, but keep it in mind
-            speaker_groups[name] = speaker_groups.get(name, []) + [text]
+        for speaker_group in [speakers_and_text[x:x+self._num_regex_groups] for x in range(1, len(speakers_and_text), self._num_regex_groups)]:
+            speaker_group = [x.lower().strip() if x else x for x in speaker_group]
+            match, title, l_name, state, statement = speaker_group
+            new_speaker = SpeakerInfo(last_name = l_name, full_match = match, title = title,
+                state=state, statements=[statement])
 
-        return speaker_groups
+            match = next((x for x in speakers if x == new_speaker), None)
+            if match:
+                match.statements.append(statement)
+            else:
+                speakers.add(new_speaker)
 
-    def link_speaker_to_representative(self, speaker: str) -> List:
-        """
-        Given a speaker name, return the name of the representative
-        """
+        return speakers
 
-        return speaker
-
-    def grab_congress_info(self, metadata: BeautifulSoup) -> List[MemberInfo]:
-        congress_sections = metadata.find_all('congMember')
-        members = []
-        if len(congress_sections) == 0:
-            # TODO: not sure how to handle this
-            print('No congress info found')
-            # raise Exception('No congress sections found')
-        for congress_member in congress_sections:
-            name = congress_member.find('name', {'type': 'authority-fnf'}).text
-            name_parsed = congress_member.find('name', {'type': 'parsed'}).text
-            name_lnf = congress_member.find('name', {'type': 'authority-lnf'}).text
-            last_name = name_lnf.split(',')[0]
-            bioGuideId = congress_member.get('bioGuideId')
-            authorityId = congress_member['authorityId']
-            role = congress_member['role']
-            state = congress_member['state']
-
-            member_info = MemberInfo(name = name, name_parsed = name_parsed, last_name = last_name,
-                bioGuideId = bioGuideId, authorityId = authorityId, role = role, state = state)
-            members.append(member_info)
-
-
-        return members
-
-    def parse_hearing(self, content: BeautifulSoup, metadata: BeautifulSoup) -> Dict[str, List[str]]:
+    def parse_hearing(self, content: BeautifulSoup, congress_info: List[CongressMemberInfo]) -> Dict[str, List[str]]:
         # TODO: add check to see if the hearing is in a good format to parse
         # maybe by looking for a `present:` section
-
-        congress_info = self.grab_congress_info(metadata)
-
 
         cleaned_text = self.clean_hearing_text(content.get_text())
         speakers_and_text = re.split(self.regex_pattern, cleaned_text, flags=re.I)
@@ -117,9 +98,9 @@ class hearing_parser():
         return speaker_groups
 
 if __name__ == "__main__":
-    with open(f"hearings/CHRG-117shrg47360.html", "r") as file:
+    with open(f"hearings/CHRG-117hhrg47278.html", "r") as file:
         parser = hearing_parser()
         content = BeautifulSoup(file.read(), 'html.parser')
         # speakers_and_text = re.split(contruct_regex(), content.text, flags=re.I)
-        parser.parse_hearing(content)
+        parser.parse_hearing(content, [])
         content.text
