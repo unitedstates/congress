@@ -18,13 +18,6 @@ class CongressMemberInfo:
 
 
 class CongressMemberParser:
-    def link_speaker_to_representative(self, speaker: str) -> List:
-        """
-        Given a speaker name or title (ie. chairman), return the name of the representative
-        """
-
-        return speaker
-
     def grab_congress_info(self, metadata: BeautifulSoup) -> List[CongressMemberInfo]:
         congress_sections = metadata.find_all("congMember")
         members = []

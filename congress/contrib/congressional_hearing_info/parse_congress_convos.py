@@ -120,10 +120,31 @@ class hearing_parser:
         cleaned_text = self.clean_hearing_text(content.get_text())
         speakers_and_text = re.split(self.regex_pattern, cleaned_text, flags=re.I)
         present_people = re.findall(
-            r"present: (.*?)\.", speakers_and_text[0], flags=re.I | re.DOTALL
+            r"present: (.*?)\n    ", speakers_and_text[0], flags=re.I | re.DOTALL
         )
         speaker_groups = self.group_speakers(speakers_and_text)
+        chairperson = self.identify_chair(speakers_and_text[0], congress_info, speaker_groups, present_people)
+        self.link_speaker_to_representative(speaker_groups, congress_info, chairperson)
         return speaker_groups
+
+    def identify_chair(self, intro_section: str, congress_info: List[CongressMemberInfo], speaker_groups: Set[SpeakerInfo], present_people: List[str]) -> str:
+        """
+        Given a string, identify the chairperson of the hearing.
+        """
+
+        chair_mentions = [line for line in intro_section.splitlines() if "chair" in line.lower()]
+        chairperson = [speaker for speaker in speaker_groups if "chair" in speaker.title]
+        
+        return congress_info[0]
+
+    def link_speaker_to_representative(
+        self, speaker: SpeakerInfo, congress_info: List[CongressMemberInfo], chairperson: CongressMemberInfo
+    ) -> List:
+        """
+        Given a speaker name or title (ie. chairman), return the name of the representative
+        """
+
+        return speaker
 
 
 if __name__ == "__main__":
@@ -131,5 +152,5 @@ if __name__ == "__main__":
         parser = hearing_parser()
         content = BeautifulSoup(file.read(), "html.parser")
         # speakers_and_text = re.split(contruct_regex(), content.text, flags=re.I)
-        parser.parse_hearing(content, [])
+        parser.parse_hearing('CHRG-117hhrg47278', content, [])
         content.text
