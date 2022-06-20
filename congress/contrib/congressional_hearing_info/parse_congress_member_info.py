@@ -11,10 +11,65 @@ class CongressMemberInfo:
     bio_guide_id: str
     authority_id: str
     role: str
+    state_initials: str
     state: str
     party: str
     chamber: str
     gpoId: str
+
+STATE_INITIALS_MAP = {
+    'AK':'Alaska',
+    'AL':'Alabama',
+    'AR':'Arkansas',
+    'AZ':'Arizona',
+    'CA':'California',
+    'CO':'Colorado',
+    'CT':'Connecticut',
+    'DC':'District of Columbia',
+    'DE':'Delaware',
+    'FL':'Florida',
+    'GA':'Georgia',
+    'HI':'Hawaii',
+    'IA':'Iowa',
+    'ID':'Idaho',
+    'IL':'Illinois',
+    'IN':'Indiana',
+    'KS':'Kansas',
+    'KY':'Kentucky',
+    'LA':'Louisiana',
+    'MA':'Massachusetts',
+    'MD':'Maryland',
+    'ME':'Maine',
+    'MI':'Michigan',
+    'MN':'Minnesota',
+    'MO':'Missouri',
+    'MS':'Mississippi',
+    'MT':'Montana',
+    'NC':'North Carolina',
+    'ND':'North Dakota',
+    'NE':'Nebraska',
+    'NH':'New Hampshire',
+    'NJ':'New Jersey',
+    'NM':'New Mexico',
+    'NV':'Nevada',
+    'NY':'New York',
+    'OH':'Ohio',
+    'OK':'Oklahoma',
+    'OR':'Oregon',
+    'PA':'Pennsylvania',
+    'RI':'Rhode Island',
+    'SC':'South Carolina',
+    'SD':'South Dakota',
+    'TN':'Tennessee',
+    'TX':'Texas',
+    'UT':'Utah',
+    'VA':'Virginia',
+    'VT':'Vermont',
+    'WA':'Washington',
+    'WI':'Wisconsin',
+    'WV':'West Virginia',
+    'WY':'Wyoming'
+}
 
 
 class CongressMemberParser:
@@ -39,7 +94,8 @@ class CongressMemberParser:
             bioGuideId = congress_member.get("bioGuideId")
             authorityId = congress_member["authorityId"]
             role = congress_member["role"]
-            state = congress_member["state"]
+            state_initials = congress_member["state"]
+            state = STATE_INITIALS_MAP[state_initials.upper()].lower()
             party = congress_member["party"]
             chamber = congress_member["chamber"]
             gpoId = congress_member.get("gpoId")
@@ -51,7 +107,8 @@ class CongressMemberParser:
                 bio_guide_id=bioGuideId,
                 authority_id=authorityId,
                 role=role,
-                state=state,
+                state_initials=state_initials,
+                state = state,
                 party=party,
                 chamber=chamber,
                 gpoId=gpoId,
