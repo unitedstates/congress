@@ -1,8 +1,12 @@
 Honestly, `CHRG-117shrg29104953` sucks and maybe
 should be detected as something that isn't parseable
 
-## Ways Speakers are Indicated
+## Ways chairs are indicated
 
+### Sometimes the chair can change mid meeting
+`CHRG-117hhrg47278`
+
+## Ways Speakers are Indicated
 
 ### Open Questions
 We only want info on the members of congress, but I think we need
@@ -28,6 +32,10 @@ The Chairman., The CHAIRWOMAN.
 ### Name followed by place representing, followed by period
 Mr. Garcia of Illinois.
 Ms. Williams of Georgia.
+
+### Name followed by note
+Mr. Garcia [presiding].
+`CHRG-117hhrg47278`
 
 ### Questions Submitted for the Record
 In `CHRG-117hhrg47278` there is a question on answer section
