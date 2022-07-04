@@ -86,7 +86,11 @@ for collection in collections["packages"]:
     for member in congress_info:
         all_congress_members[member.bio_guide_id] = member
 
-    # gran = requests.get(url+'/granules', params=package_fields)
+    gran = requests.get(f"{url}/granules/{collection['packageId']}/summary", params=package_fields)
+    # members = gran.json()["granules"]["members"]
+    members = gran.json().get('members', [])
+    
+    # TODO: where are the witnesses? they are in the detailsLink
     # gran_0 = gran.json()['granules'][0]
     # gran_id = gran_0['granuleId']
 

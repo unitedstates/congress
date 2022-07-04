@@ -81,3 +81,7 @@ Last section of non text at top is usually `Present:`
 `[No response.]`
 `[The statement of the Chairperson follows:]`
 `[Whereupon, at 1:27 p.m., the committee was adjourned.]`
+
+### Titles can change but reference the same person
+in `CHRG-116hhrg36914` Ms Horn is identified as both
+ms and chairwoman

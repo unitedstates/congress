@@ -17,13 +17,13 @@ class SpeakerInfo:
     def __eq__(self, other):
         return (
             self.last_name == other.last_name
-            and self.full_match == other.full_match
+            # and self.full_match == other.full_match
             and self.title == other.title
             and self.state == other.state
         )
 
     def __hash__(self):
-        return hash((self.last_name, self.full_match, self.title, self.state))
+        return hash((self.last_name, self.title, self.state))
 
 
 class hearing_parser:
@@ -51,6 +51,7 @@ class hearing_parser:
         "mr.",
         "ms.",
         "mrs.",
+        "miss",
         "dr.",
         "senator",
         "general",
@@ -63,7 +64,7 @@ class hearing_parser:
         pattern = ""
         title_patterns = "|".join(self.TITLE_PATTERNS)
         enlongated_title = "(?: of (?P<state>\w+))?"  # ex: mr. doe of miami
-        title_patterns = f"\n\s+((?P<title>{title_patterns}) (\w+){enlongated_title}\.)"
+        title_patterns = f"\n +((?P<title>{title_patterns}) (\w+){enlongated_title} ?\.)"
         # TODO what about 2 last names?
         # TODO add one offs
         pattern = title_patterns
@@ -78,18 +79,23 @@ class hearing_parser:
         self.regex_pattern = self.construct_regex()
 
     def clean_hearing_text(self, text: str) -> str:
-        additional_notes_pattern = r"\n*\[.*?\]"
+        additional_notes_pattern = r"\[.*?\]"
         # text_to_be_removed = re.findall(additional_notes_pattern, text)
-        cleaned_text = re.sub(additional_notes_pattern, "\n", text)
+        cleaned_text = re.sub(additional_notes_pattern, "", text)
         return cleaned_text
 
-    def group_speakers(self, speakers_and_text: List[str]) -> Set[SpeakerInfo]:
+    def group_speakers(self, speakers_and_text: List[str], present_people) -> Set[SpeakerInfo]:
         speakers = set()
+        intro_section = speakers_and_text[0]
 
-        for speaker_group in [
+        sections_of_text = [
             speakers_and_text[x : x + self._num_regex_groups]
             for x in range(1, len(speakers_and_text), self._num_regex_groups)
-        ]:
+        ]
+        if len(sections_of_text) < 2:
+            print("probably a bad batch")
+            return set()
+        for speaker_group in sections_of_text:
             speaker_group = [x.lower().strip() if x else x for x in speaker_group]
             match, title, l_name, state, statement = speaker_group
             new_speaker = SpeakerInfo(
@@ -106,6 +112,19 @@ class hearing_parser:
             else:
                 speakers.add(new_speaker)
 
+        for speaker in speakers:
+            if f" {speaker.last_name}, ".upper() in intro_section:
+                print("match")
+            else:
+                print("no match")
+
+            if not present_people:
+                if speaker.last_name in '\n'.join(present_people).lower():
+                    print('present match')
+                else:
+                    print('present no match')
+                
+
         return speakers
 
     def parse_hearing(
@@ -115,7 +134,6 @@ class hearing_parser:
         congress_info: List[CongressMemberInfo],
     ) -> Dict[str, List[str]]:
         # TODO: add check to see if the hearing is in a good format to parse
-        # maybe by looking for a `present:` section
 
         cleaned_text = self.clean_hearing_text(content.get_text())
         speakers_and_text = re.split(self.regex_pattern, cleaned_text, flags=re.I)
@@ -132,6 +150,9 @@ class hearing_parser:
         Given a string, identify the chairperson of the hearing.
         """
         # TODO: finish this
+        # intro_section look for the last string like "JAMES R. LANGEVIN, Rhode Island, Chairman"
+        # Still WIP "([A-Z \.]+,.*?, Chair\w*)|(?:\n\n)|(?: +-+ +)"
+
         chair_mentions = [line for line in intro_section.splitlines() if "chair" in line.lower()]
         chairperson = [speaker for speaker in speaker_groups if "chair" in speaker.title]
 
