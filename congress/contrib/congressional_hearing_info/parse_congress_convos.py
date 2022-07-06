@@ -61,25 +61,28 @@ class hearing_parser:
     ONE_OFF = ["the chairwoman", "the chairman"]
 
     def construct_regex(self):
-        pattern = ""
         title_patterns = "|".join(self.TITLE_PATTERNS)
         enlongated_title = "(?: of (?P<state>\w+))?"  # ex: mr. doe of miami
-        title_patterns = f"\n +((?P<title>{title_patterns}) (\w+){enlongated_title} ?\.)"
+        title_patterns = f"(?P<title>{title_patterns}) (\w+){enlongated_title}"
+
+        one_off_patterns = "|".join(self.ONE_OFF)
+        one_off_patterns = f"{one_off_patterns}"
+
         # TODO what about 2 last names?
         # TODO add one offs
-        pattern = title_patterns
+        new_speaker_pattern = f"\n +({title_patterns}|{one_off_patterns})\."
 
         # Each group included in regex (to be used in group_speakers),
         # plus the full match and inbetween text
-        self._num_regex_groups = len(re.findall(r"\((?!\?:).*?\)", pattern)) + 2
+        self._num_regex_groups = len(re.findall(r"\((?!\?:).*?\)", new_speaker_pattern)) + 2
 
-        return pattern
+        return new_speaker_pattern
 
     def __init__(self):
         self.regex_pattern = self.construct_regex()
 
     def clean_hearing_text(self, text: str) -> str:
-        additional_notes_pattern = r"\[.*?\]"
+        additional_notes_pattern = r" ?\[.*?\]"
         # text_to_be_removed = re.findall(additional_notes_pattern, text)
         cleaned_text = re.sub(additional_notes_pattern, "", text)
         return cleaned_text
