@@ -3,6 +3,7 @@ import re
 from typing import Dict, List, Set
 from dataclasses import dataclass, field
 from parse_congress_member_info import CongressMemberInfo
+import warnings
 
 
 @dataclass
@@ -24,6 +25,12 @@ class SpeakerInfo:
 
     def __hash__(self):
         return hash((self.last_name, self.title, self.state))
+
+@dataclass
+class present_representative:
+    name: str
+    state: str
+    additional_info: List[str]
 
 
 class hearing_parser:
@@ -140,26 +147,141 @@ class hearing_parser:
 
         cleaned_text = self.clean_hearing_text(content.get_text())
         speakers_and_text = re.split(self.regex_pattern, cleaned_text, flags=re.I)
-        present_people = re.findall(
-            r"present: (.*?)\n    ", speakers_and_text[0], flags=re.I | re.DOTALL
-        )
+        present_people = self.identify_people_present(speakers_and_text[0], congress_info)
         speaker_groups = self.group_speakers(speakers_and_text, present_people)
         # chairperson = self.identify_chair(speakers_and_text[0], congress_info, speaker_groups, present_people)
         # self.link_speakers_to_representative(speaker_groups, congress_info, chairperson)
         return speaker_groups
 
-    def identify_chair(self, intro_section: str, congress_info: List[CongressMemberInfo], speaker_groups: Set[SpeakerInfo], present_people: List[str]) -> str:
+    def split_present_people_section(self, present_section: str) -> List[str]:
+        people = re.split(r",\s*", present_section)
+        cleaned_people = [re.sub(r"representatives |senators |\.|and ", "", person.strip(), flags=re.I) for person in people]
+        return cleaned_people
+
+    def union_members_and_present_people(self, present_section_people: List[str], members_section: List[present_representative]) -> List[present_representative]:
+        present_people = []
+        for person in present_section_people:
+            for member in members_section:
+                if person.lower() in member.name.lower():
+                    present_people.append(member)
+                    continue
+        return present_people
+
+    def identify_people_present(self, intro_section: str, congress_info: List[CongressMemberInfo]) -> str:
         """
         Given a string, identify the chairperson of the hearing.
         """
-        # TODO: finish this
         # intro_section look for the last string like "JAMES R. LANGEVIN, Rhode Island, Chairman"
-        # Still WIP "([A-Z \.]+,.*?, Chair\w*)|(?:\n\n)|(?: +-+ +)"
+        # Note: the lowercase c, a, and e are for Mc, La, and Des
+        # TODO: regex for names continuing on the next line
+        # representative_regex = r"((?P<name>[A-Zces\- \.'`]+)(?:, ?[SJ]r\.)?, ?(?P<state>\w+ ?\w*)(?:  |\n|,|  ?\())"
+        representative_regex = r"(?P<name>[A-Zceas\- \.'`]+(?:, ?[SJ]r\.)?), ?(?P<state>.*),? *(.*)"
+        chair_regex = r"((?P<name>[A-Zces\- \.'`]+)(?:, ?[SJ]r\.)?, ?(?P<state>\w+ ?\w*),\s*Chair\w*)"
+        # section_regex = r"(?:sub)?committee on .*\n\n?.*, ?chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
+        section_regex = r"\n  +.*, ?chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
+
+        # Confirm that there is an equal number of member sections
+        # to committee sections
+        committee_count = 0
+    
+        members_sections = []
+        for section in re.findall(section_regex, intro_section, flags=re.I):
+            lines = [line.strip() for line in section.split('\n') if line.strip()]
+
+            # Confirm section is correct
+            # if len(lines) <= 2 or 'committee' not in lines[0].lower() or 'chair' not in lines[1].lower():
+            if len(lines) <= 2 or 'chair' not in lines[0].lower():
+                warnings.warn(f"Section malformed: {lines}")
+                continue
+            # if len(lines) <= 2 or 'committee' not in lines[0].lower() or 'chair' not in lines[1].lower():
+            #     warnings.warn(f"Section malformed: {lines}")
+            #     continue
+
+            split_columns_lines = [re.split("  +", line) for line in lines[1:]]
+            if any(len(line) > 2 for line in split_columns_lines):
+                warnings.warn(f"More sections expected")
+
+            # Combine members split across multiple lines
+            for i, line in enumerate(split_columns_lines):
+                for j, title in enumerate(line):
+                    if title.lower() == "vacancy":
+                        split_columns_lines[i][j] = None
+                    elif ',' not in title or not re.match(r"^[A-Zces\- \.'`]+", title):
+                        split_columns_lines[i-1][j] += f" {title}"
+                        split_columns_lines[i][j] = None
+                
+            members = []
+            # Note: this for loop and the one above could be combined if the loop went through the entries in reverse
+            for i, line in enumerate(split_columns_lines):
+                for j, title in enumerate(line):
+                    if title is None:
+                        continue
+                    title_split = re.split(representative_regex, title)
+                    if len(title_split) != 5:
+                        warnings.warn(f"Title does not match regex: {title}")
+                    elif not title_split[0] == "" and title_split[4] == "":
+                        warnings.warn(f"Title split is unexpected: {title_split}")
+                    else:
+                        members.append(present_representative(title_split[0], title_split[1], title_split[2:]))
+                    
+            members_sections.append(members)
+
+
+
+        # for section in re.split(section_regex, intro_section, flags=re.I):
+        #     if re.findall(r"  +(?:sub)?committee on", section, flags=re.I):
+        #         committee_count += 1
+            
+        #     # Check if this is a members section
+        #     chair_match = re.findall(chair_regex, section)
+        #     if chair_match:
+        #         if len(chair_match) > 1:
+        #             warnings.warn("More than one chairperson found")
+        #         chair_name = chair_match[0][1].strip()
+
+        #         representatives_raw = re.findall(representative_regex, section)
+        #         members = []
+        #         for rep in representatives_raw:
+        #             name = rep[1].strip()
+        #             chair = True if name == chair_name else False
+        #             state = rep[2].strip()
+        #             if name == chair_name:
+        #                 continue
+        #             members.append(present_representative(name, state, chair))
+        #         members_sections.append(members)
+
+        # if committee_count != len(members_sections):
+        #     warnings.warn(f"{committee_count} committee sections found, but {len(members_sections)} present members sections found")
+
+
+        present_sections = re.findall(
+            r"present: (.*?)\n(?:\n|    )", intro_section, flags=re.I | re.DOTALL
+        )
+        present_section_people = [self.split_present_people_section(present) for present in present_sections]
+
+        if not members_sections:
+            warnings.warn("No members sections found")
+            return None
+
+        if not present_section_people:
+            warnings.warn("No present section people found")
+            return members_sections
+
+        # TODO: union the present sections with members_sections and if the len is less than present warn
+        members_present = self.union_members_and_present_people(present_section_people[0], members_sections[-1])
+        if len(members_present) != len(present_section_people[0]):
+            warnings.warn(f"{len(present_section_people[0]) - len(members_present)} present people not found in members section")
+        # members_names = [member.name.lower() for member in members_sections[0]]
+        # for present_section in present_section_people:
+        #     for present_person in present_section:
+        #         match = [name for name in members_names if present_person.lower() in name]
+        #         if not match:
+        #             warnings.warn(f"{present_person} not found in members section")
 
         chair_mentions = [line for line in intro_section.splitlines() if "chair" in line.lower()]
-        chairperson = [speaker for speaker in speaker_groups if "chair" in speaker.title]
+        # chairperson = [speaker for speaker in speaker_groups if "chair" in speaker.title]
 
-        return congress_info[0]
+        return members_present
  
 
 

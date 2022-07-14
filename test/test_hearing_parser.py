@@ -28,6 +28,23 @@ class TestHearingParser(unittest.TestCase):
         """
         self.assertEquals(self.parser.clean_hearing_text(text_with_directions), cleaned_text_with_directions)
 
+    def test_identify_people_present(self):
+        with open('test/fixtures/hearing_text/members_section1.txt') as f:
+            members_section1 = f.read()
+        members1 = self.parser.identify_people_present(members_section1, [])
+        self.assertNotEqual(members1, [])
+
+        with open('test/fixtures/hearing_text/members_section2.txt') as f:
+            members_section2 = f.read()
+        members2 = self.parser.identify_people_present(members_section2, [])
+        self.assertNotEqual(members2, [])
+
+        with open('test/fixtures/hearing_text/members_section3.txt') as f:
+            members_section3 = f.read()
+        members3 = self.parser.identify_people_present(members_section3, [])
+        self.assertNotEqual(members3, [])
+        
+
     def test_(self):
         print('setup')
 
