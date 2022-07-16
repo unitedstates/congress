@@ -38,7 +38,7 @@ collections = r.json()
 package_fields = {
     "api_key": api_key,
     "offset": 0,
-    "pageSize": 50,
+    "pageSize": 200,
 }
 parser = hearing_parser()
 congress_member_parser = CongressMemberParser()
