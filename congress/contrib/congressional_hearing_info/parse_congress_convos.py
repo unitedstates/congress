@@ -1,3 +1,4 @@
+from distutils.log import warn
 from bs4 import BeautifulSoup
 import re
 from typing import Dict, List, Set
@@ -25,6 +26,7 @@ class SpeakerInfo:
 
     def __hash__(self):
         return hash((self.last_name, self.title, self.state))
+
 
 @dataclass
 class present_representative:
@@ -69,8 +71,10 @@ class hearing_parser:
     def construct_regex(self):
         title_patterns = "|".join(self.TITLE_PATTERNS)
         capital_letter_word = "[A-Z][A-z_\-']*"
-        enlongated_title = "(?: of(?P<state> {capital_letter_word})+)?"  # ex: mr. doe of miami
-        name_pattern = f"(?P<title>{title_patterns})( {capital_letter_word})+{enlongated_title}"
+        enlongated_title = (
+            "(?: of(?P<state> {capital_letter_word})+)?"  # ex: mr. doe of miami
+        )
+        name_pattern = f"(?P<title>{title_patterns})(?P<l_name>(?: {capital_letter_word})+){enlongated_title}"
 
         one_off_patterns = "|".join(self.ONE_OFF)
         one_off_patterns = f"{one_off_patterns}"
@@ -81,7 +85,9 @@ class hearing_parser:
 
         # Each group included in regex (to be used in group_speakers),
         # plus the full match and inbetween text
-        self._num_regex_groups = len(re.findall(r"\((?!\?:).*?\)", new_speaker_pattern)) + 2
+        self._num_regex_groups = (
+            len(re.findall(r"\((?!\?:).*?\)", new_speaker_pattern)) + 2
+        )
 
         return new_speaker_pattern
 
@@ -100,19 +106,20 @@ class hearing_parser:
         if len(matches) > 1:
             warnings.warn("More than one contents section found")
 
+        new_line_count = matches[0].count("\n")
 
         if not matches:
             warnings.warn("No contents found")
             text_no_contents = text_no_notes
-        elif matches[0].count('\n') > 100:
-            warnings.warn("Content section is suspiciously long")
+        elif new_line_count > 100:
+            warnings.warn(f"Content section is suspiciously long, {new_line_count} lines")
             text_no_contents = text_no_notes
         else:
             text_no_contents = re.sub(contents_pattern, "", text_no_notes)
 
         return text_no_contents
 
-    def group_speakers(self, speakers_and_text: List[str], present_people) -> Set[SpeakerInfo]:
+    def group_speakers(self, speakers_and_text: List[str]) -> Set[SpeakerInfo]:
         speakers = set()
         intro_section = speakers_and_text[0]
 
@@ -140,15 +147,106 @@ class hearing_parser:
                 match.statements.append(statement)
             else:
                 speakers.add(new_speaker)
-
-        # TODO
-        for speaker in speakers:
-            if f" {speaker.last_name}, " in intro_section.lower():
-                pass
-            else:
-                print("no match")
-
         return speakers
+
+    def link_speaker_info_to_congress_member(
+        self, speaker: SpeakerInfo, congress_info: List[CongressMemberInfo]
+    ) -> CongressMemberInfo:
+        if not speaker.last_name:
+            return None
+        # TODO: this won't work if the last name if very short Ross matches with Norcross 'CHRG-117hhrg46926'
+        matches = [x for x in congress_info if speaker.last_name in x.last_name.lower()]
+        if len(matches) == 1:
+            return matches[0]
+        return None
+
+    def link_present_rep_to_congress_member(
+        self, present_rep: present_representative, congress_info: List[CongressMemberInfo]) -> CongressMemberInfo:
+        split_name = present_rep.name.lower().split()
+        name_matches = [x for x in congress_info if all(word in x.name.lower() for word in split_name)]
+        if len(name_matches) == 1:
+            return name_matches[0]
+
+        # TODO: make this better
+        state_matches = [x for x in congress_info if present_rep.state.lower() in x.state.lower()] # Doesn't work for kansas/arkansas
+        if len(state_matches) == 1:
+            return state_matches[0]
+        return None
+
+    def identify_chair(
+        self,
+        speaker_groups: Set[SpeakerInfo],
+        members_sections: List[List[present_representative]],
+        congress_info: List[CongressMemberInfo],
+    ):
+        # TODO
+        chair = None
+        if members_sections and members_sections[-1]:
+            chair = next(
+                member
+                for member in members_sections[-1]
+                if "chair" in member.additional_info.lower()
+            )
+            if chair: # present_representative
+                return self.link_present_rep_to_congress_member(chair, congress_info)
+                return chair  # present_representative
+        if speaker_groups:
+            chair = next(
+                speaker
+                for speaker in speaker_groups
+                if "chair" in speaker.title.lower()
+            )
+            if chair:# SpeakerInfo
+                return self.link_speaker_info_to_congress_member(chair, congress_info)
+        warnings.warn("No chair found")
+        return chair
+
+    def link_speakers_to_congress_members(
+        self,
+        speaker_groups: Set[SpeakerInfo],
+        intro_section: str,
+        congress_info: List[CongressMemberInfo],
+    ) -> Set[SpeakerInfo]:
+        members_sections = self.identify_members(intro_section)
+        present_section_people = self.identify_people_present(intro_section)
+        chair_congress_member_info = self.identify_chair(
+            speaker_groups, members_sections, congress_info
+        )
+        intro_lines = intro_section.lower().split("\n")
+
+        for speaker in speaker_groups:
+            if "the chair" in speaker.full_match:
+                print(f"No match for {speaker.last_name}")
+                speaker.congress_member_info = chair_congress_member_info
+            # TODO: what if there is a speaker who shares a last name with a representative?
+            speaker.congress_member_info = self.link_speaker_info_to_congress_member(speaker, congress_info)
+
+            if not speaker.congress_member_info:
+                # TODO: What if last name contained in name 'CHRG-117hhrg46926'
+                members_match = [
+                    x
+                    for x in members_sections[-1]
+                    if speaker.last_name in x.name.lower()
+                ]
+                if len(members_match) == 1:
+                    speaker.congress_member_info = self.link_name_to_congress_member(members_sections, congress_info)
+                elif len(members_match) > 1:
+                    print(
+                        f"Multiple member matches for {speaker.last_name} in members section"
+                    )
+                else:
+                    pass
+                    # print(f"No member matches for {speaker.last_name}")
+            if not speaker.congress_member_info:
+                if (
+                    speaker.state
+                    or "chair" in speaker.title
+                    or "senator" in speaker.title
+                ):
+                    warnings.warn(f"No match for {speaker.last_name}")
+                elif (present_section_people and speaker.last_name in present_section_people[0]):
+                    warnings.warn(f"No match for {speaker.last_name}")
+                print(f"No match for {speaker.last_name}")  # scott, 117hhrg47927: johnson, norton, (also present owens), 
 
     def parse_hearing(
         self,
@@ -158,18 +256,31 @@ class hearing_parser:
     ) -> Dict[str, List[str]]:
         cleaned_text = self.clean_hearing_text(content.get_text())
         speakers_and_text = re.split(self.regex_pattern, cleaned_text)
-        present_people = self.identify_people_present(speakers_and_text[0], congress_info)
-        speaker_groups = self.group_speakers(speakers_and_text, present_people)
+        speaker_groups = self.group_speakers(speakers_and_text)
+        present_people = self.link_speakers_to_congress_members(
+            speaker_groups, speakers_and_text[0], congress_info
+        )
+
         # chairperson = self.identify_chair(speakers_and_text[0], congress_info, speaker_groups, present_people)
         # self.link_speakers_to_representative(speaker_groups, congress_info, chairperson)
         return speaker_groups
 
     def split_present_people_section(self, present_section: str) -> List[str]:
-        people = re.split(r",\s*", present_section)
-        cleaned_people = [re.sub(r"representatives |senators |\.|and ", "", person.strip(), flags=re.I) for person in people]
+        present_section_one_line = present_section.replace("\n", " ")
+        people = re.split(r",\s*", present_section_one_line)
+        cleaned_people = [
+            re.sub(
+                r"representatives |senators |\.|and ", "", person.strip(), flags=re.I
+            )
+            for person in people
+        ]
         return cleaned_people
 
-    def union_members_and_present_people(self, present_section_people: List[str], members_section: List[present_representative]) -> List[present_representative]:
+    def union_members_and_present_people(
+        self,
+        present_section_people: List[str],
+        members_section: List[present_representative],
+    ) -> List[present_representative]:
         present_people = []
         for person in present_section_people:
             for member in members_section:
@@ -178,21 +289,23 @@ class hearing_parser:
                     continue
         return present_people
 
-    def identify_people_present(self, intro_section: str, congress_info: List[CongressMemberInfo]) -> str:
-        """
-        Identify the people present at a committee hearing.
-        """
+    def identify_members(
+        self, intro_section: str
+    ) -> List[List[present_representative]]:
         # intro_section look for the last string like "JAMES R. LANGEVIN, Rhode Island, Chairman"
         # Note: the lowercase c, a, and es are for Mc, La, and Des
         # TODO: Lowercase names in 'CHRG-117hhrg47805'
-        representative_regex = r"(?P<name>[A-Zceas\- \.'`]+(?:, ?[SJ]r\.)?), ?(?P<state>.*?)(?:,|$)"
+        uppercase_name = r"^[A-Zceas\- \.'`]+"
+        representative_regex = (
+            r"(?P<name>[A-Zceas\- \.'`]+(?:, ?[SJ]r\.)?), ?(?P<state>.*?)(?:,|$)"
+        )
         section_regex = r"\n  +.*, ?chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
-    
+
         members_sections = []
         for section in re.findall(section_regex, intro_section, flags=re.I):
-            lines = [line.strip() for line in section.split('\n') if line.strip()]
+            lines = [line.strip() for line in section.split("\n") if line.strip()]
 
-            if len(lines) <= 2 or 'chair' not in lines[0].lower():
+            if len(lines) <= 2 or "chair" not in lines[0].lower():
                 warnings.warn(f"Section malformed: {lines}")
                 continue
 
@@ -202,13 +315,16 @@ class hearing_parser:
 
             # Combine members split across multiple lines
             for i, line in enumerate(split_columns_lines):
-                for j, title in enumerate(line):
+                if len(line) > 2:
+                    warnings.warn(f"Line malformed: {line}")
+                    continue
+                for j, title in enumerate(line[:2]):
                     if title.lower() == "vacancy":
                         split_columns_lines[i][j] = None
-                    elif ',' not in title or not re.match(r"^[A-Zces\- \.'`]+", title):
-                        split_columns_lines[i-1][j] += f" {title}"
-                        split_columns_lines[i][j] = None
-                
+                    elif "," not in title or not re.match(uppercase_name, title):
+                        split_columns_lines[i - 1][j] += f" {title}"
+                        split_columns_lines[i][j] = ""
+
             members = []
             # Note: this for loop and the one above could be combined if the loop went through the entries in reverse
             for i, line in enumerate(split_columns_lines):
@@ -223,28 +339,33 @@ class hearing_parser:
                         if "Staff" not in title:
                             warnings.warn(f"Title split is unexpected: {title_split}")
                     else:
-                        members.append(present_representative(title_split[1], title_split[2], title_split[3].strip()))
-                    
-            members_sections.append(members)
+                        members.append(
+                            present_representative(
+                                title_split[1], title_split[2], title_split[3].strip()
+                            )
+                        )
 
-        present_sections = re.findall(
-            r"present: (.*?)(?:\n\n|    |$)", intro_section, flags=re.I | re.DOTALL
-        )
-        present_section_people = [self.split_present_people_section(present) for present in present_sections]
+            members_sections.append(members)
 
         if not members_sections:
             warnings.warn("No members sections found")
             return None
+        return members_sections
+
+    def identify_people_present(self, intro_section: str) -> str:
+        """
+        Identify the people present at a committee hearing.
+        """
+        present_sections = re.findall(
+            r"present: (.*?)(?:\n\n|    |$)", intro_section, flags=re.I | re.DOTALL
+        )
+        present_section_people = [
+            self.split_present_people_section(present) for present in present_sections
+        ]
 
         if not present_section_people:
             warnings.warn("No present section people found")
-            return members_sections
 
-        members_present = self.union_members_and_present_people(present_section_people[0], members_sections[-1])
-        if len(members_present) != len(present_section_people[0]):
-            warnings.warn(f"{len(present_section_people[0]) - len(members_present)} present people not found in members section")
-        
+        return present_section_people
         # chair_mentions = [line for line in intro_section.splitlines() if "chair" in line.lower()]
         # chairperson = [speaker for speaker in speaker_groups if "chair" in speaker.title]
-
-        return members_present

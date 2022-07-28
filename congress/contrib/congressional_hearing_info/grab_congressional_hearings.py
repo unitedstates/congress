@@ -44,45 +44,6 @@ parser = hearing_parser()
 congress_member_parser = CongressMemberParser()
 
 
-def link_speakers_to_representative(
-    speakers: Set[SpeakerInfo], congress_info: List[CongressMemberInfo]
-):
-    """
-    Given a set of speakers, link them to their representative.
-    """
-    print(set([speaker.title for speaker in speakers]))
-    for speaker in speakers:
-        narrowed_congress_info = congress_info
-
-        # Filter by state
-        if speaker.state:
-            narrowed_congress_info = [
-                i
-                for i in narrowed_congress_info
-                if i.state == speaker.state or i.state_initials == speaker.state
-            ]
-            if len(narrowed_congress_info) == 0:
-                raise ValueError(
-                    f"Could not find representative for state {speaker.state}"
-                )
-
-        # Filter by name
-        narrowed_congress_info = [
-            i
-            for i in narrowed_congress_info
-            if i.last_name.lower() == speaker.last_name.lower()
-        ]
-
-        # TODO: what if a witness is named the same as a congress member?
-        # TODO: or if two congress members have the same name?
-        if len(narrowed_congress_info) == 1:
-            speaker.congress_member_info = narrowed_congress_info[0]
-        elif speaker.title == "senator" or "chair" in speaker.title:
-            raise ValueError(
-                f"Could not find representative for speaker {speaker.last_name}"
-            )
-
-
 all_speakers = {}
 all_congress_members = {}
 for collection in collections["packages"]:
@@ -121,6 +82,5 @@ for collection in collections["packages"]:
     #     cur_words[collection['packageId']] = words
     #     all_speakers[name] = cur_words
 
-link_speakers_to_representative(all_speakers, list(all_congress_members.values()))
 print(f"total len: {len(all_speakers)}")
 # [speaker for speaker, hearing in all_speakers.items() if len(hearing.keys())>1]
