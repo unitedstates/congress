@@ -56,24 +56,38 @@ def link_speakers_to_representative(
 
         # Filter by state
         if speaker.state:
-            narrowed_congress_info = [i for i in narrowed_congress_info if i.state == speaker.state or i.state_initials == speaker.state]
+            narrowed_congress_info = [
+                i
+                for i in narrowed_congress_info
+                if i.state == speaker.state or i.state_initials == speaker.state
+            ]
             if len(narrowed_congress_info) == 0:
-                raise ValueError(f"Could not find representative for state {speaker.state}")
-        
+                raise ValueError(
+                    f"Could not find representative for state {speaker.state}"
+                )
+
         # Filter by name
-        narrowed_congress_info = [i for i in narrowed_congress_info if i.last_name.lower() == speaker.last_name.lower()]
+        narrowed_congress_info = [
+            i
+            for i in narrowed_congress_info
+            if i.last_name.lower() == speaker.last_name.lower()
+        ]
 
         # TODO: what if a witness is named the same as a congress member?
         # TODO: or if two congress members have the same name?
         if len(narrowed_congress_info) == 1:
             speaker.congress_member_info = narrowed_congress_info[0]
         elif speaker.title == "senator" or "chair" in speaker.title:
-            raise ValueError(f"Could not find representative for speaker {speaker.last_name}")
-    
+            raise ValueError(
+                f"Could not find representative for speaker {speaker.last_name}"
+            )
+
 
 all_speakers = {}
 all_congress_members = {}
 for collection in collections["packages"]:
+    # if collection["packageId"] != "CHRG-117hhrg46926":
+    #     continue
     # TODO: maybe verify that htm is a format which exists for this package
     url = f"https://api.govinfo.gov/packages/{collection['packageId']}"
 
@@ -84,12 +98,18 @@ for collection in collections["packages"]:
     mods_soup = BeautifulSoup(mods.content, "xml")
     congress_info = congress_member_parser.grab_congress_info(mods_soup)
     for member in congress_info:
-        all_congress_members[member.bio_guide_id] = member
+        if not member.bio_guide_id:
+            raise ValueError("No bio guide id found for congress member")
+        # TODO: what if there is additional info on an existing memeber?
+        if member.bio_guide_id not in all_congress_members.keys():
+            all_congress_members[member.bio_guide_id] = member
 
-    gran = requests.get(f"{url}/granules/{collection['packageId']}/summary", params=package_fields)
+    gran = requests.get(
+        f"{url}/granules/{collection['packageId']}/summary", params=package_fields
+    )
     # members = gran.json()["granules"]["members"]
-    members = gran.json().get('members', [])
-    
+    members = gran.json().get("members", [])
+
     # TODO: where are the witnesses? they are in the detailsLink
     # gran_0 = gran.json()['granules'][0]
     # gran_id = gran_0['granuleId']
