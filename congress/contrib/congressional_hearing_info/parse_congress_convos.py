@@ -106,12 +106,12 @@ class hearing_parser:
         if len(matches) > 1:
             warnings.warn("More than one contents section found")
 
-        new_line_count = matches[0].count("\n")
-
         if not matches:
             warnings.warn("No contents found")
-            text_no_contents = text_no_notes
-        elif new_line_count > 100:
+            return text_no_notes
+        
+        new_line_count = matches[0].count("\n")
+        if new_line_count > 100:
             warnings.warn(f"Content section is suspiciously long, {new_line_count} lines")
             text_no_contents = text_no_notes
         else:
@@ -167,7 +167,7 @@ class hearing_parser:
         if len(name_matches) == 1:
             return name_matches[0]
 
-        # TODO: make this better
+        # TODO: make this better (may not be reliable for franklin 'CHRG-117hhrg47367')
         state_matches = [x for x in congress_info if present_rep.state.lower() in x.state.lower()] # Doesn't work for kansas/arkansas
         if len(state_matches) == 1:
             return state_matches[0]
@@ -216,20 +216,21 @@ class hearing_parser:
 
         for speaker in speaker_groups:
             if "the chair" in speaker.full_match:
-                print(f"No match for {speaker.last_name}")
                 speaker.congress_member_info = chair_congress_member_info
             # TODO: what if there is a speaker who shares a last name with a representative?
-            speaker.congress_member_info = self.link_speaker_info_to_congress_member(speaker, congress_info)
+            if not speaker.congress_member_info:
+                speaker.congress_member_info = self.link_speaker_info_to_congress_member(speaker, congress_info)
 
             if not speaker.congress_member_info:
                 # TODO: What if last name contained in name 'CHRG-117hhrg46926'
+                # or if last name matches someone's first name (scott in 'CHRG-117hhrg44801')
                 members_match = [
                     x
                     for x in members_sections[-1]
                     if speaker.last_name in x.name.lower()
                 ]
                 if len(members_match) == 1:
-                    speaker.congress_member_info = self.link_name_to_congress_member(members_sections, congress_info)
+                    speaker.congress_member_info = self.link_present_rep_to_congress_member(members_match[0], congress_info)
                 elif len(members_match) > 1:
                     print(
                         f"Multiple member matches for {speaker.last_name} in members section"
@@ -243,9 +244,9 @@ class hearing_parser:
                     or "chair" in speaker.title
                     or "senator" in speaker.title
                 ):
-                    warnings.warn(f"No match for {speaker.last_name}")
+                    warnings.warn(f"No match for representative {speaker.last_name}")
                 elif (present_section_people and speaker.last_name in present_section_people[0]):
-                    warnings.warn(f"No match for {speaker.last_name}")
+                    warnings.warn(f"No match for representative {speaker.last_name}")
                 print(f"No match for {speaker.last_name}")  # scott, 117hhrg47927: johnson, norton, (also present owens), 
 
     def parse_hearing(
@@ -254,6 +255,7 @@ class hearing_parser:
         content: BeautifulSoup,
         congress_info: List[CongressMemberInfo],
     ) -> Dict[str, List[str]]:
+        # TODO: check for repeated congress info 'CHRG-117hhrg45195'
         cleaned_text = self.clean_hearing_text(content.get_text())
         speakers_and_text = re.split(self.regex_pattern, cleaned_text)
         speaker_groups = self.group_speakers(speakers_and_text)
@@ -297,7 +299,7 @@ class hearing_parser:
         # TODO: Lowercase names in 'CHRG-117hhrg47805'
         uppercase_name = r"^[A-Zceas\- \.'`]+"
         representative_regex = (
-            r"(?P<name>[A-Zceas\- \.'`]+(?:, ?[SJ]r\.)?), ?(?P<state>.*?)(?:,|$)"
+            r"(?P<name>[A-Zceas\- \.'`()]+(?:, ?[SJ][Rr]\.)?), ?(?P<state>.*?)(?:,|$)"
         )
         section_regex = r"\n  +.*, ?chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
 
@@ -329,7 +331,7 @@ class hearing_parser:
             # Note: this for loop and the one above could be combined if the loop went through the entries in reverse
             for i, line in enumerate(split_columns_lines):
                 for j, title in enumerate(line):
-                    if title is None:
+                    if title is None or title == "":
                         continue
                     title_split = re.split(representative_regex, title)
                     if len(title_split) != 4:

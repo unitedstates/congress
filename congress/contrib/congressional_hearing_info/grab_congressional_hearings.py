@@ -59,11 +59,12 @@ for collection in collections["packages"]:
     mods_soup = BeautifulSoup(mods.content, "xml")
     congress_info = congress_member_parser.grab_congress_info(mods_soup)
     for member in congress_info:
-        if not member.bio_guide_id:
-            raise ValueError("No bio guide id found for congress member")
+        id = member.authority_id
+        if not id:
+            raise ValueError("No id found for congress member")
         # TODO: what if there is additional info on an existing memeber?
-        if member.bio_guide_id not in all_congress_members.keys():
-            all_congress_members[member.bio_guide_id] = member
+        if id not in all_congress_members.keys():
+            all_congress_members[id] = member
 
     gran = requests.get(
         f"{url}/granules/{collection['packageId']}/summary", params=package_fields
@@ -82,5 +83,9 @@ for collection in collections["packages"]:
     #     cur_words[collection['packageId']] = words
     #     all_speakers[name] = cur_words
 
+# TODO: after the whole script has run, you can go back and try and attribute speakers to
+# any of the all_congress_members
 print(f"total len: {len(all_speakers)}")
 # [speaker for speaker, hearing in all_speakers.items() if len(hearing.keys())>1]
+
+# TODO: search: gun control, topics clarence thomas
