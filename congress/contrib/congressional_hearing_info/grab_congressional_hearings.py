@@ -6,7 +6,8 @@ import os
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from typing import Dict, List, Set
-from parse_congress_convos import hearing_parser, SpeakerInfo
+from parse_congress_convos import hearing_parser
+from link_speaker_to_congress_member import SpeakerInfo
 from parse_congress_member_info import CongressMemberParser, CongressMemberInfo
 
 class CongressionalHearingsInfo:
