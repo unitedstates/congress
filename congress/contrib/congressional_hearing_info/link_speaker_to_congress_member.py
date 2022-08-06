@@ -225,7 +225,7 @@ class LinkSpeakerToCongressMember:
                 members_match = [
                     x
                     for x in members_sections[-1]
-                    if speaker.last_name and speaker.last_name in x.name.lower()
+                    if speaker.last_name in x.name.lower()
                 ]
                 if len(members_match) == 1:
                     speaker.present_rep = members_match[0]

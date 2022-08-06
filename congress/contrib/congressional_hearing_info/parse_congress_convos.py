@@ -26,7 +26,7 @@ class hearing_parser:
     """
 
     TITLE_PATTERNS = [
-        r"Chair\w*",
+        r"(?:Co-)?[Cc]hair\w*",
         r"Mr.",
         r"Ms.",
         r"Mrs.",
@@ -37,11 +37,11 @@ class hearing_parser:
         r"Hon.",
     ]
 
-    ONE_OFF = ["The [C|c]hair\w*"]
+    ONE_OFF = ["The (?:[C|c]o-)?[C|c]hair\w*"]
 
     def construct_regex(self):
         title_patterns = "|".join(self.TITLE_PATTERNS)
-        capital_letter_word = "[A-Z][A-z_\-']*"
+        capital_letter_word = "[A-Z][A-z_\-']*" # TODO: make this 2+ letters
         enlongated_title = (
             "(?: of(?P<state> {capital_letter_word})+)?"  # ex: mr. doe of miami
         )
@@ -50,8 +50,6 @@ class hearing_parser:
         one_off_patterns = "|".join(self.ONE_OFF)
         one_off_patterns = f"{one_off_patterns}"
 
-        # TODO what about 2 last names?
-        # TODO add one offs
         new_speaker_pattern = f"\n +({name_pattern}|{one_off_patterns})\."
 
         # Each group included in regex (to be used in group_speakers),
@@ -105,9 +103,9 @@ class hearing_parser:
             speaker_group = [x.lower().strip() if x else x for x in speaker_group]
             match, title, l_name, state, statement = speaker_group
             new_speaker = SpeakerInfo(
-                last_name=l_name,
+                last_name=l_name or "",
                 full_match=match,
-                title=title,
+                title=title or "",
                 state=state,
                 statements=[statement],
             )
@@ -126,9 +124,11 @@ class hearing_parser:
         hearing_id: str,
         content: BeautifulSoup,
         congress_info: List[CongressMemberInfo],
-    ) -> Dict[str, List[str]]:
+    ) -> Set[SpeakerInfo]:
+        print(f"Parsing hearing: {hearing_id}")
         # TODO: check for repeated congress info 'CHRG-117hhrg45195'
         cleaned_text = self.clean_hearing_text(content.get_text())
+        # TODO split on section titles like "Statement of "
         speakers_and_text = re.split(self.regex_pattern, cleaned_text)
         speaker_groups = self.group_speakers(speakers_and_text)
 
@@ -138,4 +138,3 @@ class hearing_parser:
         )
 
         return speaker_groups
-
