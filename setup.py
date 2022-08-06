@@ -31,6 +31,7 @@ setuptools.setup(
         'scrapelib',
         'xmltodict',
         'python-dotenv',
+        'pandas',
     ],
     entry_points={
         'console_scripts': [

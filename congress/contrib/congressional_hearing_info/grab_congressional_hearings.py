@@ -6,9 +6,12 @@ import os
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from typing import Dict, List
-from parse_congress_convos import hearing_parser
 from link_speaker_to_congress_member import SpeakerInfo
+from parse_congress_convos import hearing_parser
 from parse_congress_member_info import CongressMemberParser, CongressMemberInfo
+from dataclasses import asdict, fields
+import pandas as pd
+import pyarrow
 
 class CongressionalHearingsInfo:
     HEARING_COLLECTION_CODE = "CHRG"
@@ -36,11 +39,20 @@ class CongressionalHearingsInfo:
         self.parser = hearing_parser()
         self.congress_member_parser = CongressMemberParser()
 
-        self.gather_all_hearings_texts(collections)
+        speakers_df, statements_df, congress_members_df = self.gather_all_hearings_texts(collections)
+        speakers_df.to_pickle("speakers.pkl")
+        statements_df.to_pickle("statements.pkl")
+        congress_members_df.to_pickle("congress_members.pkl")
+
 
     def gather_all_hearings_texts(self, collections: Dict):
-        all_speakers = {}
-        all_congress_members = {}
+        speakers_df = pd.DataFrame(columns=["hearing_id", "id"]+[field.name for field in fields(SpeakerInfo) if field.name != "statements"])
+        speakers_df.set_index(["hearing_id", "id"], inplace=True)
+
+        all_statements = []
+        # statements_df = pd.DataFrame(columns=["hearing_id", "speaker_id", "statement"])
+        congress_members_df = pd.DataFrame(columns=[field.name for field in fields(CongressMemberInfo)])
+        len_all_speakers = 0
         for collection in collections["packages"]:
             hearing_id = collection['packageId']
             url = f"https://api.govinfo.gov/packages/{hearing_id}"
@@ -49,20 +61,29 @@ class CongressionalHearingsInfo:
                 id = member.authority_id
                 if not id:
                     raise ValueError("No id found for congress member")
+                
                 # TODO: what if there is additional info on an existing memeber?
-                if id not in all_congress_members.keys():
-                    all_congress_members[id] = member
+                # Only set new congress member info if it is not already set
+                try:
+                    congress_members_df.loc[id]
+                except KeyError:
+                    congress_members_df.loc[id] = asdict(member)
             
             speakers = self.gather_hearing_text(url, hearing_id, congress_info)
             # TODO: add speakers to all speakers
-            # for name, words in speakers.items():
-            #     cur_words = all_speakers.get(name, {})
-            #     cur_words[hearing_id] = words
-            #     all_speakers[name] = cur_words
+            len_all_speakers += len(speakers)
+            for speaker in speakers:
+                speakers_df.loc[(hearing_id, speaker.__hash__()), :] = {k: v for k, v in asdict(speaker).items() if k != "statements"}
+                statements = [{"hearing_id": hearing_id, "speaker_id": speaker.__hash__(), "statement": statement} for statement in speaker.statements]
+                all_statements.extend(statements)
+
+            if len_all_speakers != len(speakers_df):
+                raise ValueError("Speakers not added to all speakers")
 
         # TODO: after the whole script has run, you can go back and try and attribute speakers to
         # any of the all_congress_members
-        print(f"total len: {len(all_speakers)}")
+        statements_df = pd.DataFrame(all_statements)
+        return (speakers_df, statements_df, congress_members_df)
 
     def gather_hearing_info(self, url: str, hearing_id: str) -> List[CongressMemberInfo]:
         mods = requests.get(url + "/mods", params=self.package_fields)
@@ -80,11 +101,13 @@ class CongressionalHearingsInfo:
         members = gran.json().get("members", [])
 
         speakers = self.parser.parse_hearing(hearing_id, htm_soup, congress_info)
-        print(len(speakers))
+        percent_with_info = len([x for x in speakers if x.congress_member_id])/len(speakers) if len(speakers) != 0 else 0.0
+        print(f"Percent speakers with congress info {percent_with_info:.2f}")
         return speakers
 
 
 # TODO: search: gun control, topics clarence thomas
+# climate change
 
 if __name__ == "__main__":
     load_dotenv()
@@ -93,4 +116,4 @@ if __name__ == "__main__":
     if api_key is None:
         api_key = "DEMO_KEY"
 
-    CongressionalHearingsInfo(100, api_key)
+    CongressionalHearingsInfo(50, api_key)
