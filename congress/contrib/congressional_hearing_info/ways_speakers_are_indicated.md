@@ -1,6 +1,11 @@
 Honestly, `CHRG-117shrg29104953` sucks and maybe
 should be detected as something that isn't parseable
 
+## Members sections
+
+### Chair can be indecated with `[Co-Chair]`
+`CHRG-115jhrg39994`
+
 ## Ways chairs are indicated
 
 ### Sometimes the chair can change mid meeting
@@ -43,7 +48,7 @@ Mr. Garcia [presiding].
 In `CHRG-117hhrg47278` there is a question on answer section
 who is speaking is not clear
 
-### A section at the top with those presen
+### A section at the top with those present
 some prepared statements start with the person's name, some dont
 
 prepared statement by senator james inhofe
@@ -58,6 +63,9 @@ or
   Prepared Statement of Chuck Hoskin, Jr., Cherokee Nation Principal 
                                  Chief
 ```
+
+### Sometimes members are differentiated by their title
+Mr. Wilson and Ms. Wilson `CHRG-117hhrg44799`
 
 ## Headlines and non speaking text
 
