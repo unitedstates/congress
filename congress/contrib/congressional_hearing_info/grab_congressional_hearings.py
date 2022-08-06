@@ -11,7 +11,6 @@ from parse_congress_convos import hearing_parser
 from parse_congress_member_info import CongressMemberParser, CongressMemberInfo
 from dataclasses import asdict, fields
 import pandas as pd
-import pyarrow
 
 class CongressionalHearingsInfo:
     HEARING_COLLECTION_CODE = "CHRG"
@@ -116,4 +115,4 @@ if __name__ == "__main__":
     if api_key is None:
         api_key = "DEMO_KEY"
 
-    CongressionalHearingsInfo(50, api_key)
+    CongressionalHearingsInfo(100, api_key)
