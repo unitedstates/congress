@@ -4,6 +4,8 @@ from typing import Dict, List, Set
 from parse_congress_member_info import CongressMemberInfo
 from link_speaker_to_congress_member import LinkSpeakerToCongressMember, SpeakerInfo
 import warnings
+import requests
+from parse_congress_member_info import CongressMemberParser, CongressMemberInfo
 
 
 class hearing_parser:
@@ -60,8 +62,11 @@ class hearing_parser:
 
         return new_speaker_pattern
 
-    def __init__(self):
+    def __init__(self, all_congress_members: Dict, package_fields: Dict):
         self.regex_pattern = self.construct_regex()
+        self.congress_member_parser = CongressMemberParser()
+        self.link = LinkSpeakerToCongressMember(all_congress_members)
+        self.package_fields = package_fields
 
     def clean_hearing_text(self, text: str) -> str:
         additional_notes_pattern = r" ?\[.*?\]"
@@ -119,11 +124,17 @@ class hearing_parser:
         return speakers
 
 
+    def gather_hearing_info(self, url: str, hearing_id: str) -> List[CongressMemberInfo]:
+        mods = requests.get(url + "/mods", params=self.package_fields)
+        mods_soup = BeautifulSoup(mods.content, "xml")
+        congress_info = self.congress_member_parser.grab_congress_info(mods_soup)
+        return congress_info
+
     def parse_hearing(
         self,
         hearing_id: str,
         content: BeautifulSoup,
-        congress_info: List[CongressMemberInfo],
+        url: str,
     ) -> Set[SpeakerInfo]:
         print(f"Parsing hearing: {hearing_id}")
         # TODO: check for repeated congress info 'CHRG-117hhrg45195'
@@ -132,8 +143,9 @@ class hearing_parser:
         speakers_and_text = re.split(self.regex_pattern, cleaned_text)
         speaker_groups = self.group_speakers(speakers_and_text)
 
-        link = LinkSpeakerToCongressMember(congress_info)
-        link.link_speakers_to_congress_members(
+
+        congress_info = self.gather_hearing_info(url, hearing_id)
+        self.link.link_speakers_to_congress_members(
             speaker_groups, speakers_and_text[0], congress_info
         )
 

@@ -1,6 +1,6 @@
 import warnings
 import re
-from typing import List, Set
+from typing import List, Set, Dict
 from dataclasses import dataclass, field
 from parse_congress_member_info import CongressMemberInfo
 
@@ -23,7 +23,6 @@ class SpeakerInfo:
     def __eq__(self, other):
         return (
             self.last_name == other.last_name
-            # and self.full_match == other.full_match
             and self.title == other.title
             and self.state == other.state
         )
@@ -32,38 +31,97 @@ class SpeakerInfo:
         return hash((self.last_name, self.title, self.state))
 
 class LinkSpeakerToCongressMember:
-    def __init__(self, congress_info: List[CongressMemberInfo]):
-        pass
-        # TODO
-        # self.congress_info = congress_info
-        # run identify funcs
+    def __init__(self, all_congress_members: Dict):
+        self.all_congress_members = all_congress_members
 
 
-    def link_speaker_info_to_congress_member(
-        self, speaker: SpeakerInfo, congress_info: List[CongressMemberInfo]
+    def link_speaker_to_all_congress_members(
+        self, speaker: SpeakerInfo
     ) -> str:
-        if not speaker.last_name:
-            return None
+        # TODO: maybe also indicate off of present section
+        # Chair doesn't always mean representative: CHRG-116shrg41431
+        rep_titles = ['senator', 'chair'] # TODO: figure out if hon should be on this list
+
+        if speaker.state or any(rep_title in speaker.title for rep_title in rep_titles):
+            filtered_members = [member for member in self.all_congress_members.values() if member["last_name"].lower() == speaker.last_name]
+            old = len(filtered_members)
+            if "senator" in speaker.title:
+                filtered_members = [member for member in filtered_members if member["chamber"] == "S"]
+            if speaker.state:
+                filtered_members = [member for member in filtered_members if member["state"] == speaker.state]
+            
+            new = len(filtered_members)
+            if len(filtered_members) == 1:
+                return filtered_members[0]["id"]
+        
+        return None
+
+    def link_speaker_to_present_congress_member(
+        self, speaker: SpeakerInfo, congress_info: List[CongressMemberInfo]
+    ) -> CongressMemberInfo:
         matches = [x for x in congress_info if speaker.last_name == x.last_name.lower()]
         if len(matches) == 1:
-            return matches[0].authority_id
+            return matches[0]
         return None
 
-    def link_present_rep_to_congress_member(
-        self, present_rep: PresentRepresentative, congress_info: List[CongressMemberInfo]) -> str:
+    def link_present_rep_to_all_congress_members(
+        self, present_rep: PresentRepresentative) -> str:
         split_name = present_rep.name.lower().split()
-        name_matches = [x for x in congress_info if all(word in x.name_parsed.lower().split() for word in split_name)]
-        if len(name_matches) == 1:
-            return name_matches[0].authority_id
+        pattern = re.compile('[\W_]+')
+        split_name = [re.sub(pattern, '', x) for x in split_name]
+        rep_state = present_rep.state.lower()
+        filtered_members = []
+        for member in self.all_congress_members.values():
+            member_name = f'{member["first_name"]} {member["last_name"]}'
+            member_state = member["state"]
+            split_member_name = member_name.lower().split()
+            split_member_last_name = member["last_name"].lower().split()
+            if all(word in split_name for word in split_member_last_name) and rep_state == member_state: #TODO: (may not be reliable for franklin 'CHRG-117hhrg47367')
+                # Check only last name to avoid issues with nicknames
+                filtered_members.append(member)
+        if len(filtered_members) == 1:
+            return filtered_members[0]["id"]
+        if len(filtered_members) > 1:
+            # match on the first name as well
+            filtered_members = [member for member in filtered_members if all(word in split_name for word in member["first_name"].lower().split())]
+            if len(filtered_members) == 1:
+                return filtered_members[0]["id"]
 
-        # TODO: make this better (may not be reliable for franklin 'CHRG-117hhrg47367')
-        state_matches = [x for x in congress_info if present_rep.state.lower() in x.state.lower()] # Doesn't work for kansas/arkansas
-        new_matches = [x for x in congress_info if present_rep.state.lower() == x.state.lower()]
-        # This doesn't work if there is a rep missing from the list
-        # if len(state_matches) == 1:
-        #     return state_matches[0]
+        warnings.warn(f"{present_rep.name} has {len(filtered_members)} member matches")
         return None
 
+    def link_speaker_to_present_rep(self, speaker: SpeakerInfo, members_sections: List[List[PresentRepresentative]]) -> PresentRepresentative:
+        if not speaker.last_name:
+            return None
+        split_name = speaker.last_name.split()
+        
+        members_match = [
+            x
+            for x in members_sections[-1]
+            if all(word in x.name.lower().split() for word in split_name) and 
+            (not speaker.state or speaker.state == x.state)
+        ]
+        if len(members_match) == 1:
+            return members_match[0]
+        elif len(members_match) > 1:
+            # TODO: maybe should look at last names vs first names (scott 'CHRG-117hhrg44799')
+            print(
+                f"Multiple member matches for {speaker.last_name} in members section"
+            )
+        return None
+
+    def link_congress_member_to_all_congress_members(self, member: CongressMemberInfo) -> str:
+        id_match = next((x for x in self.all_congress_members.values() if x["id"] == member.bio_guide_id), None)
+        if id_match:
+            return id_match["id"]
+        
+        # TODO: maybe this is too long of an if an I should use less
+        filtered_members = [x for x in self.all_congress_members.values() if x["last_name"] == member.last_name and x["state_initials"] == member.state_initials and x["chamber"] == member.chamber]
+        if len(filtered_members) == 1:
+            return filtered_members[0]["id"]
+
+        warnings.warn(f"{member.name_parsed} has {len(filtered_members)} member matches")
+        return None
 
     def identify_members(
         self, intro_section: str
@@ -145,6 +203,7 @@ class LinkSpeakerToCongressMember:
         """
         Identify the people present at a committee hearing.
         """
+        # TODO: not currently used
         present_sections = re.findall(
             r"present: (.*?)(?:\n\n|    |$)", intro_section, flags=re.I | re.DOTALL
         )
@@ -152,30 +211,12 @@ class LinkSpeakerToCongressMember:
             self.split_present_people_section(present) for present in present_sections
         ]
 
-        if not present_section_people:
-            warnings.warn("No present section people found")
-
         return present_section_people
-
-    def union_members_and_present_people(
-        self,
-        present_section_people: List[str],
-        members_section: List[PresentRepresentative],
-    ) -> List[PresentRepresentative]:
-        # TODO: not currently used
-        present_people = []
-        for person in present_section_people:
-            for member in members_section:
-                if person.lower() in member.name.lower():
-                    present_people.append(member)
-                    continue
-        return present_people
 
     def identify_chair(
         self,
         speaker_groups: Set[SpeakerInfo],
         members_sections: List[List[PresentRepresentative]],
-        congress_info: List[CongressMemberInfo],
     ) -> str:
         # TODO: this should return whatever info can be found, not just none if congress info not found
         chair = None
@@ -186,7 +227,7 @@ class LinkSpeakerToCongressMember:
                 if "chair" in member.additional_info.lower()
             )
             if chair:
-                return self.link_present_rep_to_congress_member(chair, congress_info)
+                return self.link_present_rep_to_all_congress_members(chair)
         if speaker_groups:
             chair = next(
                 (speaker
@@ -194,7 +235,7 @@ class LinkSpeakerToCongressMember:
                 if "chair" in speaker.title.lower()), None
             )
             if chair:
-                return self.link_speaker_info_to_congress_member(chair, congress_info)
+                return self.link_speaker_to_all_congress_members(chair)
         return chair
 
     def link_speakers_to_congress_members(
@@ -206,38 +247,31 @@ class LinkSpeakerToCongressMember:
         members_sections = self.identify_members(intro_section)
         present_section_people = self.identify_people_present(intro_section)
         chair_congress_member_id = self.identify_chair(
-            speaker_groups, members_sections, congress_info
+            speaker_groups, members_sections
         )
-        intro_lines = intro_section.lower().split("\n")
 
+        # This code executes the flow outlined in "./Link Speaker Flow V2.png"
         for speaker in speaker_groups:
             if "the chair" in speaker.full_match:
                 if chair_congress_member_id is None:
                     warnings.warn("No chair found, but chair is needed")
                 speaker.congress_member_id = chair_congress_member_id
-            # TODO: what if there is a speaker who shares a last name with a representative?
-            if not speaker.congress_member_id:
-                speaker.congress_member_id = self.link_speaker_info_to_congress_member(speaker, congress_info)
+            else:
+                speaker.congress_member_id = self.link_speaker_to_all_congress_members(speaker)
 
+            
             if not speaker.congress_member_id and members_sections:
                 # TODO: What if last name contained in name 'CHRG-117hhrg46926'
                 # or if last name matches someone's first name (scott in 'CHRG-117hhrg44801')
-                members_match = [
-                    x
-                    for x in members_sections[-1]
-                    if speaker.last_name in x.name.lower()
-                ]
-                if len(members_match) == 1:
-                    speaker.present_rep = members_match[0]
-                    speaker.congress_member_id = self.link_present_rep_to_congress_member(members_match[0], congress_info)
-                elif len(members_match) > 1:
-                    # TODO: maybe should look at last names vs first names (scott 'CHRG-117hhrg44799')
-                    print(
-                        f"Multiple member matches for {speaker.last_name} in members section"
-                    )
-                else:
-                    pass
-                    # print(f"No member matches for {speaker.last_name}")
+                present_rep = self.link_speaker_to_present_rep(speaker, members_sections)
+                if present_rep:
+                    speaker.congress_member_id = self.link_present_rep_to_all_congress_members(present_rep)
+            if not speaker.congress_member_id and congress_info:
+                congress_member = self.link_speaker_to_present_congress_member(speaker, congress_info)
+                if congress_member:
+                    speaker.congress_member_id = self.link_congress_member_to_all_congress_members(congress_member)
+            
+            # TODO:
             if not speaker.congress_member_id:
                 if (
                     speaker.state
