@@ -61,3 +61,4 @@ docs/_build/
 /dev/
 .vscode/
 *.pkl
+*.parquet

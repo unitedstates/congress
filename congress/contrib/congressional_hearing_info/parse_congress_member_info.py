@@ -1,6 +1,9 @@
 from bs4 import BeautifulSoup
 from typing import List
 from dataclasses import dataclass
+import requests
+import os
+from dotenv import load_dotenv
 
 
 @dataclass
@@ -22,6 +25,7 @@ STATE_INITIALS_MAP = {
     "AK": "Alaska",
     "AL": "Alabama",
     "AR": "Arkansas",
+    "AS": "American Samoa",
     "AZ": "Arizona",
     "CA": "California",
     "CO": "Colorado",
@@ -30,6 +34,7 @@ STATE_INITIALS_MAP = {
     "DE": "Delaware",
     "FL": "Florida",
     "GA": "Georgia",
+    "GU": "Guam",
     "HI": "Hawaii",
     "IA": "Iowa",
     "ID": "Idaho",
@@ -44,6 +49,7 @@ STATE_INITIALS_MAP = {
     "MI": "Michigan",
     "MN": "Minnesota",
     "MO": "Missouri",
+    "MP": "Northern Mariana Islands",
     "MS": "Mississippi",
     "MT": "Montana",
     "NC": "North Carolina",
@@ -58,13 +64,16 @@ STATE_INITIALS_MAP = {
     "OK": "Oklahoma",
     "OR": "Oregon",
     "PA": "Pennsylvania",
+    "PR": "Puerto Rico",
     "RI": "Rhode Island",
     "SC": "South Carolina",
     "SD": "South Dakota",
     "TN": "Tennessee",
     "TX": "Texas",
+    "TT": "Trust Territories",
     "UT": "Utah",
     "VA": "Virginia",
+    "VI": "Virgin Islands",
     "VT": "Vermont",
     "WA": "Washington",
     "WI": "Wisconsin",
@@ -74,6 +83,7 @@ STATE_INITIALS_MAP = {
 
 
 class CongressMemberParser:
+
     def grab_congress_info(self, metadata: BeautifulSoup) -> List[CongressMemberInfo]:
         congress_sections = metadata.find_all("congMember")
         members = []
