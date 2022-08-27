@@ -32,6 +32,7 @@ setuptools.setup(
         'xmltodict',
         'python-dotenv',
         'pandas',
+        'fastparquet',
     ],
     entry_points={
         'console_scripts': [
