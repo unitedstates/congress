@@ -17,9 +17,6 @@ should be detected as something that isn't parseable
 We only want info on the members of congress, but I think we need
 to label what everyone says so that we can tell the difference.
 
-What if the person has two last names
-
-Maybe use the names of those attending?
 
 hearings/CHRG-117hhrg47271.html
 What does this mean `Mr. McHenry. ``Dr. McHenry.'' Thank you, Madam Chairwoman.`

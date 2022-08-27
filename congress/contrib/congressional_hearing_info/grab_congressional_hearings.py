@@ -97,8 +97,6 @@ class CongressionalHearingsInfo:
             if len_all_speakers != len(speakers_df):
                 raise ValueError("Speakers not added to all speakers")
 
-        # TODO: after the whole script has run, you can go back and try and attribute speakers to
-        # any of the all_congress_members
         statements_df = pd.DataFrame(all_statements)
         return (speakers_df, statements_df, percent_with_congress_info)
 
