@@ -45,7 +45,7 @@ class hearing_parser:
         title_patterns = "|".join(self.TITLE_PATTERNS)
         capital_letter_word = "[A-Z][A-z_\-']*" # TODO: make this 2+ letters
         enlongated_title = (
-            "(?: of(?P<state> {capital_letter_word})+)?"  # ex: mr. doe of miami
+            f"(?: of(?P<state> {capital_letter_word})+)?"  # ex: mr. doe of miami
         )
         name_pattern = f"(?P<title>{title_patterns})(?P<l_name>(?: {capital_letter_word})+){enlongated_title}"
 
