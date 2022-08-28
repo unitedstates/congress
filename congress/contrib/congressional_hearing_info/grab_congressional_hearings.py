@@ -103,7 +103,7 @@ class CongressionalHearingsInfo:
     def gather_hearing_text(self, url: str, hearing_id: str):
         summary = requests.get(url + "/summary", params=self.package_fields)
         summary_json = summary.json()
-        print(f"Doc type: {summary_json['documentType']}\n Pages: {summary_json['pages']}\n Category: {summary_json['category']}")
+        # print(f"Doc type: {summary_json['documentType']}\n Pages: {summary_json['pages']}\n Category: {summary_json['category']}")
         htm = requests.get(url + "/htm", params=self.package_fields)
         if htm.status_code != 200:
             print(f"Error: {htm.status_code} for hearing {hearing_id}")

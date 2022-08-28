@@ -136,7 +136,7 @@ class LinkSpeakerToCongressMember:
             r"(?P<name>[A-Zceas\- \.'`()]+(?:, ?[SJ][Rr]\.)?), ?(?P<state>.*?)(?:,|$)"
         )
 
-        section_regex = r"\n[\t \r\v]{2,}.*, ?\S*chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
+        section_regex = r"\n[\t \r\v]{2,}.*(?:, ?|\n[\t \r\v]{2,})\S*chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
         old_regex = r"\n[\t \r\v]{2,}.*, ?\S*chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
 
         members_sections = []
@@ -144,23 +144,25 @@ class LinkSpeakerToCongressMember:
             lines = [line.strip() for line in section.split("\n") if line.strip()]
 
             if len(lines) <= 2 or "chair" not in lines[0].lower():
-                warnings.warn(f"Section malformed: {lines}")
-                continue
+                print(f"Section malformed: {lines}")
 
             split_columns_lines = [re.split("  +", line) for line in lines]
             if any(len(line) > 2 for line in split_columns_lines):
-                warnings.warn(f"More sections expected")
+                print(f"More sections than expected")
 
             # Combine members split across multiple lines
             for i, line in enumerate(split_columns_lines):
                 if len(line) > 2:
-                    warnings.warn(f"Line malformed: {line}")
+                    print(f"Line malformed: {line}")
                     continue
                 for j, title in enumerate(line[:2]):
                     if title.lower() == "vacancy":
                         split_columns_lines[i][j] = ""
                     elif "," not in title or not re.match(uppercase_name, title):
-                        split_columns_lines[i - 1][j] += f" {title}"
+                        try:
+                            split_columns_lines[i - 1][j] += f" {title}"
+                        except IndexError as e:
+                            print(f"Index error for {split_columns_lines[i]}")
                         split_columns_lines[i][j] = ""
 
             members = []
@@ -172,12 +174,13 @@ class LinkSpeakerToCongressMember:
                     title_split = re.split(representative_regex, title)
                     if len(title_split) != 4:
                         if "Staff" not in title:
-                            warnings.warn(f"Title does not match regex: {title}")
+                            print(f"Title does not match regex: {title}")
                     elif title_split[0] != "":
                         if "Staff" not in title:
-                            warnings.warn(f"Title split is unexpected: {title_split}")
+                            print(f"Title split is unexpected: {title_split}")
                     else:
                         members.append(
+                            # TODO: maybe this should make sure that title_split 2 only contains a state, and put the rest in title (CHRG-116hhrg45263)
                             PresentRepresentative(
                                 title_split[1], title_split[2], title_split[3].strip()
                             )
@@ -221,8 +224,6 @@ class LinkSpeakerToCongressMember:
         speaker_groups: Set[SpeakerInfo],
         members_sections: List[List[PresentRepresentative]],
     ) -> str:
-        # TODO: this should return whatever info can be found, not just none if congress info not found
-        chair = None
         if members_sections and members_sections[-1]:
             chair = next(
                 member
@@ -230,7 +231,9 @@ class LinkSpeakerToCongressMember:
                 if "chair" in member.additional_info.lower()
             )
             if chair:
-                return self.link_present_rep_to_all_congress_members(chair)
+                chair_id = self.link_present_rep_to_all_congress_members(chair)
+                if chair_id:
+                    return chair_id
         if speaker_groups:
             chair = next(
                 (speaker
@@ -239,7 +242,7 @@ class LinkSpeakerToCongressMember:
             )
             if chair:
                 return self.link_speaker_to_all_congress_members(chair)
-        return chair
+        return None
 
     def link_speakers_to_congress_members(
         self,
@@ -286,4 +289,3 @@ class LinkSpeakerToCongressMember:
                     warnings.warn(f"No match for representative {speaker.last_name}")
                 elif (present_section_people and speaker.last_name in present_section_people[0]):
                     warnings.warn(f"No match for representative {speaker.last_name}")
-                print(f"No match for {speaker.last_name}")  # scott, 117hhrg47927: johnson, norton, (also present owens), 
