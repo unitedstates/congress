@@ -146,7 +146,7 @@ class hearing_parser:
 
         congress_info = self.gather_hearing_info(url, hearing_id)
         self.link.link_speakers_to_congress_members(
-            speaker_groups, speakers_and_text[0], congress_info
+            speaker_groups, speakers_and_text[0], congress_info, hearing_id
         )
 
         return speaker_groups

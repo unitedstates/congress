@@ -40,7 +40,9 @@ class LinkSpeakerToCongressMember:
     ) -> str:
         # TODO: maybe also indicate off of present section
         # Chair doesn't always mean representative: CHRG-116shrg41431
-        rep_titles = ['senator', 'chair'] # TODO: figure out if hon should be on this list
+        rep_titles = ['senator', 'chair']
+        # TODO: figure out if hon should be on this list
+        # in 'CHRG-117hhrg47768', it should be
 
         if speaker.state or any(rep_title in speaker.title for rep_title in rep_titles):
             filtered_members = [member for member in self.all_congress_members.values() if member["last_name"].lower() == speaker.last_name]
@@ -134,7 +136,8 @@ class LinkSpeakerToCongressMember:
             r"(?P<name>[A-Zceas\- \.'`()]+(?:, ?[SJ][Rr]\.)?), ?(?P<state>.*?)(?:,|$)"
         )
 
-        section_regex = r"\n  +.*, ?\S*chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
+        section_regex = r"\n[\t \r\v]{2,}.*, ?\S*chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
+        old_regex = r"\n[\t \r\v]{2,}.*, ?\S*chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
 
         members_sections = []
         for section in re.findall(section_regex, intro_section, flags=re.I):
@@ -155,7 +158,7 @@ class LinkSpeakerToCongressMember:
                     continue
                 for j, title in enumerate(line[:2]):
                     if title.lower() == "vacancy":
-                        split_columns_lines[i][j] = None
+                        split_columns_lines[i][j] = ""
                     elif "," not in title or not re.match(uppercase_name, title):
                         split_columns_lines[i - 1][j] += f" {title}"
                         split_columns_lines[i][j] = ""
@@ -243,7 +246,9 @@ class LinkSpeakerToCongressMember:
         speaker_groups: Set[SpeakerInfo],
         intro_section: str,
         congress_info: List[CongressMemberInfo],
+        hearing_id: str,
     ) -> Set[SpeakerInfo]:
+        self.hearing_id = hearing_id
         members_sections = self.identify_members(intro_section)
         present_section_people = self.identify_people_present(intro_section)
         chair_congress_member_id = self.identify_chair(
