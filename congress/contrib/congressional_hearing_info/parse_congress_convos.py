@@ -43,7 +43,7 @@ class hearing_parser:
 
     def construct_regex(self):
         title_patterns = "|".join(self.TITLE_PATTERNS)
-        capital_letter_word = "[A-Z][A-z_\-']*" # TODO: make this 2+ letters
+        capital_letter_word = "[A-Z][A-z_\-']*"  # TODO: make this 2+ letters
         enlongated_title = (
             f"(?: of(?P<state> {capital_letter_word})+)?"  # ex: mr. doe of miami
         )
@@ -83,10 +83,12 @@ class hearing_parser:
         if not matches:
             warnings.warn("No contents found")
             return text_no_notes
-        
+
         new_line_count = matches[0].count("\n")
         if new_line_count > 100:
-            warnings.warn(f"Content section is suspiciously long, {new_line_count} lines")
+            warnings.warn(
+                f"Content section is suspiciously long, {new_line_count} lines"
+            )
             text_no_contents = text_no_notes
         else:
             text_no_contents = re.sub(contents_pattern, "", text_no_notes)
@@ -123,8 +125,9 @@ class hearing_parser:
                 speakers.add(new_speaker)
         return speakers
 
-
-    def gather_hearing_info(self, url: str, hearing_id: str) -> List[CongressMemberInfo]:
+    def gather_hearing_info(
+        self, url: str, hearing_id: str
+    ) -> List[CongressMemberInfo]:
         mods = requests.get(url + "/mods", params=self.package_fields)
         mods_soup = BeautifulSoup(mods.content, "xml")
         congress_info = self.congress_member_parser.grab_congress_info(mods_soup)
@@ -142,7 +145,6 @@ class hearing_parser:
         # TODO split on section titles like "Statement of "
         speakers_and_text = re.split(self.regex_pattern, cleaned_text)
         speaker_groups = self.group_speakers(speakers_and_text)
-
 
         congress_info = self.gather_hearing_info(url, hearing_id)
         self.link.link_speakers_to_congress_members(

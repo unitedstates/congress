@@ -83,7 +83,6 @@ STATE_INITIALS_MAP = {
 
 
 class CongressMemberParser:
-
     def grab_congress_info(self, metadata: BeautifulSoup) -> List[CongressMemberInfo]:
         congress_sections = metadata.find_all("congMember")
         members = []
