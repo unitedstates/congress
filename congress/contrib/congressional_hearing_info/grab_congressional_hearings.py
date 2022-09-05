@@ -15,7 +15,7 @@ import time
 class CongressionalHearingsInfo:
     HEARING_COLLECTION_CODE = "CHRG"
     
-    def __init__(self, size: int, api_key: str, last_date: datetime = datetime(year=2022, month=8, day=1)):
+    def __init__(self, size: int, api_key: str, last_date: datetime = datetime(year=2020, month=1, day=1)):
         last_date_str = last_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         url = f"https://api.govinfo.gov/collections/{self.HEARING_COLLECTION_CODE}/{last_date_str}"
 
@@ -39,6 +39,7 @@ class CongressionalHearingsInfo:
         congress_members = self.grab_all_congress_members()
         self.parser = hearing_parser(congress_members, self.package_fields)
 
+        print(f"parsing {len(packages)} packages")
         speakers_df, statements_df, percent_with_congress_info = self.gather_all_hearings_texts(packages)
         print(f"percent of documents with speakers found: {len(percent_with_congress_info)/size}")
         speakers_df.to_parquet("speakers.parquet")
@@ -79,11 +80,15 @@ class CongressionalHearingsInfo:
         # congress_members_df = pd.DataFrame(columns=[field.name for field in fields(CongressMemberInfo)])
         len_all_speakers = 0
         for collection in packages:
-            time.sleep(1)
+            time.sleep(0.25)
             hearing_id = collection['packageId']
             url = f"https://api.govinfo.gov/packages/{hearing_id}"
             
-            speakers = self.gather_hearing_text(url, hearing_id)
+            try:
+                speakers = self.gather_hearing_text(url, hearing_id)
+            except Exception as e:
+                print(f"Uncaught exception for {hearing_id}\n{e}")
+                speakers = []
             if len(speakers) != 0:
                 percent_with_info = len([x for x in speakers if x.congress_member_id])/len(speakers)
                 percent_with_congress_info[hearing_id] = percent_with_info
@@ -94,14 +99,16 @@ class CongressionalHearingsInfo:
                 statements = [{"hearing_id": hearing_id, "speaker_id": speaker.__hash__(), "statement": statement} for statement in speaker.statements]
                 all_statements.extend(statements)
 
-            if len_all_speakers != len(speakers_df):
-                raise ValueError("Speakers not added to all speakers")
 
         statements_df = pd.DataFrame(all_statements)
         return (speakers_df, statements_df, percent_with_congress_info)
 
     def gather_hearing_text(self, url: str, hearing_id: str):
-        summary = requests.get(url + "/summary", params=self.package_fields)
+        try:
+            summary = requests.get(url + "/summary", params=self.package_fields)
+        except ConnectionError as e:
+            print(f"Error: {e}")
+            return []
         summary_json = summary.json()
         # print(f"Doc type: {summary_json['documentType']}\n Pages: {summary_json['pages']}\n Category: {summary_json['category']}")
         htm = requests.get(url + "/htm", params=self.package_fields)
@@ -125,4 +132,4 @@ if __name__ == "__main__":
     if api_key is None:
         api_key = "DEMO_KEY"
 
-    CongressionalHearingsInfo(150, api_key)
+    CongressionalHearingsInfo(500, api_key)

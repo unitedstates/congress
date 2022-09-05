@@ -225,10 +225,11 @@ class LinkSpeakerToCongressMember:
         members_sections: List[List[PresentRepresentative]],
     ) -> str:
         if members_sections and members_sections[-1]:
-            chair = next(
+            chair = next((
                 member
                 for member in members_sections[-1]
-                if "chair" in member.additional_info.lower()
+                if "chair" in member.additional_info.lower() or 'chair' in member.state
+            ), None
             )
             if chair:
                 chair_id = self.link_present_rep_to_all_congress_members(chair)
