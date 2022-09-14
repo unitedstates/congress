@@ -1,5 +1,4 @@
 import requests
-import urllib.parse
 from datetime import datetime
 import os
 from dotenv import load_dotenv
@@ -102,8 +101,6 @@ class CongressionalHearingsInfo:
 
         all_statements = []
         percent_with_congress_info = {}
-        # statements_df = pd.DataFrame(columns=["hearing_id", "speaker_id", "statement"])
-        # congress_members_df = pd.DataFrame(columns=[field.name for field in fields(CongressMemberInfo)])
         len_all_speakers = 0
         for collection in packages:
             time.sleep(0.25)
@@ -140,13 +137,6 @@ class CongressionalHearingsInfo:
         return (speakers_df, statements_df, percent_with_congress_info)
 
     def gather_hearing_text(self, url: str, hearing_id: str):
-        try:
-            summary = requests.get(url + "/summary", params=self.package_fields)
-        except ConnectionError as e:
-            print(f"Error: {e}")
-            return []
-        summary_json = summary.json()
-        # print(f"Doc type: {summary_json['documentType']}\n Pages: {summary_json['pages']}\n Category: {summary_json['category']}")
         htm = requests.get(url + "/htm", params=self.package_fields)
         if htm.status_code != 200:
             print(f"Error: {htm.status_code} for hearing {hearing_id}")
@@ -157,9 +147,6 @@ class CongressionalHearingsInfo:
         speakers = self.parser.parse_hearing(hearing_id, htm_soup, url)
         return speakers
 
-
-# TODO: search: gun control, topics clarence thomas
-# climate change
 
 if __name__ == "__main__":
     load_dotenv()
