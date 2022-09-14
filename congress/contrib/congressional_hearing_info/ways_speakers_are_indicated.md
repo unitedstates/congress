@@ -1,6 +1,3 @@
-Honestly, `CHRG-117shrg29104953` sucks and maybe
-should be detected as something that isn't parseable
-
 ## Members sections
 
 ### Chair can be indecated with `[Co-Chair]`
@@ -14,18 +11,11 @@ should be detected as something that isn't parseable
 ## Ways Speakers are Indicated
 
 ### Open Questions
-We only want info on the members of congress, but I think we need
-to label what everyone says so that we can tell the difference.
-
-
 hearings/CHRG-117hhrg47271.html
 What does this mean `Mr. McHenry. ``Dr. McHenry.'' Thank you, Madam Chairwoman.`
 
-Not sure how to link Mr. Kim to a member of congress.in `CHRG-117hhrg47738`
-
 ## Miss spelling
 In `117hhrg47271` they wrote goodpseed instead of goodspeed. 
-Probably too much of an edge case, but keep it in mind
 
 ### two words, begining of paragraph, followed by period
 
@@ -39,6 +29,13 @@ Ms. Williams of Georgia.
 
 ### Name followed by note
 Mr. Garcia [presiding].
+`CHRG-117hhrg47278`
+
+### Titles can change but reference the same person
+in `CHRG-116hhrg36914` Ms Horn is identified as both
+ms and chairwoman
+
+### Sometimes the chair can change mid meeting
 `CHRG-117hhrg47278`
 
 ### Questions Submitted for the Record
@@ -65,10 +62,9 @@ or
 Mr. Wilson and Ms. Wilson `CHRG-117hhrg44799`
 
 ## Headlines and non speaking text
-
 Last section of non text at top is usually `Present:`
 
-#### Examples
+### Examples
 `----------------`
 ```
 
@@ -88,7 +84,3 @@ Last section of non text at top is usually `Present:`
 `[No response.]`
 `[The statement of the Chairperson follows:]`
 `[Whereupon, at 1:27 p.m., the committee was adjourned.]`
-
-### Titles can change but reference the same person
-in `CHRG-116hhrg36914` Ms Horn is identified as both
-ms and chairwoman
