@@ -11,6 +11,8 @@ from dataclasses import asdict, fields
 import pandas as pd
 import time
 
+#TODO: create MD file explaining everything
+#TODO: write more tests covering complex funcs
 
 class CongressionalHearingsInfo:
     HEARING_COLLECTION_CODE = "CHRG"
