@@ -83,7 +83,6 @@ class LinkSpeakerToCongressMember:
         rep_state = present_rep.state.lower()
         filtered_members = []
         for member in self.all_congress_members.values():
-            member_name = f'{member["first_name"]} {member["last_name"]}'
             member_state = member["state"]
             split_member_last_name = member["last_name"].lower().split()
             if (
@@ -145,7 +144,6 @@ class LinkSpeakerToCongressMember:
         if id_match:
             return id_match["id"]
 
-        # TODO: maybe this is too long of an if an I should use less
         filtered_members = [
             x
             for x in self.all_congress_members.values()
