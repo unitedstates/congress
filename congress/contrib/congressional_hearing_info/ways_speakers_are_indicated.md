@@ -1,6 +1,6 @@
 ## Members sections
 
-### Chair can be indecated with `[Co-Chair]`
+### Chair can be indicated with `[Co-Chair]`
 `CHRG-115jhrg39994`
 
 ## Ways chairs are indicated
@@ -17,7 +17,7 @@ What does this mean `Mr. McHenry. ``Dr. McHenry.'' Thank you, Madam Chairwoman.`
 ## Miss spelling
 In `117hhrg47271` they wrote goodpseed instead of goodspeed. 
 
-### two words, begining of paragraph, followed by period
+### two words, beginning of paragraph, followed by period
 
 Chairman, Chairwoman, Mr., Mrs., Ms., Dr., Senator, General,
 Hon.,
@@ -43,7 +43,7 @@ In `CHRG-117hhrg47278` there is a question on answer section
 who is speaking is not clear
 
 ### A section at the top with those present
-some prepared statements start with the person's name, some dont
+some prepared statements start with the person's name, some don't
 
 prepared statement by senator james inhofe
 [The prepared statement of Mr. Smith follows:]
