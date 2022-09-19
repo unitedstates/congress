@@ -11,16 +11,25 @@ from dataclasses import asdict, fields
 import pandas as pd
 import time
 
-#TODO: create MD file explaining everything
-#TODO: write more tests covering complex funcs
+# TODO: create MD file explaining everything
+# TODO: write more tests covering complex funcs
 
 class CongressionalHearingsInfo:
     HEARING_COLLECTION_CODE = "CHRG"
 
-    def __init__(
+    def __init__(self, api_key: str):
+        self.package_fields = {
+            "api_key": api_key,
+            "offset": 0,
+            "pageSize": 20,
+        }
+        self.congress_members = self.grab_all_congress_members()
+        self.parser = hearing_parser(self.congress_members, self.package_fields)
+
+
+    def run(
         self,
         size: int,
-        api_key: str,
         last_date: datetime = datetime(year=2020, month=1, day=1),
     ):
         last_date_str = last_date.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -38,13 +47,6 @@ class CongressionalHearingsInfo:
                 print("Error:", r.status_code)
                 exit(1)
             packages.extend(r.json()["packages"])
-        self.package_fields = {
-            "api_key": api_key,
-            "offset": 0,
-            "pageSize": 20,
-        }
-        congress_members = self.grab_all_congress_members()
-        self.parser = hearing_parser(congress_members, self.package_fields)
 
         print(f"parsing {len(packages)} packages")
         (
@@ -57,7 +59,7 @@ class CongressionalHearingsInfo:
         )
         speakers_df.to_parquet("speakers.parquet")
         statements_df.to_parquet("statements.parquet")
-        congress_members_df = pd.DataFrame(congress_members.values())
+        congress_members_df = pd.DataFrame(self.congress_members.values())
         congress_members_df.to_parquet("congress_members.parquet")
 
     def add_extra_info(self, congress_members: List[Dict], chamber: str) -> None:
@@ -157,4 +159,9 @@ if __name__ == "__main__":
     if api_key is None:
         api_key = "DEMO_KEY"
 
-    CongressionalHearingsInfo(50, api_key)
+    con_hearings = CongressionalHearingsInfo(api_key)
+    con_hearings.run(5)
+
+    # hearing_id = 'CHRG-116shrg41431'
+    # url = f"https://api.govinfo.gov/packages/{hearing_id}"
+    # con_hearings.gather_hearing_text(url, hearing_id)
