@@ -10,21 +10,21 @@ from parse_congress_member_info import CongressMemberParser, CongressMemberInfo
 
 class hearing_parser:
     """
-    Used to parse the text of a hearing.
-
+    Used to split text of US Gov hearing in to blocks, link each block
+    to a speaker, and finally link the speaker to a member of congress
+    (if applicable).
     ...
-
     Attributes
     ----------
     regex_pattern : str
         a very complex regex pattern which takes into account all
         known ways transcriptors introduce new speakers.
 
-    Methods
+    Public Methods
     -------
     parse_hearing(content: BeautifulSoup)
-        parses the text of a hearing and returns the speakers
-        and what they said.
+        parses the text of a hearing and returns a set of
+        speakers with data on who they are and what they said.
     """
 
     TITLE_PATTERNS = [
@@ -70,7 +70,6 @@ class hearing_parser:
 
     def clean_hearing_text(self, text: str) -> str:
         additional_notes_pattern = r" ?\[.*?\]"
-        # text_to_be_removed = re.findall(additional_notes_pattern, text)
         text_no_notes = re.sub(additional_notes_pattern, "", text)
 
         contents_pattern = r"C *O *N *T *E *N *T *S[\s\S]*?---+[\s\S]*?---+"
@@ -97,7 +96,6 @@ class hearing_parser:
 
     def group_speakers(self, speakers_and_text: List[str]) -> Set[SpeakerInfo]:
         speakers = set()
-        intro_section = speakers_and_text[0]
 
         sections_of_text = [
             speakers_and_text[x : x + self._num_regex_groups]
@@ -140,12 +138,12 @@ class hearing_parser:
         url: str,
     ) -> Set[SpeakerInfo]:
         print(f"Parsing hearing: {hearing_id}")
-        # TODO: check for repeated congress info 'CHRG-117hhrg45195'
         cleaned_text = self.clean_hearing_text(content.get_text())
         # TODO split on section titles like "Statement of "
         speakers_and_text = re.split(self.regex_pattern, cleaned_text)
         speaker_groups = self.group_speakers(speakers_and_text)
 
+        # TODO: check for repeated congress info 'CHRG-117hhrg45195'
         congress_info = self.gather_hearing_info(url, hearing_id)
         self.link.link_speakers_to_congress_members(
             speaker_groups, speakers_and_text[0], congress_info, hearing_id

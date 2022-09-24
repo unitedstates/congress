@@ -1,5 +1,4 @@
 import requests
-import urllib.parse
 from datetime import datetime
 import os
 from dotenv import load_dotenv
@@ -12,14 +11,25 @@ from dataclasses import asdict, fields
 import pandas as pd
 import time
 
+# TODO: create MD file explaining everything
+# TODO: write more tests covering complex funcs
 
 class CongressionalHearingsInfo:
     HEARING_COLLECTION_CODE = "CHRG"
 
-    def __init__(
+    def __init__(self, api_key: str):
+        self.package_fields = {
+            "api_key": api_key,
+            "offset": 0,
+            "pageSize": 20,
+        }
+        self.congress_members = self.grab_all_congress_members()
+        self.parser = hearing_parser(self.congress_members, self.package_fields)
+
+
+    def run(
         self,
         size: int,
-        api_key: str,
         last_date: datetime = datetime(year=2020, month=1, day=1),
     ):
         last_date_str = last_date.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -37,13 +47,6 @@ class CongressionalHearingsInfo:
                 print("Error when calling govinfo", r.status_code)
                 exit(1)
             packages.extend(r.json()["packages"])
-        self.package_fields = {
-            "api_key": api_key,
-            "offset": 0,
-            "pageSize": 20,
-        }
-        congress_members = self.grab_all_congress_members()
-        self.parser = hearing_parser(congress_members, self.package_fields)
 
         print(f"parsing {len(packages)} packages")
         (
@@ -56,7 +59,7 @@ class CongressionalHearingsInfo:
         )
         speakers_df.to_parquet("speakers.parquet")
         statements_df.to_parquet("statements.parquet")
-        congress_members_df = pd.DataFrame(congress_members.values())
+        congress_members_df = pd.DataFrame(self.congress_members.values())
         congress_members_df.to_parquet("congress_members.parquet")
 
     def add_extra_info(self, congress_members: List[Dict], chamber: str) -> None:
@@ -102,8 +105,6 @@ class CongressionalHearingsInfo:
 
         all_statements = []
         percent_with_congress_info = {}
-        # statements_df = pd.DataFrame(columns=["hearing_id", "speaker_id", "statement"])
-        # congress_members_df = pd.DataFrame(columns=[field.name for field in fields(CongressMemberInfo)])
         len_all_speakers = 0
         for collection in packages:
             time.sleep(0.25)
@@ -140,13 +141,6 @@ class CongressionalHearingsInfo:
         return (speakers_df, statements_df, percent_with_congress_info)
 
     def gather_hearing_text(self, url: str, hearing_id: str):
-        try:
-            summary = requests.get(url + "/summary", params=self.package_fields)
-        except ConnectionError as e:
-            print(f"Error: {e}")
-            return []
-        summary_json = summary.json()
-        # print(f"Doc type: {summary_json['documentType']}\n Pages: {summary_json['pages']}\n Category: {summary_json['category']}")
         htm = requests.get(url + "/htm", params=self.package_fields)
         if htm.status_code != 200:
             print(f"Error: {htm.status_code} for hearing {hearing_id}")
@@ -158,9 +152,6 @@ class CongressionalHearingsInfo:
         return speakers
 
 
-# TODO: search: gun control, topics clarence thomas
-# climate change
-
 if __name__ == "__main__":
     load_dotenv()
 
@@ -168,4 +159,9 @@ if __name__ == "__main__":
     if api_key is None:
         api_key = "DEMO_KEY"
 
-    CongressionalHearingsInfo(5000, api_key)
+    con_hearings = CongressionalHearingsInfo(api_key)
+    con_hearings.run(5)
+
+    # hearing_id = 'CHRG-116shrg41431'
+    # url = f"https://api.govinfo.gov/packages/{hearing_id}"
+    # con_hearings.gather_hearing_text(url, hearing_id)

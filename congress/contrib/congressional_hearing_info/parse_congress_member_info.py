@@ -1,9 +1,6 @@
 from bs4 import BeautifulSoup
 from typing import List
 from dataclasses import dataclass
-import requests
-import os
-from dotenv import load_dotenv
 
 
 @dataclass
@@ -87,10 +84,8 @@ class CongressMemberParser:
         congress_sections = metadata.find_all("congMember")
         members = []
         if len(congress_sections) == 0:
-            # TODO: not sure how to handle this
             print("No congress info found")
             return []
-            # raise Exception('No congress sections found')
         for congress_member in congress_sections:
             try:
                 name = congress_member.find("name", {"type": "authority-fnf"}).text
@@ -98,7 +93,6 @@ class CongressMemberParser:
                 name_lnf = congress_member.find("name", {"type": "authority-lnf"}).text
                 last_name = name_lnf.split(",")[0]
             except AttributeError:
-                # TODO: not sure how to handle this
                 print("One or more name fields are missing")
                 continue
             bioGuideId = congress_member.get("bioGuideId")
