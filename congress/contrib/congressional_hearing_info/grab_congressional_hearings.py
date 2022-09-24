@@ -34,7 +34,7 @@ class CongressionalHearingsInfo:
             }
             r = requests.get(url, params=collection_fields)
             if r.status_code != 200:
-                print("Error:", r.status_code)
+                print("Error when calling govinfo", r.status_code)
                 exit(1)
             packages.extend(r.json()["packages"])
         self.package_fields = {
@@ -168,4 +168,4 @@ if __name__ == "__main__":
     if api_key is None:
         api_key = "DEMO_KEY"
 
-    CongressionalHearingsInfo(50, api_key)
+    CongressionalHearingsInfo(5000, api_key)
