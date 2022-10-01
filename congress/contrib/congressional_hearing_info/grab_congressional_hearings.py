@@ -43,7 +43,7 @@ class CongressionalHearingsInfo:
             }
             r = requests.get(url, params=collection_fields)
             if r.status_code != 200:
-                print("Error:", r.status_code)
+                print("Error when calling govinfo", r.status_code)
                 exit(1)
             packages.extend(r.json()["packages"])
 
