@@ -88,7 +88,7 @@ class LinkSpeakerToCongressMember:
             if (
                 all(word in split_name for word in split_member_last_name)
                 and rep_state == member_state
-            ):  # TODO: (may not be reliable for franklin 'CHRG-117hhrg47367')
+            ):
                 # Check only last name to avoid issues with nicknames
                 filtered_members.append(member)
         if len(filtered_members) == 1:
@@ -126,7 +126,7 @@ class LinkSpeakerToCongressMember:
         elif len(members_match) > 1:
             # TODO: What if last name contained in name 'CHRG-117hhrg46926'
             # or if last name matches someone's first name (scott in 'CHRG-117hhrg44801')
-            # TODO: maybe should look at last names vs first names (scott 'CHRG-117hhrg44799')
+            # TODO: maybe should look at last names vs first names (scott 'CHRG-117hhrg44799') and ''CHRG-117jhrg45176''
             print(f"Multiple member matches for {speaker.last_name} in members section")
         return None
 
@@ -174,7 +174,7 @@ class LinkSpeakerToCongressMember:
             lines = [line.strip() for line in section.split("\n") if line.strip()]
 
             if len(lines) <= 2 or "chair" not in lines[0].lower():
-                print(f"Section malformed: {lines}")
+                print(f"Section malformed: {lines[0]}")
 
             split_columns_lines = [re.split("  +", line) for line in lines]
             if any(len(line) > 2 for line in split_columns_lines):

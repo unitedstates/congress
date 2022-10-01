@@ -11,7 +11,6 @@ from dataclasses import asdict, fields
 import pandas as pd
 import time
 
-# TODO: create MD file explaining everything
 # TODO: write more tests covering complex funcs
 
 class CongressionalHearingsInfo:
@@ -151,7 +150,6 @@ class CongressionalHearingsInfo:
         speakers = self.parser.parse_hearing(hearing_id, htm_soup, url)
         return speakers
 
-
 if __name__ == "__main__":
     load_dotenv()
 
@@ -160,8 +158,8 @@ if __name__ == "__main__":
         api_key = "DEMO_KEY"
 
     con_hearings = CongressionalHearingsInfo(api_key)
-    con_hearings.run(5)
+    con_hearings.run(100)
 
-    # hearing_id = 'CHRG-116shrg41431'
+    # hearing_id = 'CHRG-117hhrg46926'
     # url = f"https://api.govinfo.gov/packages/{hearing_id}"
     # con_hearings.gather_hearing_text(url, hearing_id)

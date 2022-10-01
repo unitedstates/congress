@@ -72,9 +72,12 @@ class hearing_parser:
         additional_notes_pattern = r" ?\[.*?\]"
         text_no_notes = re.sub(additional_notes_pattern, "", text)
 
-        contents_pattern = r"C *O *N *T *E *N *T *S[\s\S]*?---+[\s\S]*?---+"
+        contents_pattern = r"C *O *N *T *E *N *T *S[\s\S]{0,6000}?---+[\s\S]{0,6000}?---+"
+        new_contents_pattern = r"C *O *N *T *E *N *T *S(?:[\s\S]{0,600}?\.\.+ *\d+)+"
+
 
         matches = re.findall(contents_pattern, text_no_notes)
+        new_matches = re.findall(new_contents_pattern, text_no_notes)
 
         if len(matches) > 1:
             warnings.warn("More than one contents section found")
@@ -84,7 +87,7 @@ class hearing_parser:
             return text_no_notes
 
         new_line_count = matches[0].count("\n")
-        if new_line_count > 100:
+        if new_line_count > 150:
             warnings.warn(
                 f"Content section is suspiciously long, {new_line_count} lines"
             )
