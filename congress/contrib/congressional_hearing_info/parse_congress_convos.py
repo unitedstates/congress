@@ -72,12 +72,9 @@ class hearing_parser:
         additional_notes_pattern = r" ?\[.*?\]"
         text_no_notes = re.sub(additional_notes_pattern, "", text)
 
-        contents_pattern = r"C *O *N *T *E *N *T *S[\s\S]{0,6000}?---+[\s\S]{0,6000}?---+"
-        new_contents_pattern = r"C *O *N *T *E *N *T *S(?:[\s\S]{0,600}?\.\.+ *\d+)+"
-
+        contents_pattern = r"C *O *N *T *E *N *T *S(?:[\s\S]{0,1500}?\.\.+ *\d+)+"
 
         matches = re.findall(contents_pattern, text_no_notes)
-        new_matches = re.findall(new_contents_pattern, text_no_notes)
 
         if len(matches) > 1:
             warnings.warn("More than one contents section found")
@@ -132,7 +129,13 @@ class hearing_parser:
         mods = requests.get(url + "/mods", params=self.package_fields)
         mods_soup = BeautifulSoup(mods.content, "xml")
         congress_info = self.congress_member_parser.grab_congress_info(mods_soup)
-        return congress_info
+
+        summary = requests.get(url + "/summary", params=self.package_fields).json()
+        relevant_keys = ['dateIssued', 'documentType', 'congress', 'heldDates', 'session', 'title', 'branch', 'pages',
+        'governmentAuthor2', 'chamber', 'governmentAuthor1', 'publisher', 'suDocClassNumber', 'lastModified', 'category', 'otherIdentifier']
+        sum_filtered = {k: v for k, v in summary.items() if k in relevant_keys}
+
+        return congress_info, sum_filtered
 
     def parse_hearing(
         self,
@@ -147,9 +150,9 @@ class hearing_parser:
         speaker_groups = self.group_speakers(speakers_and_text)
 
         # TODO: check for repeated congress info 'CHRG-117hhrg45195'
-        congress_info = self.gather_hearing_info(url, hearing_id)
+        congress_info, summary = self.gather_hearing_info(url, hearing_id)
         self.link.link_speakers_to_congress_members(
             speaker_groups, speakers_and_text[0], congress_info, hearing_id
         )
 
-        return speaker_groups
+        return speaker_groups, summary

@@ -51,13 +51,11 @@ class CongressionalHearingsInfo:
         (
             speakers_df,
             statements_df,
-            percent_with_congress_info,
+            summary_df,
         ) = self.gather_all_hearings_texts(packages)
-        print(
-            f"percent of documents with speakers found: {len(percent_with_congress_info)/size}"
-        )
         speakers_df.to_parquet("speakers.parquet")
         statements_df.to_parquet("statements.parquet")
+        summary_df.to_parquet("summary.parquet")
         congress_members_df = pd.DataFrame(self.congress_members.values())
         congress_members_df.to_parquet("congress_members.parquet")
 
@@ -103,7 +101,7 @@ class CongressionalHearingsInfo:
         speakers_df.set_index(["hearing_id", "id"], inplace=True)
 
         all_statements = []
-        percent_with_congress_info = {}
+        all_summaries = {}
         len_all_speakers = 0
         for collection in packages:
             time.sleep(0.25)
@@ -111,7 +109,7 @@ class CongressionalHearingsInfo:
             url = f"https://api.govinfo.gov/packages/{hearing_id}"
 
             try:
-                speakers = self.gather_hearing_text(url, hearing_id)
+                speakers, summary = self.gather_hearing_text(url, hearing_id)
             except Exception as e:
                 print(f"Uncaught exception for {hearing_id}\n{e}")
                 speakers = []
@@ -119,7 +117,8 @@ class CongressionalHearingsInfo:
                 percent_with_info = len(
                     [x for x in speakers if x.congress_member_id]
                 ) / len(speakers)
-                percent_with_congress_info[hearing_id] = percent_with_info
+                summary['percent_with_info'] = percent_with_info
+                all_summaries[hearing_id] = summary
                 print(f"Percent speakers with congress info {percent_with_info:.2f}")
             len_all_speakers += len(speakers)
             for speaker in speakers:
@@ -137,7 +136,8 @@ class CongressionalHearingsInfo:
                 all_statements.extend(statements)
 
         statements_df = pd.DataFrame(all_statements)
-        return (speakers_df, statements_df, percent_with_congress_info)
+        summaries_df = pd.DataFrame(all_summaries).T
+        return (speakers_df, statements_df, summaries_df)
 
     def gather_hearing_text(self, url: str, hearing_id: str):
         htm = requests.get(url + "/htm", params=self.package_fields)
@@ -147,8 +147,8 @@ class CongressionalHearingsInfo:
             return []
         htm_soup = BeautifulSoup(htm.content, "html.parser")
 
-        speakers = self.parser.parse_hearing(hearing_id, htm_soup, url)
-        return speakers
+        speakers, summary = self.parser.parse_hearing(hearing_id, htm_soup, url)
+        return speakers, summary
 
 if __name__ == "__main__":
     load_dotenv()
@@ -160,6 +160,6 @@ if __name__ == "__main__":
     con_hearings = CongressionalHearingsInfo(api_key)
     con_hearings.run(100)
 
-    # hearing_id = 'CHRG-117hhrg46926'
+    # hearing_id = 'CHRG-114hhrg94749'
     # url = f"https://api.govinfo.gov/packages/{hearing_id}"
     # con_hearings.gather_hearing_text(url, hearing_id)
