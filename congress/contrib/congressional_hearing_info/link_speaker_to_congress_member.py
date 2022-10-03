@@ -322,17 +322,3 @@ class LinkSpeakerToCongressMember:
                             congress_member
                         )
                     )
-
-            # TODO:
-            if not speaker.congress_member_id:
-                if (
-                    speaker.state
-                    or "chair" in speaker.title
-                    or "senator" in speaker.title
-                ):
-                    warnings.warn(f"No match for representative {speaker.last_name}")
-                elif (
-                    present_section_people
-                    and speaker.last_name in present_section_people[0]
-                ):
-                    warnings.warn(f"No match for representative {speaker.last_name}")
