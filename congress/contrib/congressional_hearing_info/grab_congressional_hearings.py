@@ -10,6 +10,7 @@ from parse_congress_convos import hearing_parser
 from dataclasses import asdict, fields
 import pandas as pd
 import time
+import unicodedata
 
 # TODO: write more tests covering complex funcs
 
@@ -59,12 +60,22 @@ class CongressionalHearingsInfo:
         congress_members_df = pd.DataFrame(self.congress_members.values())
         congress_members_df.to_parquet("congress_members.parquet")
 
-    def add_extra_info(self, congress_members: List[Dict], chamber: str) -> None:
+    def _strip_accents(self, s):
+        """Needed because the htm text for there hearings doesn't use accents"""
+        if not s:
+            return s
+        return ''.join(c for c in unicodedata.normalize('NFD', s)
+                        if unicodedata.category(c) != 'Mn')
+
+    def _add_extra_info(self, congress_members: List[Dict], chamber: str) -> None:
         for member in congress_members:
             state_initals = member["state"]
             member["state"] = STATE_INITIALS_MAP[state_initals].lower()
             member["state_initials"] = state_initals
             member["chamber"] = chamber
+            member["first_name"] = self._strip_accents(member["first_name"])
+            member["middle_name"] = self._strip_accents(member["middle_name"])
+            member["last_name"] = self._strip_accents(member["last_name"])
 
     def grab_all_congress_members(self, congress_num: int = 117) -> List:
         api_key = os.getenv("PROPUBLICA_API_KEY")
@@ -79,13 +90,13 @@ class CongressionalHearingsInfo:
             headers=header,
         )
         senate_members = response.json()["results"][0]["members"]
-        self.add_extra_info(senate_members, "S")
+        self._add_extra_info(senate_members, "S")
         response = requests.get(
             f"https://api.propublica.org/congress/v1/{congress_num}/house/members.json",
             headers=header,
         )
         house_members = response.json()["results"][0]["members"]
-        self.add_extra_info(house_members, "H")
+        self._add_extra_info(house_members, "H")
 
         return {x["id"]: x for x in senate_members + house_members}
 
@@ -158,7 +169,7 @@ if __name__ == "__main__":
         api_key = "DEMO_KEY"
 
     con_hearings = CongressionalHearingsInfo(api_key)
-    con_hearings.run(100)
+    con_hearings.run(250)
 
     # hearing_id = 'CHRG-114hhrg94749'
     # url = f"https://api.govinfo.gov/packages/{hearing_id}"

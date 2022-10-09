@@ -38,13 +38,7 @@ class LinkSpeakerToCongressMember:
         self.all_congress_members = all_congress_members
 
     def link_speaker_to_all_congress_members(self, speaker: SpeakerInfo) -> str:
-        # TODO: maybe also indicate off of present section
-        # Chair doesn't always mean representative: CHRG-116shrg41431
-        rep_titles = ["senator", "chair"]
-        # TODO: figure out if hon should be on this list
-        # in 'CHRG-117hhrg47768', it should be
-
-        if speaker.state or any(rep_title in speaker.title for rep_title in rep_titles):
+        if speaker.state or speaker.title == "senator" or "chair" in speaker.title:
             filtered_members = [
                 member
                 for member in self.all_congress_members.values()
