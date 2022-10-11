@@ -2,7 +2,7 @@ import warnings
 import re
 from typing import List, Set, Dict
 from dataclasses import dataclass, field
-from parse_congress_member_info import CongressMemberInfo
+from parse_congress_member_info import CongressMemberInfo, STATE_INITIALS_MAP
 
 
 @dataclass
@@ -155,11 +155,8 @@ class LinkSpeakerToCongressMember:
 
     def identify_members(self, intro_section: str) -> List[List[PresentRepresentative]]:
         # intro_section look for the last string like "JAMES R. LANGEVIN, Rhode Island, Chairman"
-        # Note: the lowercase c, a, and es are for Mc, La, and Des
-        # TODO: Lowercase names in 'CHRG-117hhrg47805'
-        uppercase_name = r"^[A-Zceas\- \.'`]+"
         representative_regex = (
-            r"(?P<name>[A-Zceas\- \.'`()]+(?:, ?[SJ][Rr]\.)?), ?(?P<state>.*?)(?:,|$)"
+            r"(?P<name>[A-z\- \.'`()]+(?:, ?[SJ n][Rr]\.)?), ?(?P<state>.*?)(?:,|$)"
         )
 
         section_regex = r"\n[\t \r\v]{2,}.*(?:, ?|\n[\t \r\v]{2,})\S*chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
@@ -182,7 +179,7 @@ class LinkSpeakerToCongressMember:
                 for j, title in enumerate(line[:2]):
                     if title.lower() == "vacancy":
                         split_columns_lines[i][j] = ""
-                    elif "," not in title or not re.match(uppercase_name, title):
+                    elif "," not in title: # TODO: Something needs to be here for 'CHRG-116hhrg47788' 'Massachusetts, Vice Chair'
                         try:
                             split_columns_lines[i - 1][j] += f" {title}"
                         except IndexError as e:
@@ -203,6 +200,15 @@ class LinkSpeakerToCongressMember:
                         if "Staff" not in title:
                             print(f"Title split is unexpected: {title_split}")
                     else:
+                        states_list = list(map(lambda x: x.lower(), STATE_INITIALS_MAP.values())) # TODO: move this out
+                        # TODO: could be in 3 section: 'CHRG-117shrg46762'
+                        if title_split[2] not in states_list:
+                            state_section = title_split[2].lower().split()
+                            for i in range(1, len(state_section)):
+                                if " ".join(state_section[0:i]) in states_list:
+                                    title_split[2] = " ".join(state_section[0:i])
+                                    title_split[3] = " ".join(state_section[2:])
+
                         members.append(
                             # TODO: maybe this should make sure that title_split 2 only contains a state, and put the rest in title (CHRG-116hhrg45263)
                             PresentRepresentative(
