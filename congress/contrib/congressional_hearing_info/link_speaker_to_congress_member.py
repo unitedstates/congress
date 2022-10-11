@@ -4,6 +4,7 @@ from typing import List, Set, Dict
 from dataclasses import dataclass, field
 from parse_congress_member_info import CongressMemberInfo, STATE_INITIALS_MAP
 
+STATES_LIST = list(map(lambda x: x.lower(), STATE_INITIALS_MAP.values()))
 
 @dataclass
 class PresentRepresentative:
@@ -200,17 +201,15 @@ class LinkSpeakerToCongressMember:
                         if "Staff" not in title:
                             print(f"Title split is unexpected: {title_split}")
                     else:
-                        states_list = list(map(lambda x: x.lower(), STATE_INITIALS_MAP.values())) # TODO: move this out
                         # TODO: could be in 3 section: 'CHRG-117shrg46762'
-                        if title_split[2] not in states_list:
+                        if title_split[2] not in STATES_LIST:
                             state_section = title_split[2].lower().split()
                             for i in range(1, len(state_section)):
-                                if " ".join(state_section[0:i]) in states_list:
+                                if " ".join(state_section[0:i]) in STATES_LIST:
                                     title_split[2] = " ".join(state_section[0:i])
                                     title_split[3] = " ".join(state_section[2:])
 
                         members.append(
-                            # TODO: maybe this should make sure that title_split 2 only contains a state, and put the rest in title (CHRG-116hhrg45263)
                             PresentRepresentative(
                                 title_split[1], title_split[2], title_split[3].strip()
                             )
