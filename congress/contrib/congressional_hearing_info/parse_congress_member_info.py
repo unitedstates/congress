@@ -82,7 +82,7 @@ STATE_INITIALS_MAP = {
 class CongressMemberParser:
     def grab_congress_info(self, metadata: BeautifulSoup) -> List[CongressMemberInfo]:
         congress_sections = metadata.find_all("congMember")
-        members = []
+        members = {}
         if len(congress_sections) == 0:
             print("No congress info found")
             return []
@@ -117,6 +117,7 @@ class CongressMemberParser:
                 chamber=chamber,
                 gpoId=gpoId,
             )
-            members.append(member_info)
+            # Make the returned list unique on these values
+            members[bioGuideId+last_name] = member_info
 
-        return members
+        return list(members.values())

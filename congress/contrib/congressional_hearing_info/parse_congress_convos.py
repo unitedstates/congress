@@ -149,7 +149,6 @@ class hearing_parser:
         speakers_and_text = re.split(self.regex_pattern, cleaned_text)
         speaker_groups = self.group_speakers(speakers_and_text)
 
-        # TODO: check for repeated congress info 'CHRG-117hhrg45195'
         congress_info, summary = self.gather_hearing_info(url, hearing_id)
         self.link.link_speakers_to_congress_members(
             speaker_groups, speakers_and_text[0], congress_info, hearing_id
