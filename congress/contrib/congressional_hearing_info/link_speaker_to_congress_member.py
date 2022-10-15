@@ -119,9 +119,13 @@ class LinkSpeakerToCongressMember:
         if len(members_match) == 1:
             return members_match[0]
         elif len(members_match) > 1:
-            # TODO: What if last name contained in name 'CHRG-117hhrg46926'
-            # or if last name matches someone's first name (scott in 'CHRG-117hhrg44801')
-            # TODO: maybe should look at last names vs first names (scott 'CHRG-117hhrg44799') and ''CHRG-117jhrg45176''
+            members_match = [
+                x
+                for x in members_match
+                if x.name.lower().endswith(speaker.last_name)
+            ]
+            if len(members_match) == 1:
+                return members_match[0]
             print(f"Multiple member matches for {speaker.last_name} in members section")
         return None
 
