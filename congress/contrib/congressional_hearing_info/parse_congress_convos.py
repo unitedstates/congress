@@ -43,7 +43,7 @@ class hearing_parser:
 
     def construct_regex(self):
         title_patterns = "|".join(self.TITLE_PATTERNS)
-        capital_letter_word = "[A-Z][A-z_\-']*"  # TODO: make this 2+ letters
+        capital_letter_word = "[A-Z][A-z_\-']*" 
         enlongated_title = (
             f"(?: of(?P<state> {capital_letter_word})+)?"  # ex: mr. doe of miami
         )
@@ -94,8 +94,8 @@ class hearing_parser:
 
         return text_no_contents
 
-    def group_speakers(self, speakers_and_text: List[str]) -> Set[SpeakerInfo]:
-        speakers = set()
+    def group_speakers(self, speakers_and_text: List[str]) -> List[SpeakerInfo]:
+        speakers = {}
 
         sections_of_text = [
             speakers_and_text[x : x + self._num_regex_groups]
@@ -103,24 +103,20 @@ class hearing_parser:
         ]
         if len(sections_of_text) < 2:
             warnings.warn("probably a bad batch")
-            return set()
+            return []
         for speaker_group in sections_of_text:
             speaker_group = [x.lower().strip() if x else x for x in speaker_group]
             match, title, l_name, state, statement = speaker_group
-            new_speaker = SpeakerInfo(
+            key = SpeakerInfo(
                 last_name=l_name or "",
                 full_match=match,
                 title=title or "",
                 state=state,
-                statements=[statement],
+                statements=[],
             )
 
-            # TODO: improve with stack overflow solution
-            match = next((x for x in speakers if x == new_speaker), None)
-            if match:
-                match.statements.append(statement)
-            else:
-                speakers.add(new_speaker)
+            speaker = speakers.setdefault(key, key)
+            speaker.statements.append(statement)
         return speakers
 
     def gather_hearing_info(
