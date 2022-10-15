@@ -117,7 +117,7 @@ class hearing_parser:
 
             speaker = speakers.setdefault(key, key)
             speaker.statements.append(statement)
-        return speakers
+        return list(speakers.values())
 
     def gather_hearing_info(
         self, url: str, hearing_id: str
