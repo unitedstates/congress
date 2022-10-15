@@ -184,7 +184,7 @@ class LinkSpeakerToCongressMember:
                 for j, title in enumerate(line[:2]):
                     if title.lower() == "vacancy":
                         split_columns_lines[i][j] = ""
-                    elif "," not in title: # TODO: Something needs to be here for 'CHRG-116hhrg47788' 'Massachusetts, Vice Chair'
+                    elif "," not in title or title.split(',')[0].lower() in STATES_LIST:
                         try:
                             split_columns_lines[i - 1][j] += f" {title}"
                         except IndexError as e:
@@ -207,9 +207,9 @@ class LinkSpeakerToCongressMember:
                     else:
                         # TODO: could be in 3 section: 'CHRG-117shrg46762'
                         if title_split[2].lower() not in STATES_LIST:
-                            state_section = title_split[2].lower().split()
+                            state_section = title_split[2].split()
                             for i in range(1, len(state_section)):
-                                if " ".join(state_section[0:i]) in STATES_LIST:
+                                if " ".join(state_section[0:i]).lower() in STATES_LIST:
                                     title_split[2] = " ".join(state_section[0:i])
                                     title_split[3] = " ".join(state_section[2:])
 
