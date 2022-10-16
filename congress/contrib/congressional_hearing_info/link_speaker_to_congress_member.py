@@ -196,6 +196,7 @@ class LinkSpeakerToCongressMember:
                         split_columns_lines[i][j] = ""
 
             members = []
+            # TODO: Sometimes the initials of the state are used: 'CHRG-117hhrg47453'
             # Note: this for loop and the one above could be combined if the loop went through the entries in reverse
             for i, line in enumerate(split_columns_lines):
                 for j, title in enumerate(line):
