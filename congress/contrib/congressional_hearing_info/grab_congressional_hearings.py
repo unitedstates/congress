@@ -11,6 +11,7 @@ from dataclasses import asdict, fields
 import pandas as pd
 import time
 import unicodedata
+import click
 
 # TODO: write more tests covering complex funcs
 
@@ -30,6 +31,7 @@ class CongressionalHearingsInfo:
     def run(
         self,
         size: int,
+        api_key: str,
         last_date: datetime = datetime(year=2020, month=1, day=1),
     ):
         last_date_str = last_date.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -164,8 +166,9 @@ class CongressionalHearingsInfo:
         speakers, summary = self.parser.parse_hearing(hearing_id, htm_soup, url)
         return speakers, summary
 
-
-if __name__ == "__main__":
+@click.command()
+@click.option('--num', default=100, help='number of greetings')
+def main(num):
     load_dotenv()
 
     api_key = os.getenv("GOV_INFO_API_KEY")
@@ -173,8 +176,11 @@ if __name__ == "__main__":
         api_key = "DEMO_KEY"
 
     con_hearings = CongressionalHearingsInfo(api_key)
-    con_hearings.run(250)
+    con_hearings.run(num, api_key)
 
     # hearing_id = 'CHRG-115shrg48493'
     # url = f"https://api.govinfo.gov/packages/{hearing_id}"
     # con_hearings.gather_hearing_text(url, hearing_id)
+
+if __name__ == "__main__":
+    main()

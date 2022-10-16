@@ -118,6 +118,6 @@ class CongressMemberParser:
                 gpoId=gpoId,
             )
             # Make the returned list unique on these values
-            members[bioGuideId + last_name] = member_info
+            members[(bioGuideId or authorityId or "") + last_name] = member_info
 
         return list(members.values())

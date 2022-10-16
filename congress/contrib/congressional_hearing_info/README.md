@@ -7,6 +7,19 @@ congressional meetings. The data can then be used
 to gather insights on the speaking patterns of each
 representative.
 
+## How to use
+1. Follow installation instructions in the main [README](../../../README.md)
+to install the correct python libraries
+1. Go to these websites and create an api key
+  1. https://api.govinfo.gov/docs/
+  1. https://projects.propublica.org/api-docs/congress-api/
+1. Create .env file in this folder with the two keys
+```
+GOV_INFO_API_KEY=<gov_info_key>
+PROPUBLICA_API_KEY=<propublica_key>
+```
+1. Run `python congress/contrib/congressional_hearing_info/grab_congressional_hearings.py --num 10`
+
 ## Sectioning text
 While I wish that the format of these hearing transcripts
 were better, there is not a clear standard for indicating
