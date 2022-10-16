@@ -163,8 +163,9 @@ class LinkSpeakerToCongressMember:
 
     def identify_members(self, intro_section: str) -> List[List[PresentRepresentative]]:
         # intro_section look for the last string like "JAMES R. LANGEVIN, Rhode Island, Chairman"
+        suffixes_regex = r"(?:, ?[SJ n][Rr]\.)?(?:, ?M\.D\.)?"
         representative_regex = (
-            r"(?P<name>[A-z\- \.'`()]+(?:, ?[SJ n][Rr]\.)?), ?(?P<state>.*?)(?:,|$)"
+            f"(?P<name>[A-z\- \.'`()]+{suffixes_regex}), ?(?P<state>.*?)(?:,|$)"
         )
 
         section_regex = r"\n[\t \r\v]{2,}.*(?:, ?|\n[\t \r\v]{2,})\S*chair\w* *\n(?:.*\n)?[\s\S]+?(?:\n *\n|--)"
@@ -175,7 +176,7 @@ class LinkSpeakerToCongressMember:
             if len(lines) <= 2 or "chair" not in lines[0].lower():
                 print(f"Section malformed: {lines[0]}")
 
-            split_columns_lines = [re.split("  +", line) for line in lines]
+            split_columns_lines = [re.split("(?:  +| *\t+ *)", line) for line in lines]
             if any(len(line) > 2 for line in split_columns_lines):
                 print(f"More sections than expected")
 
@@ -208,7 +209,6 @@ class LinkSpeakerToCongressMember:
                         if "Staff" not in title:
                             print(f"Title split is unexpected: {title_split}")
                     else:
-                        # TODO: could be in 3 section: 'CHRG-117shrg46762'
                         if title_split[2].lower() not in STATES_LIST:
                             state_section = title_split[2].split()
                             for i in range(1, len(state_section)):

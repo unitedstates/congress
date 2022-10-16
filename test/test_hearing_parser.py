@@ -33,29 +33,16 @@ class TestHearingParser(unittest.TestCase):
         """
         self.assertEquals(self.hearing_parser.clean_hearing_text(text_with_directions), cleaned_text_with_directions)
 
-        self.assertEquals(self.hearing_parser.clean_hearing_text('C O N T E N T S\n ---\n people or whatnot \n ---'), "")
+        self.assertEquals(self.hearing_parser.clean_hearing_text('C O N T E N T S\n ---\n Fred... 34'), "")
 
     def test_identify_people_present(self):
-        with open('test/fixtures/hearing_text/members_section1.txt') as f:
-            members_section1 = f.read()
-        members1 = self.link_speaker.identify_members(members_section1)
-        self.assertEqual(len(members1[0]), 68)
+        correct_values = [23, 68, 44, 21, 55]
 
-        with open('test/fixtures/hearing_text/members_section2.txt') as f:
-            members_section2 = f.read()
-        members2 = self.link_speaker.identify_members(members_section2)
-        self.assertEqual(len(members2[0]), 44)
-
-        with open('test/fixtures/hearing_text/members_section3.txt') as f:
-            members_section3 = f.read()
-        members3 = self.link_speaker.identify_members(members_section3)
-        self.assertEqual(len(members3[0]), 19)
-
-        with open('test/fixtures/hearing_text/members_section4.txt') as f:
-            members_section4 = f.read()
-        members4 = self.link_speaker.identify_members(members_section4)
-        self.assertEqual(len(members4[0]), 55)
-        
+        for i in range(4):
+            with open(f'test/fixtures/hearing_text/members_section{i}.txt') as f:
+                members_section = f.read()
+            members = self.link_speaker.identify_members(members_section)
+            self.assertEqual(len(members[0]), correct_values[i])
 
     def test_(self):
         print('setup')
