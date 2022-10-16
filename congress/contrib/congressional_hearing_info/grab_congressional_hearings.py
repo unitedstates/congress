@@ -14,6 +14,7 @@ import unicodedata
 
 # TODO: write more tests covering complex funcs
 
+
 class CongressionalHearingsInfo:
     HEARING_COLLECTION_CODE = "CHRG"
 
@@ -25,7 +26,6 @@ class CongressionalHearingsInfo:
         }
         self.congress_members = self.grab_all_congress_members()
         self.parser = hearing_parser(self.congress_members, self.package_fields)
-
 
     def run(
         self,
@@ -64,8 +64,11 @@ class CongressionalHearingsInfo:
         """Needed because the htm text for there hearings doesn't use accents"""
         if not s:
             return s
-        return ''.join(c for c in unicodedata.normalize('NFD', s)
-                        if unicodedata.category(c) != 'Mn')
+        return "".join(
+            c
+            for c in unicodedata.normalize("NFD", s)
+            if unicodedata.category(c) != "Mn"
+        )
 
     def _add_extra_info(self, congress_members: List[Dict], chamber: str) -> None:
         for member in congress_members:
@@ -128,7 +131,7 @@ class CongressionalHearingsInfo:
                 percent_with_info = len(
                     [x for x in speakers if x.congress_member_id]
                 ) / len(speakers)
-                summary['percent_with_info'] = percent_with_info
+                summary["percent_with_info"] = percent_with_info
                 all_summaries[hearing_id] = summary
                 print(f"Percent speakers with congress info {percent_with_info:.2f}")
             len_all_speakers += len(speakers)
@@ -161,6 +164,7 @@ class CongressionalHearingsInfo:
         speakers, summary = self.parser.parse_hearing(hearing_id, htm_soup, url)
         return speakers, summary
 
+
 if __name__ == "__main__":
     load_dotenv()
 
@@ -171,6 +175,6 @@ if __name__ == "__main__":
     con_hearings = CongressionalHearingsInfo(api_key)
     con_hearings.run(250)
 
-    # hearing_id = 'CHRG-114hhrg94749'
+    # hearing_id = 'CHRG-115shrg48493'
     # url = f"https://api.govinfo.gov/packages/{hearing_id}"
     # con_hearings.gather_hearing_text(url, hearing_id)

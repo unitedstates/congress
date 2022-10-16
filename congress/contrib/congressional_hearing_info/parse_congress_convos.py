@@ -43,7 +43,7 @@ class hearing_parser:
 
     def construct_regex(self):
         title_patterns = "|".join(self.TITLE_PATTERNS)
-        capital_letter_word = "[A-Z][A-z_\-']*" 
+        capital_letter_word = "[A-Z][A-z_\-']*"
         enlongated_title = (
             f"(?: of(?P<state> {capital_letter_word})+)?"  # ex: Mr. Doe of Miami
         )
@@ -56,9 +56,7 @@ class hearing_parser:
 
         # Each group included in regex (to be used in group_speakers),
         # plus the full match and inbetween text
-        self._num_regex_groups = (
-            len(re.findall(r"\((?!\?:).*?\)", speaker_pattern)) + 2
-        )
+        self._num_regex_groups = len(re.findall(r"\((?!\?:).*?\)", speaker_pattern)) + 2
 
         return speaker_pattern
 
@@ -127,8 +125,24 @@ class hearing_parser:
         congress_info = self.congress_member_parser.grab_congress_info(mods_soup)
 
         summary = requests.get(url + "/summary", params=self.package_fields).json()
-        relevant_keys = ['dateIssued', 'documentType', 'congress', 'heldDates', 'session', 'title', 'branch', 'pages',
-        'governmentAuthor2', 'chamber', 'governmentAuthor1', 'publisher', 'suDocClassNumber', 'lastModified', 'category', 'otherIdentifier']
+        relevant_keys = [
+            "dateIssued",
+            "documentType",
+            "congress",
+            "heldDates",
+            "session",
+            "title",
+            "branch",
+            "pages",
+            "governmentAuthor2",
+            "chamber",
+            "governmentAuthor1",
+            "publisher",
+            "suDocClassNumber",
+            "lastModified",
+            "category",
+            "otherIdentifier",
+        ]
         sum_filtered = {k: v for k, v in summary.items() if k in relevant_keys}
 
         return congress_info, sum_filtered
@@ -150,4 +164,3 @@ class hearing_parser:
         )
 
         return speaker_groups, summary
-

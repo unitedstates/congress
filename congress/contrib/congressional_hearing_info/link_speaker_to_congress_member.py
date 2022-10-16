@@ -7,7 +7,8 @@ from parse_congress_member_info import CongressMemberInfo, STATE_INITIALS_MAP
 STATES_LIST = list(map(lambda x: x.lower(), STATE_INITIALS_MAP.values()))
 
 # Right now there is only one rep with the same name as a state
-STATES_LIST_WITHOUT_NAMES = [s for s in STATES_LIST if s not in ['Virginia']]
+STATES_LIST_WITHOUT_NAMES = [s for s in STATES_LIST if s not in ["Virginia"]]
+
 
 @dataclass
 class PresentRepresentative:
@@ -123,9 +124,7 @@ class LinkSpeakerToCongressMember:
             return members_match[0]
         elif len(members_match) > 1:
             members_match = [
-                x
-                for x in members_match
-                if x.name.lower().endswith(speaker.last_name)
+                x for x in members_match if x.name.lower().endswith(speaker.last_name)
             ]
             if len(members_match) == 1:
                 return members_match[0]
@@ -188,7 +187,10 @@ class LinkSpeakerToCongressMember:
                 for j, title in enumerate(line[:2]):
                     if title.lower() == "vacancy":
                         split_columns_lines[i][j] = ""
-                    elif "," not in title or title.split(',')[0].lower() in STATES_LIST_WITHOUT_NAMES:
+                    elif (
+                        "," not in title
+                        or title.split(",")[0].lower() in STATES_LIST_WITHOUT_NAMES
+                    ):
                         try:
                             split_columns_lines[i - 1][j] += f" {title}"
                         except IndexError as e:
