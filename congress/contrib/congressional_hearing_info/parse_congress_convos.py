@@ -41,11 +41,11 @@ class hearing_parser:
 
     ONE_OFF = ["The (?:[C|c]o-)?[C|c]hair\w*"]
 
-    def construct_regex(self, new=False):
+    def construct_regex(self):
         title_patterns = "|".join(self.TITLE_PATTERNS)
         capital_letter_word = "[A-Z][A-z_\-']*" 
         enlongated_title = (
-            f"(?: of(?P<state> {capital_letter_word})+)?"  # ex: mr. doe of miami
+            f"(?: of(?P<state> {capital_letter_word})+)?"  # ex: Mr. Doe of Miami
         )
         name_pattern = f"(?P<title>{title_patterns})(?P<l_name>(?: {capital_letter_word})+){enlongated_title}"
 
@@ -60,16 +60,10 @@ class hearing_parser:
             len(re.findall(r"\((?!\?:).*?\)", speaker_pattern)) + 2
         )
 
-        if new:
-            # one_off_patterns = "|".join(self.ONE_OFF+["STATEMENT OF "])
-            # one_off_patterns = f"{one_off_patterns}"
-            return f"\n\s+((?:OPENING |PREPARED )?STATEMENT OF [A-Z\.,\n ]+?\n\s*\n)"
-
         return speaker_pattern
 
     def __init__(self, all_congress_members: Dict, package_fields: Dict):
         self.regex_pattern = self.construct_regex()
-        self.new_regex_pattern = self.construct_regex(new=True)
         self.congress_member_parser = CongressMemberParser()
         self.link = LinkSpeakerToCongressMember(all_congress_members)
         self.package_fields = package_fields
