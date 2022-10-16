@@ -41,7 +41,7 @@ class hearing_parser:
 
     ONE_OFF = ["The (?:[C|c]o-)?[C|c]hair\w*"]
 
-    def construct_regex(self):
+    def construct_regex(self, new=False):
         title_patterns = "|".join(self.TITLE_PATTERNS)
         capital_letter_word = "[A-Z][A-z_\-']*" 
         enlongated_title = (
@@ -52,18 +52,24 @@ class hearing_parser:
         one_off_patterns = "|".join(self.ONE_OFF)
         one_off_patterns = f"{one_off_patterns}"
 
-        new_speaker_pattern = f"\n +({name_pattern}|{one_off_patterns})\."
+        speaker_pattern = f"\n\s+({name_pattern}|{one_off_patterns})\."
 
         # Each group included in regex (to be used in group_speakers),
         # plus the full match and inbetween text
         self._num_regex_groups = (
-            len(re.findall(r"\((?!\?:).*?\)", new_speaker_pattern)) + 2
+            len(re.findall(r"\((?!\?:).*?\)", speaker_pattern)) + 2
         )
 
-        return new_speaker_pattern
+        if new:
+            # one_off_patterns = "|".join(self.ONE_OFF+["STATEMENT OF "])
+            # one_off_patterns = f"{one_off_patterns}"
+            return f"\n\s+((?:OPENING |PREPARED )?STATEMENT OF [A-Z\.,\n ]+?\n\s*\n)"
+
+        return speaker_pattern
 
     def __init__(self, all_congress_members: Dict, package_fields: Dict):
         self.regex_pattern = self.construct_regex()
+        self.new_regex_pattern = self.construct_regex(new=True)
         self.congress_member_parser = CongressMemberParser()
         self.link = LinkSpeakerToCongressMember(all_congress_members)
         self.package_fields = package_fields
@@ -141,13 +147,13 @@ class hearing_parser:
     ) -> Set[SpeakerInfo]:
         print(f"Parsing hearing: {hearing_id}")
         cleaned_text = self.clean_hearing_text(content.get_text())
-        # TODO split on section titles like "Statement of "
+        # TODO split on section titles like "Statement of ..."
         speakers_and_text = re.split(self.regex_pattern, cleaned_text)
         speaker_groups = self.group_speakers(speakers_and_text)
-
         congress_info, summary = self.gather_hearing_info(url, hearing_id)
         self.link.link_speakers_to_congress_members(
             speaker_groups, speakers_and_text[0], congress_info, hearing_id
         )
 
         return speaker_groups, summary
+
