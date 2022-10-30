@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from link_speaker_to_congress_member import SpeakerInfo
 from parse_congress_member_info import STATE_INITIALS_MAP
 from parse_congress_convos import hearing_parser
@@ -12,6 +12,7 @@ import pandas as pd
 import time
 import unicodedata
 import click
+from congress.tasks import utils
 
 # TODO: write more tests covering complex funcs
 
@@ -72,40 +73,36 @@ class CongressionalHearingsInfo:
             if unicodedata.category(c) != "Mn"
         )
 
-    def _add_extra_info(self, congress_members: List[Dict], chamber: str) -> None:
-        for member in congress_members:
-            state_initals = member["state"]
-            member["state"] = STATE_INITIALS_MAP[state_initals].lower()
-            member["state_initials"] = state_initals
-            member["chamber"] = chamber
-            member["first_name"] = self._strip_accents(member["first_name"])
-            member["middle_name"] = self._strip_accents(member["middle_name"])
-            member["last_name"] = self._strip_accents(member["last_name"])
+    def _cleanup_values(self, moc: Dict) -> Dict:
+        most_recent_term = max(moc["terms"], key=lambda x: x["start"])
+        state_initals = most_recent_term["state"]
+        most_recent_term["state"] = STATE_INITIALS_MAP[state_initals].lower()
+        most_recent_term["state_initials"] = state_initals
+        most_recent_term["chamber"] = "S" if most_recent_term["type"] == "sen" else "H"
+        moc["most_recent_term"] = most_recent_term
+        moc["name"]["first"] = self._strip_accents(moc["name"]["first"])
+        moc["name"]["last"] = self._strip_accents(moc["name"]["last"])
+        moc["name"]["official_full"] = self._strip_accents(moc["name"]["official_full"])
+
+        return moc
 
     def grab_all_congress_members(self, congress_num: int = 117) -> List:
-        api_key = os.getenv("PROPUBLICA_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "PROPUBLICA_API_KEY env var required for this code. Checkout https://projects.propublica.org/api-docs/congress-api/"
-            )
+        utils.require_congress_legislators_repo()
 
-        header = {"X-API-Key": api_key}
-        response = requests.get(
-            f"https://api.propublica.org/congress/v1/{congress_num}/senate/members.json",
-            headers=header,
-        )
-        senate_members = response.json()["results"][0]["members"]
-        self._add_extra_info(senate_members, "S")
-        response = requests.get(
-            f"https://api.propublica.org/congress/v1/{congress_num}/house/members.json",
-            headers=header,
-        )
-        house_members = response.json()["results"][0]["members"]
-        self._add_extra_info(house_members, "H")
+        lookup_legislator_cache = {}
+        for moc in utils.yaml_load("congress-legislators/legislators-current.yaml"):
+            if not moc["id"]["bioguide"]:
+                raise ValueError(
+                    f"No bioguide id found for {moc['name']['official_full']}"
+                )
 
-        return {x["id"]: x for x in senate_members + house_members}
+            # TODO: handle cases where the person switches party, state, ect.
 
-    def gather_all_hearings_texts(self, packages: List):
+            lookup_legislator_cache[moc["id"]["bioguide"]] = self._cleanup_values(moc)
+
+        return lookup_legislator_cache
+
+    def gather_all_hearings_texts(self, packages: List) -> Tuple[pd.DataFrame]:
         speakers_df = pd.DataFrame(
             columns=["hearing_id", "id"]
             + [
@@ -155,19 +152,22 @@ class CongressionalHearingsInfo:
         summaries_df = pd.DataFrame(all_summaries).T
         return (speakers_df, statements_df, summaries_df)
 
-    def gather_hearing_text(self, url: str, hearing_id: str):
+    def gather_hearing_text(
+        self, url: str, hearing_id: str
+    ) -> Tuple[List[SpeakerInfo], Dict]:
         htm = requests.get(url + "/htm", params=self.package_fields)
         if htm.status_code != 200:
             print(f"Error: {htm.status_code} for hearing {hearing_id}")
 
-            return []
+            return [], {}
         htm_soup = BeautifulSoup(htm.content, "html.parser")
 
         speakers, summary = self.parser.parse_hearing(hearing_id, htm_soup, url)
         return speakers, summary
 
+
 @click.command()
-@click.option('--num', default=100, help='number of greetings')
+@click.option("--num", default=100, help="number of greetings")
 def main(num):
     load_dotenv()
 
@@ -178,9 +178,11 @@ def main(num):
     con_hearings = CongressionalHearingsInfo(api_key)
     con_hearings.run(num, api_key)
 
-    # hearing_id = 'CHRG-115shrg48493'
+    # hearing_id = "CHRG-117hhrg48754"
     # url = f"https://api.govinfo.gov/packages/{hearing_id}"
-    # con_hearings.gather_hearing_text(url, hearing_id)
+    # hearing = con_hearings.gather_hearing_text(url, hearing_id)
+    print("done")
+
 
 if __name__ == "__main__":
     main()

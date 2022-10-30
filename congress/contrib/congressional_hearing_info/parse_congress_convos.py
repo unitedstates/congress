@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 import re
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 from parse_congress_member_info import CongressMemberInfo
 from link_speaker_to_congress_member import LinkSpeakerToCongressMember, SpeakerInfo
 import warnings
@@ -119,7 +119,7 @@ class hearing_parser:
 
     def gather_hearing_info(
         self, url: str, hearing_id: str
-    ) -> List[CongressMemberInfo]:
+    ) -> Tuple[List[CongressMemberInfo], Dict]:
         mods = requests.get(url + "/mods", params=self.package_fields)
         mods_soup = BeautifulSoup(mods.content, "xml")
         congress_info = self.congress_member_parser.grab_congress_info(mods_soup)
@@ -152,7 +152,7 @@ class hearing_parser:
         hearing_id: str,
         content: BeautifulSoup,
         url: str,
-    ) -> Set[SpeakerInfo]:
+    ) -> Tuple[List[SpeakerInfo], Dict]:
         print(f"Parsing hearing: {hearing_id}")
         cleaned_text = self.clean_hearing_text(content.get_text())
         # TODO split on section titles like "Statement of ..."

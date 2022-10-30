@@ -47,21 +47,23 @@ class LinkSpeakerToCongressMember:
             filtered_members = [
                 member
                 for member in self.all_congress_members.values()
-                if member["last_name"].lower() == speaker.last_name
+                if member["name"]["last"].lower() == speaker.last_name
             ]
             if "senator" in speaker.title:
                 filtered_members = [
-                    member for member in filtered_members if member["chamber"] == "S"
+                    member
+                    for member in filtered_members
+                    if member["most_recent_term"]["type"] == "sen"
                 ]
             if speaker.state:
                 filtered_members = [
                     member
                     for member in filtered_members
-                    if member["state"] == speaker.state
+                    if member["most_recent_term"]["state"] == speaker.state
                 ]
 
             if len(filtered_members) == 1:
-                return filtered_members[0]["id"]
+                return filtered_members[0]["id"]["bioguide"]
 
         return None
 
@@ -82,8 +84,11 @@ class LinkSpeakerToCongressMember:
         rep_state = present_rep.state.lower()
         filtered_members = []
         for member in self.all_congress_members.values():
-            member_state = member["state"]
-            split_member_last_name = member["last_name"].lower().split()
+            member_state = member["most_recent_term"]["state"]
+            split_member_last_name = member["name"]["last"].lower().split()
+            split_member_last_name = [
+                re.sub(pattern, "", x) for x in split_member_last_name
+            ]
             if (
                 all(word in split_name for word in split_member_last_name)
                 and rep_state == member_state
@@ -91,18 +96,22 @@ class LinkSpeakerToCongressMember:
                 # Check only last name to avoid issues with nicknames
                 filtered_members.append(member)
         if len(filtered_members) == 1:
-            return filtered_members[0]["id"]
+            return filtered_members[0]["id"]["bioguide"]
         if len(filtered_members) > 1:
             # match on the first name as well if last name isn't enough
             filtered_members = [
                 member
                 for member in filtered_members
                 if all(
-                    word in split_name for word in member["first_name"].lower().split()
+                    word in split_name
+                    for word in [
+                        re.sub(pattern, "", x)
+                        for x in member["name"]["first"].lower().split()
+                    ]
                 )
             ]
             if len(filtered_members) == 1:
-                return filtered_members[0]["id"]
+                return filtered_members[0]["id"]["bioguide"]
 
         warnings.warn(f"{present_rep.name} has {len(filtered_members)} member matches")
         return None
@@ -136,24 +145,24 @@ class LinkSpeakerToCongressMember:
     ) -> str:
         id_match = next(
             (
-                x
+                x["id"]["bioguide"]
                 for x in self.all_congress_members.values()
-                if x["id"] == member.bio_guide_id
+                if x["id"]["bioguide"] == member.bio_guide_id
             ),
             None,
         )
         if id_match:
-            return id_match["id"]
+            return id_match
 
         filtered_members = [
             x
             for x in self.all_congress_members.values()
-            if x["last_name"] == member.last_name
-            and x["state_initials"] == member.state_initials
-            and x["chamber"] == member.chamber
+            if x["name"]["last"] == member.last_name
+            and x["most_recent_term"]["state_initials"] == member.state_initials
+            and x["most_recent_term"]["chamber"] == member.chamber
         ]
         if len(filtered_members) == 1:
-            return filtered_members[0]["id"]
+            return filtered_members[0]["id"]["bioguide"]
 
         warnings.warn(
             f"{member.name_parsed} has {len(filtered_members)} member matches"
@@ -317,6 +326,7 @@ class LinkSpeakerToCongressMember:
                     speaker, members_sections
                 )
                 if present_rep:
+                    speaker.present_rep = present_rep
                     speaker.congress_member_id = (
                         self.link_present_rep_to_all_congress_members(present_rep)
                     )
