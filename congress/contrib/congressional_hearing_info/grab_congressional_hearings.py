@@ -82,7 +82,10 @@ class CongressionalHearingsInfo:
         moc["most_recent_term"] = most_recent_term
         moc["name"]["first"] = self._strip_accents(moc["name"]["first"])
         moc["name"]["last"] = self._strip_accents(moc["name"]["last"])
-        moc["name"]["official_full"] = self._strip_accents(moc["name"]["official_full"])
+        if "official_full" in moc["name"]:
+            moc["name"]["official_full"] = self._strip_accents(moc["name"]["official_full"])
+        else:
+            moc["name"]["official_full"] = f"{moc['name']['first']} {moc['name']['last']}"
 
         return moc
 

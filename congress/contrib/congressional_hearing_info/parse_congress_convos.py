@@ -35,8 +35,18 @@ class hearing_parser:
         r"Miss",
         r"Dr.",
         r"Senator",
-        r"General",
         r"Hon.",
+        r"Secretary",
+        r"Sec.",
+
+        r"General",
+        r"Colonel",
+        r"Admiral",
+        r"Major",
+        r"Captain",
+        r"Commodore",
+        r"Lieutenant",
+        r"Corporal",
     ]
 
     ONE_OFF = ["The (?:[C|c]o-)?[C|c]hair\w*"]
@@ -155,8 +165,9 @@ class hearing_parser:
     ) -> Tuple[List[SpeakerInfo], Dict]:
         print(f"Parsing hearing: {hearing_id}")
         cleaned_text = self.clean_hearing_text(content.get_text())
-        # TODO split on section titles like "Statement of ..."
+        # TODO split on section titles like "[Prepared] Statement of ..."
         speakers_and_text = re.split(self.regex_pattern, cleaned_text)
+        # TODO: Returned text should not have case modified
         speaker_groups = self.group_speakers(speakers_and_text)
         congress_info, summary = self.gather_hearing_info(url, hearing_id)
         self.link.link_speakers_to_congress_members(
