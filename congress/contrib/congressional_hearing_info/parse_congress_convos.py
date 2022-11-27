@@ -38,7 +38,6 @@ class hearing_parser:
         r"Hon.",
         r"Secretary",
         r"Sec.",
-
         r"General",
         r"Colonel",
         r"Admiral",
@@ -49,7 +48,10 @@ class hearing_parser:
         r"Corporal",
     ]
 
-    ONE_OFF = ["The (?:[C|c]o-)?[C|c]hair\w*\.","\w* ?S(?:TATEMENT|tatement) (?:OF|of) (?:(?P<name>.*?),)?(?:.|\n)*?\n+(?=\n)"]
+    ONE_OFF = [
+        "The (?:[C|c]o-)?[C|c]hair\w*\.",
+        "\w* ?S(?:TATEMENT|tatement) (?:OF|of) (?:(?P<name>.*?),)?(?:.|\n)*?\n+(?=\n)",
+    ]
 
     def construct_regex(self):
         title_patterns = "|".join(self.TITLE_PATTERNS)

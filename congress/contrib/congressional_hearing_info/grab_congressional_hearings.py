@@ -83,9 +83,13 @@ class CongressionalHearingsInfo:
         moc["name"]["first"] = self._strip_accents(moc["name"]["first"])
         moc["name"]["last"] = self._strip_accents(moc["name"]["last"])
         if "official_full" in moc["name"]:
-            moc["name"]["official_full"] = self._strip_accents(moc["name"]["official_full"])
+            moc["name"]["official_full"] = self._strip_accents(
+                moc["name"]["official_full"]
+            )
         else:
-            moc["name"]["official_full"] = f"{moc['name']['first']} {moc['name']['last']}"
+            moc["name"][
+                "official_full"
+            ] = f"{moc['name']['first']} {moc['name']['last']}"
 
         return moc
 
@@ -181,7 +185,7 @@ def main(num):
     con_hearings = CongressionalHearingsInfo(api_key)
     con_hearings.run(num, api_key)
 
-    # hearing_id = "CHRG-117hhrg48754"
+    # hearing_id = 'CHRG-117hhrg49409'
     # url = f"https://api.govinfo.gov/packages/{hearing_id}"
     # hearing = con_hearings.gather_hearing_text(url, hearing_id)
     print("done")
