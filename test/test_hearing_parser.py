@@ -22,7 +22,19 @@ class TestHearingParser(unittest.TestCase):
         self.assertFalse(re.match(pattern, '\nDr. R. John Hansman Jr., T. Wilson Professor of Aeronautics'))
 
 
-        self.assertEqual(5, self.hearing_parser._num_regex_groups)
+        self.assertEqual(6, self.hearing_parser._num_regex_groups)
+        
+        statement = '''Chairman of the Committee, presiding.
+
+           OPENING STATEMENT OF HON. LISA MURKOWSKI, 
+                    U.S. SENATOR FROM ALASKA
+
+    The Chairman. The Committee will'''
+
+        splits = re.split(pattern, statement)
+        self.assertTrue("LISA MURKOWSKI" in splits[5])
+        self.assertTrue("Chairman" in splits[7])
+
 
     def test_clean_hearing_text(self):
         text_with_directions = """    Mrs. Maloney. Well, what----

@@ -49,7 +49,7 @@ class hearing_parser:
         r"Corporal",
     ]
 
-    ONE_OFF = ["The (?:[C|c]o-)?[C|c]hair\w*"]
+    ONE_OFF = ["The (?:[C|c]o-)?[C|c]hair\w*\.","\w* ?S(?:TATEMENT|tatement) (?:OF|of) (?:(?P<name>.*?),)?(?:.|\n)*?\n+(?=\n)"]
 
     def construct_regex(self):
         title_patterns = "|".join(self.TITLE_PATTERNS)
@@ -57,12 +57,12 @@ class hearing_parser:
         enlongated_title = (
             f"(?: of(?P<state> {capital_letter_word})+)?"  # ex: Mr. Doe of Miami
         )
-        name_pattern = f"(?P<title>{title_patterns})(?P<l_name>(?: {capital_letter_word})+){enlongated_title}"
+        name_pattern = f"(?P<title>{title_patterns})(?P<l_name>(?: {capital_letter_word})+){enlongated_title}\."
 
         one_off_patterns = "|".join(self.ONE_OFF)
         one_off_patterns = f"{one_off_patterns}"
 
-        speaker_pattern = f"\n\s+({name_pattern}|{one_off_patterns})\."
+        speaker_pattern = f"\n\s+({name_pattern}|{one_off_patterns})"
 
         # Each group included in regex (to be used in group_speakers),
         # plus the full match and inbetween text
@@ -114,12 +114,13 @@ class hearing_parser:
             return []
         for speaker_group in sections_of_text:
             speaker_group = [x.lower().strip() if x else x for x in speaker_group]
-            match, title, l_name, state, statement = speaker_group
+            match, title, l_name, state, statement_name, statement = speaker_group
             key = SpeakerInfo(
                 last_name=l_name or "",
                 full_match=match,
                 title=title or "",
                 state=state,
+                statement_name=statement_name,
                 statements=[],
             )
 

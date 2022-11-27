@@ -7,7 +7,7 @@ from parse_congress_member_info import CongressMemberInfo, STATE_INITIALS_MAP
 STATES_LIST = list(map(lambda x: x.lower(), STATE_INITIALS_MAP.values()))
 
 # Right now there is only one rep with the same name as a state
-STATES_LIST_WITHOUT_NAMES = [s for s in STATES_LIST if s not in ["Virginia"]]
+STATES_LIST_WITHOUT_NAMES = [s for s in STATES_LIST if s not in ["virginia"]]
 
 
 @dataclass
@@ -25,6 +25,7 @@ class SpeakerInfo:
     state: str
     congress_member_id: str = None
     present_rep: PresentRepresentative = None
+    statement_name: str = None
     statements: List[str] = field(default_factory=list)
 
     def __eq__(self, other):
@@ -32,10 +33,11 @@ class SpeakerInfo:
             self.last_name == other.last_name
             and self.title == other.title
             and self.state == other.state
+            and self.statement_name == other.statement_name
         )
 
     def __hash__(self):
-        return hash((self.last_name, self.title, self.state))
+        return hash((self.last_name, self.title, self.state, self.statement_name))
 
 
 class LinkSpeakerToCongressMember:
@@ -311,6 +313,7 @@ class LinkSpeakerToCongressMember:
         chair_congress_member_id = self.identify_chair(speaker_groups, members_sections)
 
         # This code executes the flow outlined in "link_speaker_flow_v2.png"
+        # TODO: add match for statement_name
         for speaker in speaker_groups:
             if "the chair" in speaker.full_match:
                 if chair_congress_member_id is None:
