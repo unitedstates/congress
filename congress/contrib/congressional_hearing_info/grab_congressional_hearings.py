@@ -33,7 +33,7 @@ class CongressionalHearingsInfo:
         self,
         size: int,
         api_key: str,
-        last_date: datetime = datetime.now(),
+        last_date: datetime = datetime(year=2020, month=1, day=1),
     ):
         last_date_str = last_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         url = f"https://api.govinfo.gov/collections/{self.HEARING_COLLECTION_CODE}/{last_date_str}"
