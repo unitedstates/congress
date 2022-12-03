@@ -34,15 +34,22 @@ class SpeakerInfo:
             and self.title == other.title
             and self.state == other.state
             and self.statement_name == other.statement_name
+            and self.full_match == other.full_match
         )
 
     def __hash__(self):
-        return hash((self.last_name, self.title, self.state, self.statement_name))
+        return hash((self.last_name, self.title, self.state, self.statement_name, self.full_match))
 
 
 class LinkSpeakerToCongressMember:
     def __init__(self, all_congress_members: Dict):
         self.all_congress_members = all_congress_members
+
+    def link_statement_to_all_congress_members(self, speaker: SpeakerInfo) -> str:
+        for member in self.all_congress_members.values():
+            if member["name"]['official_full'].lower() in speaker.full_match:
+                return member["id"]["bioguide"]
+        return ""
 
     def link_speaker_to_all_congress_members(self, speaker: SpeakerInfo) -> str:
         if speaker.state or speaker.title == "senator" or "chair" in speaker.title:
@@ -319,6 +326,8 @@ class LinkSpeakerToCongressMember:
                 if chair_congress_member_id is None:
                     warnings.warn("No chair found, but chair is needed")
                 speaker.congress_member_id = chair_congress_member_id
+            elif "statement of" in speaker.full_match:
+                self.link_statement_to_all_congress_members(speaker)
             else:
                 speaker.congress_member_id = self.link_speaker_to_all_congress_members(
                     speaker

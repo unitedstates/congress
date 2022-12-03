@@ -51,6 +51,7 @@ class hearing_parser:
     ONE_OFF = [
         "The (?:[C|c]o-)?[C|c]hair\w*\.",
         "\w* ?S(?:TATEMENT|tatement) (?:OF|of) (?:(?P<name>.*?),)?(?:.|\n)*?\n+(?=\n)",
+        # TODO: Add break when there aren't two new lines `CHRG-117hhrg49438``
     ]
 
     def construct_regex(self):
