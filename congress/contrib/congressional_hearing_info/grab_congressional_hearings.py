@@ -33,7 +33,7 @@ class CongressionalHearingsInfo:
         self,
         size: int,
         api_key: str,
-        last_date: datetime = datetime(year=2020, month=1, day=1),
+        last_date: datetime = datetime.now(),
     ):
         last_date_str = last_date.strftime("%Y-%m-%dT%H:%M:%SZ")
         url = f"https://api.govinfo.gov/collections/{self.HEARING_COLLECTION_CODE}/{last_date_str}"
@@ -185,7 +185,7 @@ def main(num):
     con_hearings = CongressionalHearingsInfo(api_key)
     con_hearings.run(num, api_key)
 
-    # hearing_id = 'CHRG-117hhrg49409'
+    # hearing_id = 'CHRG-117hhrg49438'
     # url = f"https://api.govinfo.gov/packages/{hearing_id}"
     # hearing = con_hearings.gather_hearing_text(url, hearing_id)
     print("done")
