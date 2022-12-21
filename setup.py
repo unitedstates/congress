@@ -30,6 +30,7 @@ setuptools.setup(
         'pyyaml',
         'scrapelib',
         'xmltodict',
+        'packaging',
     ],
     entry_points={
         'console_scripts': [

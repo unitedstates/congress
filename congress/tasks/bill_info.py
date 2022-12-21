@@ -58,6 +58,8 @@ def create_govtrack_xml(bill, options):
         n.set("type", title['type'])
         if title['as']:
             n.set("as", title['as'])
+        if title['textVersionCode']:
+            n.set("textVersionCode", title['textVersionCode'])
         if title['is_for_portion']:
             n.set("partial", "1")
 
@@ -77,7 +79,7 @@ def create_govtrack_xml(bill, options):
         n = make_node(cosponsors, "cosponsor", None, **get_legislator_id_attr(cosp))
         if cosp["sponsored_at"]:
             n.set("joined", cosp["sponsored_at"])
-        if cosp["withdrawn_at"]:
+        if cosp.get("withdrawn_at"): # no longer present in GPO BILLSTATUS XML schema 3.0.0
             n.set("withdrawn", cosp["withdrawn_at"])
 
     actions = make_node(root, "actions", None)
@@ -185,13 +187,13 @@ def summary_for(summaries):
         return None
 
     # Take the most recent summary, by looking at the lexicographically last updateDate.
-    summaries = summaries['item']
     summary = sorted(summaries, key = lambda s: s['updateDate'])[-1]
 
     # Build dict.
     return {
         "date": summary['updateDate'],
-        "as": summary['name'],
+        "as": summary['actionDesc'],
+        "asOf": summary['actionDate'],
         "text": strip_tags(summary['text']),
     }
 
@@ -303,6 +305,7 @@ def titles_for(title_list):
             'title': item['title'],
             'is_for_portion': is_for_portion,
             'as': state,
+            'textVersionCode': item.get('TextVersionCode'),
             'type': title_type
         }
 
@@ -394,7 +397,7 @@ def actions_for(action_list, bill_id, title):
 
         keep = True
         if closure['prev']:
-            if item['sourceSystem']['code'] == "9":
+            if item['sourceSystem'].get('code') == "9":
                 # Date must match previous action..
                 # If both this and previous have a time, the times must match.
                 # The text must approximately match. Sometimes the LOC text has a prefix
@@ -455,7 +458,7 @@ def action_for(item):
     # text & references
     # (amendment actions don't always have text?)
 
-    text = item['text'] if item['text'] is not None else ''
+    text = item['text'] if item.get('text') is not None else ''
 
     # strip out links
     text = re.sub(r"</?[Aa]( \S.*?)?>", "", text)
@@ -533,7 +536,7 @@ def cosponsors_for(cosponsors_list):
         del cosponsor_dict["type"] # always 'person'
         cosponsor_dict.update({
             'sponsored_at': item['sponsorshipDate'],
-            'withdrawn_at': item['sponsorshipWithdrawnDate'],
+            # 'withdrawn_at': item['sponsorshipWithdrawnDate'], # no longer present in GPO BILLSTATUS XML schema 3.0.0?
             'original_cosponsor': item['isOriginalCosponsor'] == 'True'
         })
         return cosponsor_dict

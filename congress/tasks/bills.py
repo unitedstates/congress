@@ -178,8 +178,17 @@ def form_bill_json_dict(xml_as_dict):
     @rtype: dict
     """
 
+    from packaging.version import parse as parse_version
+    try:
+        schema_version = parse_version(xml_as_dict['billStatus']['version'])
+    except KeyError: # no 'version' attribute is present before 2022-12-20
+        schema_version = parse_version('1.0.0')
+
     bill_dict = xml_as_dict['billStatus']['bill']
-    bill_id = build_bill_id(bill_dict['billType'].lower(), bill_dict['billNumber'], bill_dict['congress'])
+    if schema_version >= parse_version('3.0.0'):
+        bill_id = build_bill_id(bill_dict['type'].lower(), bill_dict['number'], bill_dict['congress'])
+    else:
+        bill_id = build_bill_id(bill_dict['billType'].lower(), bill_dict['billNumber'], bill_dict['congress'])
     titles = bill_info.titles_for(bill_dict['titles']['item'])
     actions = bill_info.actions_for(bill_dict['actions']['item'], bill_id, bill_info.current_title_for(titles, 'official'))
     status, status_date = bill_info.latest_status(actions, bill_dict.get('introducedDate', ''))
@@ -188,18 +197,38 @@ def form_bill_json_dict(xml_as_dict):
         logging.info("[%s] Skipping reserved bill number with no sponsor (%s)" % (bill_id, bill_dict['titles']['item'][0]['title']))
         return bill_dict['titles']['item'][0]['title'] # becomes the 'reason'
 
+    if schema_version >= parse_version('3.0.0'):
+        by_request = bill_dict['sponsors']['item'][0]['isByRequest'] == 'Y'
+    else:
+        by_request = bill_dict['sponsors']['item'][0]['byRequestType'] is not None
+
+    billCommittees = bill_dict.get('committees')
+    if schema_version < parse_version('3.0.0'):
+        billCommittees = (billCommittees or {})['billCommittees']
+
+    if schema_version >= parse_version('3.0.0'):
+        legislativeSubjects = bill_dict.get('subjects', {}).get('legislativeSubjects')
+    else:
+        legislativeSubjects = bill_dict['subjects']['billSubjects']['legislativeSubjects']
+
+    if schema_version >= parse_version('3.0.0'):
+        billSummaries = bill_dict.get('summaries', {}).get('summary')
+    else:
+        billSummaries = bill_dict['summaries']['billSummaries']['item']
+    if billSummaries and not isinstance(billSummaries, list): billSummaries = [billSummaries]
+
     bill_data = {
         'bill_id': bill_id,
-        'bill_type': bill_dict.get('billType').lower(),
-        'number': bill_dict.get('billNumber'),
+        'bill_type': bill_dict.get('type' if schema_version >= parse_version('3.0.0') else 'billType').lower(),
+        'number': bill_dict.get('number' if schema_version >= parse_version('3.0.0') else 'billNumber'),
         'congress': bill_dict.get('congress'),
 
         'url': billstatus_url_for(bill_id),
 
         'introduced_at': bill_dict.get('introducedDate', ''),
-        'by_request': bill_dict['sponsors']['item'][0]['byRequestType']     is not None,
+        'by_request': by_request,
         'sponsor': bill_info.sponsor_for(bill_dict['sponsors']['item'][0]),
-        'cosponsors': bill_info.cosponsors_for(bill_dict['cosponsors']),
+        'cosponsors': bill_info.cosponsors_for(bill_dict.get('cosponsors')),
 
         'actions': actions,
         'history': bill_info.history_from_actions(actions),
@@ -212,22 +241,22 @@ def form_bill_json_dict(xml_as_dict):
         'short_title': bill_info.current_title_for(titles, 'short'),
         'popular_title': bill_info.current_title_for(titles, 'popular'),
 
-        'summary': bill_info.summary_for(bill_dict['summaries']['billSummaries']),
+        'summary': bill_info.summary_for(billSummaries),
 
         # The top term's case has changed with the new bulk data. It's now in
         # Title Case. For backwards compatibility, the top term is run through
         # '.capitalize()' so it matches the old string. TODO: Remove one day?
-        'subjects_top_term': _fixup_top_term_case(bill_dict['policyArea']['name']) if bill_dict['policyArea'] else None,
+        'subjects_top_term': _fixup_top_term_case(bill_dict['policyArea']['name']) if bill_dict.get('policyArea') else None,
         'subjects':
             sorted(
-                ([_fixup_top_term_case(bill_dict['policyArea']['name'])] if bill_dict['policyArea'] else []) +
-                ([item['name'] for item in bill_dict['subjects']['billSubjects']['legislativeSubjects']['item']] if bill_dict['subjects']['billSubjects']['legislativeSubjects'] else [])
+                ([_fixup_top_term_case(bill_dict['policyArea']['name'])] if bill_dict.get('policyArea') else []) +
+                ([item['name'] for item in legislativeSubjects['item']] if legislativeSubjects else [])
             ),
 
-        'related_bills': bill_info.related_bills_for(bill_dict['relatedBills']),
-        'committees': bill_info.committees_for(bill_dict['committees']['billCommittees']),
-        'amendments': bill_info.amendments_for(bill_dict['amendments']),
-        'committee_reports': bill_info.committee_reports_for(bill_dict['committeeReports']),
+        'related_bills': bill_info.related_bills_for(bill_dict.get('relatedBills')),
+        'committees': bill_info.committees_for(billCommittees),
+        'amendments': bill_info.amendments_for(bill_dict.get('amendments')),
+        'committee_reports': bill_info.committee_reports_for(bill_dict.get('committeeReports')),
 
         'updated_at': bill_dict.get('updateDate', ''),
     }
@@ -255,7 +284,7 @@ def output_for_bill(bill_id, format, is_data_dot=True):
     return "%s/%s/bills/%s/%s%s/%s" % (utils.data_dir(), congress, bill_type, bill_type, number, fn)
 
 def process_amendments(bill_id, bill_amendments, options):
-    amdt_list = bill_amendments['billStatus']['bill']['amendments']
+    amdt_list = bill_amendments['billStatus']['bill'].get('amendments')
     if amdt_list is None:  # many bills don't have amendments
         return
 
