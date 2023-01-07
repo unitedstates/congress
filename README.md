@@ -1,20 +1,20 @@
 ## unitedstates/congress
 
-Public domain code that collects data about the bills, amendments, roll call votes, and other core data about the U.S. Congress.
+This is a community-run project to develop Python tools to collect data about the bills, amendments, roll call votes, and other core data about the U.S. Congress into simple-to-use structured data files.
 
-Includes:
+The tools include:
 
-* A data importing script for the [official bulk bill status data](https://github.com/usgpo/bill-status) from Congress, the official source of information on the life and times of legislation.
+* Downloading the [official bulk bill status data](https://github.com/usgpo/bill-status) from Congress, the official source of information on the life and times of legislation, and converting the data to an easier-to-use format.
 
 * Scrapers for House and Senate roll call votes.
 
-* A document fetcher for GovInfo.gov, which holds bill text, bill status, and other official documents.
+* A document fetcher for GovInfo.gov, which holds bill text, bill status, and other official documents, and which downloads only newly updated files.
 
 * A defunct THOMAS scraper for presidential nominations in Congress.
 
 Read about the contents and schema in the [documentation](https://github.com/unitedstates/congress/wiki) in the github project wiki.
 
-For background on how this repository came to be, see [Eric's blog post](https://sunlightfoundation.com/blog/2013/08/20/a-modern-approach-to-open-data/).
+This repository was originally developed by [GovTrack.us](https://www.govtrack.us) and the Sunlight Foundation in 2013 (see [Eric's blog post](https://sunlightfoundation.com/blog/2013/08/20/a-modern-approach-to-open-data/)) and is currently maintained by GovTrack.us and other contributors. For more information about data in Congress, see the [Congressional Data Coalition](https://congressionaldata.org/).
 
 
 ### Setting Up
@@ -104,15 +104,6 @@ To run this project's unit tests:
 ```bash
 ./test/run
 ```
-
-### Who's Using This Data
-
-The [Sunlight Foundation](https://sunlightfoundation.com) and [GovTrack.us](https://www.govtrack.us) are the two principal maintainers of this project.
-
-Both Sunlight and GovTrack operate APIs where you can get much of this data delivered over HTTP:
-
-* [GovTrack.us API](https://www.govtrack.us/developers/api)
-* [Sunlight Congress API](https://sunlightlabs.github.io/congress/)
 
 ## Public domain
 
