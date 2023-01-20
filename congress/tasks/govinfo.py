@@ -452,7 +452,7 @@ def get_output_path(collection, package_name, options):
         bill_and_ver = get_bill_id_for_package(package_name, with_version=False, restrict_to_congress=options.get("congress"))
         if not bill_and_ver:
             return None  # congress number does not match options["congress"]
-        from bills import output_for_bill
+        from .bills import output_for_bill
         bill_id, version_code = bill_and_ver
         return output_for_bill(bill_id, "text-versions/" + version_code, is_data_dot=False)
 
@@ -490,7 +490,7 @@ def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
     # For BILLSTATUS, store this along with where we store the rest of bill
     # status data.
     if collection == "BILLSTATUS":
-        from bills import output_for_bill
+        from .bills import output_for_bill
         bill_id, version_code = get_bill_id_for_package(os.path.splitext(os.path.basename(item_path.replace("BILLSTATUS-", "")))[0], with_version=False)
         path = output_for_bill(bill_id, FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
 
