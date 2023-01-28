@@ -142,7 +142,7 @@ def build_amendment_id(amdt_type, amdt_number, congress):
     return "%s%s-%s" % (amdt_type, amdt_number, congress)
 
 def amends_bill_for(amends_bill):
-    from bills import build_bill_id
+    from .bills import build_bill_id
     bill_id = build_bill_id(amends_bill['type'].lower(), amends_bill['number'], amends_bill['congress'])
     return {
         'bill_id': bill_id,
