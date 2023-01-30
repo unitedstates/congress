@@ -140,7 +140,7 @@ def process_bill(bill_id, options):
             "diff": options.get("diff")
         })
 
-    from .bill_info import create_govtrack_xml
+    from congress.tasks.bill_info import create_govtrack_xml
     with open(os.path.dirname(fdsys_xml_path) + '/data.xml', 'wb') as xml_file:
         xml_file.write(create_govtrack_xml(bill_data, options))
 
@@ -304,7 +304,7 @@ def reparse_actions(bill_id, options):
     bill_data = json.loads(source)
 
     # Munge data.
-    from .bill_info import parse_bill_action
+    from congress.tasks.bill_info import parse_bill_action
     title = bill_info.current_title_for(bill_data['titles'], 'official')
     old_status = "INTRODUCED"
     for action in bill_data['actions']:
@@ -342,7 +342,7 @@ def reparse_actions(bill_id, options):
       wrote_any = True
 
     # Write new data.xml file.
-    from .bill_info import create_govtrack_xml
+    from congress.tasks.bill_info import create_govtrack_xml
     data_xml_fn = data_json_fn.replace(".json", ".xml")
     with open(data_xml_fn, 'r') as xml_file:
         source = xml_file.read()
