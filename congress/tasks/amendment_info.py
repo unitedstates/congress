@@ -54,12 +54,12 @@ def build_amendment_json_dict(amdt_dict, options):
 
         'sponsor': sponsor_for(amdt_dict['sponsors']['item'][0], amdt_dict['type'].lower()),
 
-        'purpose': amdt_dict['purpose'][0] if type(amdt_dict['purpose']) is list else amdt_dict['purpose'],
+        'purpose': amdt_dict['purpose'][0] if type(amdt_dict.get('purpose')) is list else amdt_dict.get('purpose'),
 
         'introduced_at': amdt_dict['submittedDate'][:10],
         'actions': actions,
 
-        'updated_at':  amdt_dict['updateDate'],
+        'updated_at': amdt_dict['updateDate'][0] if type(amdt_dict['updateDate']) is list else amdt_dict['updateDate'],
     }
 
     # duplicate attributes creates lists when parsed, this block deduplicates
