@@ -58,6 +58,8 @@ def create_govtrack_xml(bill, options):
         n.set("type", title['type'])
         if title['as']:
             n.set("as", title['as'])
+        if title['textVersionCode']:
+            n.set("textVersionCode", title['textVersionCode'])
         if title['is_for_portion']:
             n.set("partial", "1")
 
@@ -77,7 +79,7 @@ def create_govtrack_xml(bill, options):
         n = make_node(cosponsors, "cosponsor", None, **get_legislator_id_attr(cosp))
         if cosp["sponsored_at"]:
             n.set("joined", cosp["sponsored_at"])
-        if cosp["withdrawn_at"]:
+        if cosp.get("withdrawn_at"): # no longer present in GPO BILLSTATUS XML schema 3.0.0
             n.set("withdrawn", cosp["withdrawn_at"])
 
     actions = make_node(root, "actions", None)
@@ -185,13 +187,13 @@ def summary_for(summaries):
         return None
 
     # Take the most recent summary, by looking at the lexicographically last updateDate.
-    summaries = summaries['item']
     summary = sorted(summaries, key = lambda s: s['updateDate'])[-1]
 
     # Build dict.
     return {
         "date": summary['updateDate'],
-        "as": summary['name'],
+        "as": summary['actionDesc'],
+        "asOf": summary['actionDate'],
         "text": strip_tags(summary['text']),
     }
 
@@ -303,6 +305,7 @@ def titles_for(title_list):
             'title': item['title'],
             'is_for_portion': is_for_portion,
             'as': state,
+            'textVersionCode': item.get('TextVersionCode'),
             'type': title_type
         }
 
@@ -394,7 +397,7 @@ def actions_for(action_list, bill_id, title):
 
         keep = True
         if closure['prev']:
-            if item['sourceSystem']['code'] == "9":
+            if item['sourceSystem'].get('code') == "9":
                 # Date must match previous action..
                 # If both this and previous have a time, the times must match.
                 # The text must approximately match. Sometimes the LOC text has a prefix
@@ -455,7 +458,7 @@ def action_for(item):
     # text & references
     # (amendment actions don't always have text?)
 
-    text = item['text'] if item['text'] is not None else ''
+    text = item['text'] if item.get('text') is not None else ''
 
     # strip out links
     text = re.sub(r"</?[Aa]( \S.*?)?>", "", text)
@@ -533,7 +536,7 @@ def cosponsors_for(cosponsors_list):
         del cosponsor_dict["type"] # always 'person'
         cosponsor_dict.update({
             'sponsored_at': item['sponsorshipDate'],
-            'withdrawn_at': item['sponsorshipWithdrawnDate'],
+            # 'withdrawn_at': item['sponsorshipWithdrawnDate'], # no longer present in GPO BILLSTATUS XML schema 3.0.0?
             'original_cosponsor': item['isOriginalCosponsor'] == 'True'
         })
         return cosponsor_dict
@@ -847,6 +850,32 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         if new_status:
             status = new_status
 
+    m = re.search(r"Pursuant to .* the following bills passed under suspension of the rules: (.*)\.$", line, re.I)
+    if m:
+        # The list should certainly include this bill, but was it passed "as amended"?
+        as_amended = None
+        bill_list = m.group(1)
+        bill_list = bill_list.replace("and the following resolution was agreed to under suspension of the rules: ", "")
+        bill_list = bill_list.replace("and the following resolutions were agreed to under suspension of the rules: ", "")
+        bill_list = bill_list.replace("and ", "")
+        bill_list = re.split(r"\s*(?:;|,(?! as amended))\s*", bill_list)
+        for bill_item in bill_list:
+            bill_item = bill_item.lower().replace(".", "").replace(" ", "").split(",")
+            if bill_item[0] == (bill_type + number):
+                as_amended = len(bill_item) > 1
+        if as_amended is None: raise ValueError("Did not find bill in list: " + line)
+
+        vote_type = "vote" if (bill_type[0] == "h") else "vote2"
+        pass_fail = "pass"
+        action["type"] = "vote"
+        action["vote_type"] = vote_type
+        action["how"] = "by special rule"
+        action["where"] = "h"
+        action["result"] = pass_fail
+        new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, as_amended, title, prev_status)
+        if new_status:
+            status = new_status
+
     # House motions to table adversely dispose of a pending matter, if agreed to. An agreed-to "motion to table the measure",
     # which is very infrequent, kills the legislation. If not agreed to, nothing changes. So this regex only captures
     # agreed-to motions to table.
@@ -860,7 +889,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
 
         # In order to classify this as resulting in the same thing as regular failed vote on passage, new_status_after_vote
         # needs to know if this was a vote in the originating chamber or not.
-        if prev_status == "INTRODUCED" or bill_id.startswith("hres"):
+        if prev_status in ("INTRODUCED", "REPORTED") or bill_id.startswith("hres"):
             vote_type = "vote"
         elif False:
             vote_type = "vote2"
@@ -999,27 +1028,25 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         if new_status:
             status = new_status
 
-    # PSUDO-REPORTING (because GovTrack did this, but should be changed)
-
-    # TODO: Make a new status for this as pre-reported.
-    m = re.search(r"Placed on (the )?([\w ]+) Calendar( under ([\w ]+))?[,\.] Calendar No\. (\d+)\.|Committee Agreed to Seek Consideration Under Suspension of the Rules|Ordered to be Reported", line, re.I)
+    # Useless. But GovTrack has had it.
+    m = re.search(r"Placed on (the )?([\w ]+) Calendar( under ([\w ]+))?[,\.] Calendar No\. (\d+)\.", line, re.I)
     if m != None:
-        # TODO: This makes no sense.
-        if prev_status in ("INTRODUCED", "REFERRED"):
-            status = "REPORTED"
-
         action["type"] = "calendar"
-
-        # TODO: Useless. But good for GovTrack compatibility.
-        if m.group(2):  # not 'Ordered to be Reported'
-            action["calendar"] = m.group(2)
-            action["under"] = m.group(4)
-            action["number"] = m.group(5)
+        action["calendar"] = m.group(2)
+        action["under"] = m.group(4)
+        action["number"] = m.group(5)
 
     # COMMITTEE ACTIONS
 
+    # Ordered Reported (because GovTrack did this, but maybe should be changed to not combine with actual reported bills)
+    m = re.search(r"Ordered to be Reported|Committee Agreed to Seek Consideration Under Suspension of the Rules", line, re.I)
+    if m != None:
+        action["type"] = "ordered-reported"
+        if prev_status in ("INTRODUCED", "REFERRED"):
+            status = "REPORTED"
+
     # reported
-    m = re.search(r"Committee on (.*)\. Reported by", line, re.I)
+    m = re.search(r"Committee on (.*)\. (Original measure )?[Rr]eported (to Senate )?by", line, re.I)
     if m != None:
         action["type"] = "reported"
         action["committee"] = m.group(1)

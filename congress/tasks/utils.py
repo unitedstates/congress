@@ -348,31 +348,26 @@ def write(content, destination, options={}):
     if options.get("diff"):
         # Instead of writing the file, do a comparison with what's on disk
         # to test any changes. But be nice and replace any update date with
-        # what's in the previous file so we avoid spurrious changes. Use
-        # how updated_at appears in the JSON and in the XML.
+        # what's in the previous file so we avoid spurrious changes in the
+        # diff. Use how updated_at appears in the JSON and in the XML.
         if os.path.exists(destination):
             with open(destination) as f:
-                existing_content = f.read()
+                source = f.read()
+            revised = content
             for pattern in ('"updated_at": ".*?"', 'updated=".*?"'):
-                m1 = re.search(pattern, existing_content)
-                m2 = re.search(pattern, content)
+                m1 = re.search(pattern, source)
+                m2 = re.search(pattern, revised)
                 if m1 and m2:
-                    content = content.replace(m2.group(0), m1.group(0))
+                    revised = revised.replace(m2.group(0), m1.group(0))
 
             # Avoid writing to disk and spawning `diff` by checking if
             # the files match in memory.
-            if content == existing_content:
+            if revised == source:
                 return
 
-        # Shell `diff` and let it display output directly to the console.
-        # Write `content` to disk first so diff can see it. Maybe more
-        # efficient to pipe?
-        fn = "/tmp/congress-changed-file"
-        with open(fn, 'w') as f:
-            f.write(content)
-        os.system("diff -u %s %s" % (destination, fn))
-        os.unlink(fn)
-        return
+            if not show_diff_ask_ok(source, revised, destination):
+                # User cancelled save.
+                return
 
     # Save the content to disk.
     mkdir_p(os.path.dirname(destination))
@@ -382,6 +377,19 @@ def write(content, destination, options={}):
     except:
         f.write(content)
     f.close()
+
+
+def show_diff_ask_ok(source, revised, fn):
+    # Show user a diff on the console to accept changes.
+    source = re.sub(r"\s*\n", "\n", source) # old files had trailing spaces
+    revised = re.sub(r"\s*\n", "\n", revised) # be consistent in normalization
+    if source == revised: return False # nothing to do
+    def split_lines(s): return [l+"\n" for l in s.split("\n")]
+    import sys
+    from difflib import unified_diff
+    sys.stdout.writelines(unified_diff(split_lines(source), split_lines(revised), fromfile=fn, tofile=fn))
+    return input("Apply change? (y/n) ").strip() == "y"
+
 
 def write_json(data, destination):
     return write(

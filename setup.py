@@ -30,6 +30,7 @@ setuptools.setup(
         'pyyaml',
         'scrapelib',
         'xmltodict',
+        'packaging',
         'python-dotenv',
         'pandas',
         'fastparquet',

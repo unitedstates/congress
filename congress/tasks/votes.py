@@ -15,30 +15,37 @@ from congress.tasks import vote_info
 
 
 def run(options):
-    vote_id = options.get('vote_id', None)
+    # Parse the options and fill to_fetch with vote ids.
 
+    vote_id = options.get('vote_id', None)
     if vote_id:
+        # Just fetch the specified vote.
         vote_chamber, vote_number, congress, session_year = utils.split_vote_id(vote_id)
+        sessions = [(congress, session_year)]
         to_fetch = [vote_id]
     else:
-        congress = options.get('congress', None)
-        if congress:
-            session_year = options.get('session', None)
-            if not session_year:
-                logging.error("If you provide a --congress, provide a --session year.")
-                return None
+        if options.get('congress', None):
+            if options.get('session', None):
+                # Fetch for one session given with the congress and session options.
+                sessions = [(options.get('congress'), options.get('session'))]
+            else:
+                # Fetch for both sessions of a Congress.
+                sessions = [(options.get('congress'), str(utils.get_congress_first_year(options.get('congress')))),
+                            (options.get('congress'), str(utils.get_congress_first_year(options.get('congress')) + 1))]
+        elif options.get('sessions', None):
+            # Fetch for multiple sessions, e.g. sessions=117.2021,117.2022
+            sessions = [session.split('.') for session in options.get('sessions').split(',')]
         else:
-            congress = utils.current_congress()
-            session_year = options.get('session', str(utils.current_legislative_year()))
+            # Fetch for the current session.
+            sessions = [(utils.current_congress(), options.get('session', str(utils.current_legislative_year())))]
 
-        chamber = options.get('chamber', None)
-
-        if chamber == "house":
-            to_fetch = vote_ids_for_house(congress, session_year, options)
-        elif chamber == "senate":
-            to_fetch = vote_ids_for_senate(congress, session_year, options)
-        else:
-            to_fetch = (vote_ids_for_house(congress, session_year, options) or []) + (vote_ids_for_senate(congress, session_year, options) or [])
+        # Get the list of votes.
+        to_fetch = []
+        for congress, session_year in sessions:
+            if options.get('chamber', None) in ("house", None):
+                to_fetch += vote_ids_for_house(congress, session_year, options) or []
+            if options.get('chamber', None) in ("senate", None):
+                to_fetch += vote_ids_for_senate(congress, session_year, options) or []
 
         if not to_fetch:
             if not options.get("fast", False):
@@ -54,7 +61,7 @@ def run(options):
     if options.get('pages_only', False):
         return None
 
-    logging.warn("Going to fetch %i votes from congress #%s session %s" % (len(to_fetch), congress, session_year))
+    logging.warn("Going to fetch %i votes from congress/session %s" % (len(to_fetch), ", ".join(str(cs) for cs in sessions)))
 
     utils.process_set(to_fetch, vote_info.fetch_vote, options)
 
