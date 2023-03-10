@@ -29,9 +29,12 @@ def run(options):
                 # Fetch for one session given with the congress and session options.
                 sessions = [(options.get('congress'), options.get('session'))]
             else:
-                # Fetch for both sessions of a Congress.
-                sessions = [(options.get('congress'), str(utils.get_congress_first_year(options.get('congress')))),
-                            (options.get('congress'), str(utils.get_congress_first_year(options.get('congress')) + 1))]
+                # Fetch for both sessions of a Congress except sessions that are in the future.
+                sessions = []
+                first_session_year = utils.get_congress_first_year(options.get('congress'))
+                for y in (first_session_year, first_session_year + 1):
+                    if y > datetime.datetime.now().year: continue # this session hasn't started yet
+                    sessions.append( (options.get('congress'), str(y)) )
         elif options.get('sessions', None):
             # Fetch for multiple sessions, e.g. sessions=117.2021,117.2022
             sessions = [session.split('.') for session in options.get('sessions').split(',')]
