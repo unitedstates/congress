@@ -536,7 +536,7 @@ def cosponsors_for(cosponsors_list):
         del cosponsor_dict["type"] # always 'person'
         cosponsor_dict.update({
             'sponsored_at': item['sponsorshipDate'],
-            # 'withdrawn_at': item['sponsorshipWithdrawnDate'], # no longer present in GPO BILLSTATUS XML schema 3.0.0?
+            'withdrawn_at': item.get('sponsorshipWithdrawnDate'),
             'original_cosponsor': item['isOriginalCosponsor'] == 'True'
         })
         return cosponsor_dict
