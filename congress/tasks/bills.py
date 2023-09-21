@@ -6,6 +6,9 @@ import xmltodict
 
 from congress.tasks import bill_info, amendment_info, govinfo, utils
 
+from congress.common.constants.congress import CongressConstants
+
+logger = logging.getLogger(CongressConstants.CONGRESS_DEFAULT_LOGGER_NAME.value)
 
 def run(options):
     bill_id = options.get('bill_id', None)
@@ -25,7 +28,7 @@ def run(options):
         to_fetch = get_bills_to_process(options)
 
         if not to_fetch:
-            logging.warn("No bills changed.")
+            logger.warn("No bills changed.")
             return None
 
         limit = options.get('limit', None)
@@ -120,7 +123,7 @@ def get_bills_to_process(options):
 
 def process_bill(bill_id, options):
     fdsys_xml_path = _path_to_billstatus_file(bill_id)
-    logging.info("[%s] Processing %s..." % (bill_id, fdsys_xml_path))
+    logger.info(f'[{bill_id}] Processing "{fdsys_xml_path}".')
 
     # Read FDSys bulk data file.
     xml_as_dict = read_fdsys_bulk_bill_status_file(fdsys_xml_path, bill_id)
@@ -133,15 +136,19 @@ def process_bill(bill_id, options):
         }
 
     # Convert and write out data.json and data.xml.
+    data_json_filepath = os.path.dirname(fdsys_xml_path) + '/data.json'
+    logger.info(f'Saving "data.json" file with filepath: "{data_json_filepath}".')
     utils.write(
         json.dumps(bill_data, indent=2, sort_keys=True),
-        os.path.dirname(fdsys_xml_path) + '/data.json',
+        data_json_filepath,
         {
             "diff": options.get("diff")
         })
 
     from congress.tasks.bill_info import create_govtrack_xml
-    with open(os.path.dirname(fdsys_xml_path) + '/data.xml', 'wb') as xml_file:
+    data_xml_filepath = f'{os.path.dirname(fdsys_xml_path)}/data.xml'
+    logger.info(f'Saving "data.xml" file with filepath: "{data_xml_filepath}".')
+    with open(data_xml_filepath, 'wb') as xml_file:
         xml_file.write(create_govtrack_xml(bill_data, options))
 
     if options.get("amendments", True):
@@ -149,13 +156,21 @@ def process_bill(bill_id, options):
 
     # Mark this bulk data file as processed by saving its lastmod
     # file under a new path.
+    fdsys_billstatus_lastmod_filepath = os.path.join(os.path.dirname(fdsys_xml_path), "data-fromfdsys-lastmod.txt")
+    logger.info(f'Saving "data-fromfdsys-lastmod.txt" file with filepath: "{fdsys_billstatus_lastmod_filepath}".')
     utils.write(
         utils.read(_path_to_billstatus_file(bill_id).replace(".xml", "-lastmod.txt")),
-        os.path.join(os.path.dirname(fdsys_xml_path), "data-fromfdsys-lastmod.txt"),
+        fdsys_billstatus_lastmod_filepath,
         {
             "diff": options.get("diff")
         })
-
+    with open(fdsys_billstatus_lastmod_filepath, 'r') as f:
+        content = f.read()
+    logger.info(
+        'Saved "data-fromfdsys-lastmod.txt" file with '
+        f'filepath: "{fdsys_billstatus_lastmod_filepath}", '
+        f'last modified dateTime: "{content}".'
+    )
     return {
         "ok": True,
         "saved": True,
@@ -194,7 +209,7 @@ def form_bill_json_dict(xml_as_dict):
     status, status_date = bill_info.latest_status(actions, bill_dict.get('introducedDate', ''))
 
     if bill_dict['sponsors'] is None and bill_dict['titles']['item'][0]['title'].startswith("Reserved "):
-        logging.info("[%s] Skipping reserved bill number with no sponsor (%s)" % (bill_id, bill_dict['titles']['item'][0]['title']))
+        logger.info("[%s] Skipping reserved bill number with no sponsor (%s)" % (bill_id, bill_dict['titles']['item'][0]['title']))
         return bill_dict['titles']['item'][0]['title'] # becomes the 'reason'
 
     if schema_version >= parse_version('3.0.0'):

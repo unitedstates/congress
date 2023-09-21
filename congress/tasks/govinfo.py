@@ -47,9 +47,11 @@ import os
 import os.path
 import zipfile
 from congress.tasks import utils
+from congress.common.constants.congress import CongressConstants
 
 import rtyaml
 
+logger = logging.getLogger(CongressConstants.CONGRESS_DEFAULT_LOGGER_NAME.value)
 
 # globals
 GOVINFO_BASE_URL = "https://www.govinfo.gov/"
@@ -67,6 +69,7 @@ ns = {"x": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
 def run(options):
     # Process sitemaps.
+    logger.info(f'Running govinfo with options: "{options}".')
     for collection in sorted(options.get("collections", "").split(",")):
         if collection != "":
             update_sitemap(COLLECTION_SITEMAPINDEX_PATTERN.format(collection=collection), None, [], options)
@@ -123,7 +126,7 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
 
     # Download, or just retreive from cache.
     if download:
-        logging.warn("Downloading: %s" % url)
+        logger.info("Downloading: %s" % url)
     body = utils.download(
         url,
         cache_file,
@@ -132,7 +135,7 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
             'binary': True
         }))
     if not body:
-        logging.error("Failed to download %s. Skipping." % url)
+        logger.error("Failed to download %s. Skipping." % url)
         return results
 
     # If we downloaded a new file, update the lastmod for our cache.
@@ -175,7 +178,7 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
                 try:
                     mirror_results = mirror_package(collection, package_name, lastmod, lastmod_cache.setdefault("packages", {}), options)
                 except:
-                    logging.exception("Error fetching package {} in collection {} from {}.".format(package_name, collection, url))
+                    logger.exception("Error fetching package {} in collection {} from {}.".format(package_name, collection, url))
                     mirror_results = []
                 results.extend(mirror_results)
 
@@ -190,7 +193,7 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
                 try:
                     mirror_results = mirror_bulkdata_file(collection, url, item_path, lastmod, options)
                 except:
-                    logging.exception("Error fetching file {} in collection {} from {}.".format(item_path, collection, url))
+                    logger.exception("Error fetching file {} in collection {} from {}.".format(item_path, collection, url))
                     mirror_results = None
                 if mirror_results is not None and len(mirror_results) > 0:
                     results = results + mirror_results
@@ -305,7 +308,7 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
     # If the file was supposedly downloaded before (i.e. lastmod_cache is
     # not empty) but it is missing, force a re-download by clearing the lastmod cache.
     if lastmod_cache and not os.path.exists(file_path):
-        logging.error("Missing: " + file_path + " (previously: " + repr(lastmod_cache) + ")")
+        logger.error("Missing: " + file_path + " (previously: " + repr(lastmod_cache) + ")")
         lastmod_cache.clear()
 
     # Download the package ZIP file if it's updated.
@@ -324,7 +327,7 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
     except zipfile.BadZipfile as e:
         # Sometimes files don't download properly. If the ZIP file is
         # corrupt, log the error and delete the file.
-        logging.error(str(e) + ". Deleting: " + file_path, exc_info=True)
+        logger.error(str(e) + ". Deleting: " + file_path, exc_info=True)
         os.unlink(file_path)
 
     return downloaded_files
@@ -341,7 +344,7 @@ def mirror_package_zipfile(collection, package_name, file_path, lastmod, lastmod
 
     # Download.
     file_url = GOVINFO_BASE_URL + "content/pkg/{}-{}.zip".format(collection, package_name)
-    logging.warn("Downloading: " + file_path)
+    logger.info("Downloading: " + file_path)
     data = utils.download(file_url, file_path, utils.merge(options, {
         'binary': True,
         'force': True, # decision to cache was made above
@@ -407,13 +410,13 @@ def extract_package_files(collection, package_name, package_file, lastmod_cache,
                 # to extract it again later, unless the package is updated.
                 lastmod_cache[format] = lastmod_cache['package']
 
-            logging.warn("Extracted: " + local_path)
+            logger.info("Extracted: " + local_path)
             extracted_files.append(local_path)
 
             # The "text" format files are put in an HTML container. Unwrap it into a .txt file.
             if format == "text":
                 file_path_text = local_path.replace(".html", ".txt")
-                logging.info("Unwrapping HTML to: " + file_path_text)
+                logger.info("Unwrapping HTML to: " + file_path_text)
                 with open(local_path) as f1:
                     with open(file_path_text, "wb") as f2:
                         f2.write(unwrap_text_in_html(f1.read()))
@@ -508,7 +511,7 @@ def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
         return
 
     # Download.
-    logging.warn("Downloading: " + path)
+    logger.info("Downloading: " + path)
     data = utils.download(url, path, utils.merge(options, {
         'binary': True,
         'force': True, # decision to cache was made above

@@ -8,6 +8,8 @@
 /todo*
 /congress-legislators
 *.bak
+*.log
+*.gz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -57,3 +59,4 @@ docs/_build/
 
 # Local things
 /dev/
+.vscode

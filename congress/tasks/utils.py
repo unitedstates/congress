@@ -22,7 +22,9 @@ import smtplib
 import email.utils
 from email.mime.text import MIMEText
 import getpass
+from congress.common.constants.congress import CongressConstants
 
+logger = logging.getLogger(CongressConstants.CONGRESS_DEFAULT_LOGGER_NAME.value)
 
 # read in an opt-in config file for changing directories and supplying email settings
 # returns None if it's not there, and this should always be handled gracefully
@@ -160,7 +162,7 @@ def split_nomination_id(nomination_id):
     try:
         return re.match("^([A-z]{2})([\d-]+)-(\d+)$", nomination_id).groups()
     except Exception as e:
-        logging.error("Unabled to parse %s" % nomination_id)
+        logger.error("Unabled to parse %s" % nomination_id)
         return (None, None, None)
 
 
@@ -182,13 +184,13 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
         if results.get('ok', False):
             if results.get('saved', False):
                 saved.append(id)
-                logging.info("[%s] Updated" % id)
+                logger.info("[%s] Updated" % id)
             else:
                 skips.append(id)
-                logging.warn("[%s] Skipping: %s" % (id, results['reason']))
+                logger.warn("[%s] Skipping: %s" % (id, results['reason']))
         else:
             errors.append((id, results, None))
-            logging.error("[%s] Error: %s" % (id, results['reason']))
+            logger.error("[%s] Error: %s" % (id, results['reason']))
 
     if len(errors) > 0:
         message = "\nErrors for %s items:\n" % len(errors)
@@ -202,9 +204,9 @@ def process_set(to_fetch, fetch_func, options, *extra_args):
 
         admin(message)  # email if possible
 
-    logging.warning("\nErrors for %s." % len(errors))
-    logging.warning("Skipped %s." % len(skips))
-    logging.warning("Saved data for %s." % len(saved))
+    logger.warning("\nErrors for %s." % len(errors))
+    logger.warning("Skipped %s." % len(skips))
+    logger.warning("Saved data for %s." % len(saved))
 
     return saved + skips  # all of the OK's
 
@@ -269,7 +271,7 @@ def download(url, destination=None, options={}):
             if not zf:
                 zf = zipfile.ZipFile(zfn, "r")
                 _download_zip_files[zfn] = zf
-                logging.warn("Loaded: %s" % zfn)
+                logger.warn("Loaded: %s" % zfn)
 
             # see if the inner file exists, and if so read the bytes
             try:
@@ -280,7 +282,7 @@ def download(url, destination=None, options={}):
                 continue
 
             if not test:
-                logging.info("Cached: (%s, %s)" % (zfn + "#" + zfn_inner, url))
+                logger.info("Cached: (%s, %s)" % (zfn + "#" + zfn_inner, url))
             if force:
                 raise Exception("Cannot re-download a file already cached to a ZIP file.")
 
@@ -293,7 +295,7 @@ def download(url, destination=None, options={}):
     # Load the file from disk if it's already been downloaded and force is False.
     if destination and (not force) and os.path.exists(cache_path):
         if not test:
-            logging.info("Cached: (%s, %s)" % (cache_path, url))
+            logger.info("Cached: (%s, %s)" % (cache_path, url))
         if not needs_content:
             return True
         with open(cache_path, 'rb') as f:
@@ -304,7 +306,7 @@ def download(url, destination=None, options={}):
     # Download from the network and cache to disk.
     else:
         try:
-            logging.info("Downloading: %s" % url)
+            logger.info("Downloading: %s" % url)
 
             if postdata:
                 response = scraper.post(url, postdata, **urlopen_kwargs)
@@ -325,7 +327,7 @@ def download(url, destination=None, options={}):
                 if isinstance(body, str):
                     raise ValueError("Binary content improperly decoded.")
         except scrapelib.HTTPError as e:
-            logging.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
+            logger.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
             if options.get("return_status_code_on_error"):
                 return e.response.status_code
             return None
@@ -370,6 +372,7 @@ def write(content, destination, options={}):
                 return
 
     # Save the content to disk.
+    logger.info(f'Saving file with filepath : "{destination}".')
     mkdir_p(os.path.dirname(destination))
     f = open(destination, 'wb')
     try:
@@ -495,17 +498,7 @@ def extract_bills(text, session):
 
 
 def cache_dir():
-    cache = None
-
-    if config:
-        output = config.get('output', None)
-        if output:
-            cache = output.get('cache', None)
-
-    if not cache:
-        cache = "cache"
-
-    return cache
+    return CongressConstants.CACHE_FOLDER_FILEPATH.value
 
 
 def test_cache_dir():
@@ -515,17 +508,7 @@ def test_cache_dir():
 
 
 def data_dir():
-    data = None
-
-    if config:
-        output = config.get('output', None)
-        if output:
-            data = output.get('data', None)
-
-    if not data:
-        data = "data"
-
-    return data
+    return CongressConstants.DATA_FOLDER_FILEPATH.value
 
 # if email settings are supplied, email the text - otherwise, just print it
 
@@ -535,7 +518,7 @@ def admin(body):
         if isinstance(body, Exception):
             body = format_exception(body)
 
-        logging.error(body)  # always print it
+        logger.error(body)  # always print it
 
         if config:
             details = config.get('email', None)
@@ -576,7 +559,7 @@ def send_email(message):
     finally:
         server.quit()
 
-    logging.info("Sent email to %s" % settings['to'])
+    logger.info("Sent email to %s" % settings['to'])
 
 
 def make_node(parent, tag, text, **attrs):
@@ -692,7 +675,7 @@ def yaml_load(filename):
         yaml_data = cache_load(cache_filename, file_hash)
     except CacheError:
         # We don't have a cached version of the requested YAML file available, so we have to load it directly.
-        logging.warn("Using original YAML file...")
+        logger.warn("Using original YAML file...")
 
         # Load the requested YAML file directly.
         yaml_data = direct_yaml_load(filename)
@@ -701,7 +684,7 @@ def yaml_load(filename):
         cache_write(yaml_data, cache_filename, file_hash)
     else:
         # We have a cached version of the requested YAML file available, so we can use it.
-        logging.info("Using cached YAML file...")
+        logger.info("Using cached YAML file...")
 
     return yaml_data
 
@@ -718,12 +701,12 @@ def require_congress_legislators_repo():
 
     # Clone the congress-legislators repo if we don't have it.
     if not os.path.exists("congress-legislators"):
-        logging.warn("Cloning the congress-legislators repo...")
+        logger.warn("Cloning the congress-legislators repo...")
         os.system("git clone -q --depth 1 https://github.com/unitedstates/congress-legislators congress-legislators")
 
     if os.environ.get("UPDATE_CONGRESS_LEGISLATORS") != "NO":
         # Update the repo so we have the latest.
-        logging.warn("Updating the congress-legislators repo...")
+        logger.warn("Updating the congress-legislators repo...")
         # these two == git pull, but git pull ignores -q on the merge part so is less quiet
         os.system("cd congress-legislators; git fetch -pq; git merge --ff-only -q origin/main")
 
@@ -821,10 +804,10 @@ def lookup_legislator(congress, role_type, name, state, party, when, id_requeste
 
     # Return if there is a unique match.
     if len(matches) == 0:
-        logging.warn("Could not match name %s (%s-%s; %s) to any legislator." % (name, state, party, when))
+        logger.warn("Could not match name %s (%s-%s; %s) to any legislator." % (name, state, party, when))
         return None
     if len(matches) > 1:
-        logging.warn("Multiple matches of name %s (%s-%s; %s) to legislators (%s; excludes %s)." % (name, state, party, when, str(matches), str(exclude)))
+        logger.warn("Multiple matches of name %s (%s-%s; %s) to legislators (%s; excludes %s)." % (name, state, party, when, str(matches), str(exclude)))
         return None
     return list(matches)[0]
 
@@ -876,7 +859,7 @@ class NoInterrupt(object):
             def handler(s, frame, sig=sig): # sig=sig ensures the variable is captured by value
                 self.signal_received[sig] = (s, frame)
                 # Note: in Python 3.5, you can use signal.Signals(sig).name
-                logging.info('Signal %s received. Delaying KeyboardInterrupt.' % sig)
+                logger.info('Signal %s received. Delaying KeyboardInterrupt.' % sig)
             self.old_handlers[sig] = signal.signal(sig, handler)
     def __exit__(self, type, value, traceback):
         # Restore signal handlers that were in place before entering the with-block.

@@ -65,6 +65,10 @@ import subprocess
 
 from congress.tasks import utils, bill_info, bill_versions
 import fdsys
+from congress.common.constants.congress import CongressConstants
+
+
+logger = logging.getLogger(CongressConstants.CONGRESS_DEFAULT_LOGGER_NAME.value)
 
 
 def run(options):
@@ -87,7 +91,7 @@ def run(options):
     else:
         to_fetch = sorted(glob.glob(root_dir + "/*/STATUTE-*"))
 
-    logging.warn("Going to process %i volumes" % len(to_fetch))
+    logger.warn("Going to process %i volumes" % len(to_fetch))
 
     utils.process_set(to_fetch, proc_statute_volume, options)
 
@@ -101,7 +105,7 @@ def proc_statute_volume(path, options):
     congress = mods.find("/mods:extension[2]/mods:congress", mods_ns).text
     utils.fetch_committee_names(congress, options)
 
-    logging.warn("Processing %s (Congress %s)" % (path, congress))
+    logger.warn("Processing %s (Congress %s)" % (path, congress))
 
     package_id = mods.find("/mods:extension[2]/mods:accessId", mods_ns).text
 
@@ -118,13 +122,13 @@ def proc_statute_volume(path, options):
         # Bill number
         bill_elements = bill.findall("mods:extension/mods:bill[@priority='primary']", mods_ns)
         if len(bill_elements) == 0:
-            logging.error("No bill number identified for '%s' (%s)" % (title_text, source_url))
+            logger.error("No bill number identified for '%s' (%s)" % (title_text, source_url))
             continue
         elif len(bill_elements) > 1:
-            logging.error("Multiple bill numbers identified for '%s'" % title_text)
+            logger.error("Multiple bill numbers identified for '%s'" % title_text)
             for be in bill_elements:
-                logging.error("  -- " + etree.tostring(be).strip())
-            logging.error("  @ " + source_url)
+                logger.error("  -- " + etree.tostring(be).strip())
+            logger.error("  @ " + source_url)
             continue
         else:
             bill_congress = bill_elements[0].attrib["congress"]
@@ -199,7 +203,7 @@ def proc_statute_volume(path, options):
 
             # Check for typos in the metadata.
             if law_congress != bill_congress:
-                logging.error("Congress mismatch for %s%s: %s or %s? (%s)" % (bill_type, bill_number, bill_congress, law_congress, source_url))
+                logger.error("Congress mismatch for %s%s: %s or %s? (%s)" % (bill_type, bill_number, bill_congress, law_congress, source_url))
                 continue
 
             actions = [{
@@ -274,7 +278,7 @@ def proc_statute_volume(path, options):
             if options.get("linkpdf", False):
                 os.link(pdf_file, dst_path + "/document.pdf")  # a good idea
             if options.get("extracttext", False):
-                logging.error("Running pdftotext on %s..." % pdf_file)
+                logger.error("Running pdftotext on %s..." % pdf_file)
                 if subprocess.call(["pdftotext", "-layout", pdf_file, dst_path + "/document.txt"]) != 0:
                     raise Exception("pdftotext failed on %s" % pdf_file)
 

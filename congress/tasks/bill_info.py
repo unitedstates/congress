@@ -5,6 +5,9 @@ import json
 from lxml import etree
 import copy
 import datetime
+from congress.common.constants.congress import CongressConstants
+
+logger = logging.getLogger(CongressConstants.CONGRESS_DEFAULT_LOGGER_NAME.value)
 
 
 def create_govtrack_xml(bill, options):

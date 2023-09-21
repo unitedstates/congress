@@ -6,9 +6,12 @@ import traceback
 import pprint as pp
 import logging
 import importlib
-
+from congress.common.constants.congress import CongressConstants
 # set global HTTP timeouts to 10 seconds
 import socket
+
+logger = logging.getLogger(CongressConstants.CONGRESS_DEFAULT_LOGGER_NAME.value)
+
 
 def main():
     socket.setdefaulttimeout(10)
@@ -53,7 +56,7 @@ def main():
 
 
     sys.path.append(os.path.join(CONGRESS_ROOT, "tasks"))
-    import utils
+    import congress.tasks.utils as utils
 
     try:
         task_mod = __import__(task_name)
@@ -62,10 +65,10 @@ def main():
             patch_mod = importlib.import_module(options['patch'])
             patch_func = getattr(patch_mod, 'patch', None)
             if patch_func is None:
-                logging.error("You specified a --patch argument but the {} module does not contain a 'patch' function.".format(options['patch']))
+                logger.error("You specified a --patch argument but the {} module does not contain a 'patch' function.".format(options['patch']))
                 sys.exit(1)
             elif not callable(patch_func):
-                logging.error("You specified a --patch argument but {}.patch is not callable".format(options['patch']))
+                logger.error("You specified a --patch argument but {}.patch is not callable".format(options['patch']))
                 sys.exit(1)
             else:
                 patch_mod.patch(task_name)
@@ -75,4 +78,7 @@ def main():
         utils.admin(exception)
 
 if __name__ == "__main__":
+
+    from congress.utils.logs.log import project_logger as logger
+
     main()
