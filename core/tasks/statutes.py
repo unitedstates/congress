@@ -63,7 +63,7 @@ import json
 import os.path
 import subprocess
 
-from congress.tasks import utils, bill_info, bill_versions
+from core.tasks import utils, bill_info, bill_versions
 import fdsys
 from congress.common.constants.congress import CongressConstants
 

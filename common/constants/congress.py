@@ -1,6 +1,7 @@
 import os
 
 import enum
+import multiprocessing
 
 
 class CongressConstants(enum.Enum):
@@ -41,3 +42,9 @@ class CongressConstants(enum.Enum):
     LOG_ARCHIVES_MAX_TOTAL_SIZE = 3_221_225_472  # 3GB in bytes
     LOG_BASE_FILENAME_REGEX = r'(?<=)([a-z-_]+)(?=_\d)'
     LOG_FULL_FILE_NAME_REGEX = r'(?<=)({base_name})(?=_\d)'
+    CONRESS_PROCESSES_TO_CREATE = int(
+        os.getenv(
+            'CONRESS_PROCESSES_TO_CREATE',
+            multiprocessing.cpu_count() - 1,
+        )
+    )

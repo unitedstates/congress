@@ -5,9 +5,9 @@ import time
 import json
 from lxml import etree
 
-from congress.tasks import utils
+from core.tasks import utils
 
-from congress.tasks.bill_info import sponsor_for as sponsor_for_bill, action_for
+from core.tasks.bill_info import sponsor_for as sponsor_for_bill, action_for
 
 def process_amendment(amdt_data, bill_id, options):
     amdt = build_amendment_json_dict(amdt_data, options)
@@ -69,7 +69,7 @@ def build_amendment_json_dict(amdt_dict, options):
             amdt['description'] = amdt['description'][0]
 
     if amdt_dict['type'][0].lower() == 's':
-        amdt['proposed_at'] = amdt_dict['proposedDate']
+        amdt['proposed_at'] = amdt_dict.get('proposedDate')
 
     # needs to come *after* the setting of introduced_at
     amdt['status'], amdt['status_at'] = amendment_status_for(amdt)
@@ -113,8 +113,8 @@ def create_govtrack_xml(amdt, options):
 
     make_node(root, "offered", None, datetime=amdt['introduced_at'])
 
-    make_node(root, "description", amdt["description"] if amdt["description"] else amdt["purpose"])
-    if amdt["description"]:
+    make_node(root, "description", amdt.get("description") if amdt.get("description") else amdt["purpose"])
+    if amdt.get("description"):
         make_node(root, "purpose", amdt["purpose"])
 
     actions = make_node(root, "actions", None)
@@ -142,7 +142,7 @@ def build_amendment_id(amdt_type, amdt_number, congress):
     return "%s%s-%s" % (amdt_type, amdt_number, congress)
 
 def amends_bill_for(amends_bill):
-    from congress.tasks.bills import build_bill_id
+    from core.tasks.bills import build_bill_id
     bill_id = build_bill_id(amends_bill['type'].lower(), amends_bill['number'], amends_bill['congress'])
     return {
         'bill_id': bill_id,

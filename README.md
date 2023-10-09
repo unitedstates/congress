@@ -2,6 +2,8 @@
 
 This is a community-run project to develop Python tools to collect data about the bills, amendments, roll call votes, and other core data about the U.S. Congress into simple-to-use structured data files.
 
+The repository is a part of [BillML](https://github.com/dreamproit/BillML) project and full functionality of original repo might not be available.
+
 The tools include:
 
 * Downloading the [official bulk bill status data](https://github.com/usgpo/bill-status) from Congress, the official source of information on the life and times of legislation, and converting the data to an easier-to-use format.

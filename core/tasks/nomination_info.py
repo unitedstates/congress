@@ -1,4 +1,4 @@
-from congress.tasks import utils
+from core.tasks import utils
 import logging
 import re
 import json

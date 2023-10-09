@@ -1,4 +1,4 @@
-from congress.tasks import utils
+from core.tasks import utils
 import json
 from iso8601 import iso8601
 import datetime
@@ -11,7 +11,7 @@ import datetime
 from lxml import html, etree
 import logging
 
-from congress.tasks import vote_info
+from core.tasks import vote_info
 
 
 def run(options):

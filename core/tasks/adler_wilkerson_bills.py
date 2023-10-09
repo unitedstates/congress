@@ -6,7 +6,7 @@ import csv
 import zipfile
 import datetime
 
-from congress.tasks import utils
+from core.tasks import utils
 
 
 def run(options):

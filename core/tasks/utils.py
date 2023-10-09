@@ -17,11 +17,12 @@ import pprint
 import logging
 import subprocess
 import signal
-
+import requests
 import smtplib
 import email.utils
 from email.mime.text import MIMEText
 import getpass
+from time import sleep
 from congress.common.constants.congress import CongressConstants
 
 logger = logging.getLogger(CongressConstants.CONGRESS_DEFAULT_LOGGER_NAME.value)
@@ -40,8 +41,24 @@ else:
 eastern_time_zone = timezone('US/Eastern')
 
 # scraper should be instantiated at class-load time, so that it can rate limit appropriately
-scraper = scrapelib.Scraper(requests_per_minute=120, retry_attempts=3)
-scraper.user_agent = "unitedstates/congress (https://github.com/unitedstates/congress)"
+# scraper = scrapelib.Scraper(requests_per_minute=120, retry_attempts=3)
+# scraper.user_agent = "unitedstates/congress (https://github.com/unitedstates/congress)"
+
+
+def getBillParts(filename):
+    """Gets dict with 'congress, billtype, billnum, billversion' from provided filename by matching with regex template."""  # noqa
+    m1 = re.match(
+        (
+            r'(?:BILLS-)?(?P<congress>\d{3})(?P<billtype>[a-z]+)(?P<billnum>\d+)'
+            r'(?P<billversion>[a-z]+)?(?:\.(?P<filetype>[a-z]{3}))?'
+        ),
+        filename,
+    )
+    if m1 is not None:
+        billPartsDict = m1.groupdict()
+    else:
+        return None
+    return billPartsDict
 
 
 def format_datetime(obj):
@@ -217,6 +234,8 @@ _download_zip_files = {}
 
 
 def download(url, destination=None, options={}):
+    scraper = scrapelib.Scraper(requests_per_minute=120, retry_attempts=3)
+    scraper.user_agent = "unitedstates/congress (https://github.com/unitedstates/congress)"
     # uses cache by default, override (True) to ignore
     force = options.get('force', False)
 
@@ -307,7 +326,9 @@ def download(url, destination=None, options={}):
     else:
         try:
             logger.info("Downloading: %s" % url)
-
+            # import urllib3
+            # urllib3.disable_warnings()
+            # sleep(5)
             if postdata:
                 response = scraper.post(url, postdata, **urlopen_kwargs)
             else:
@@ -315,8 +336,9 @@ def download(url, destination=None, options={}):
                     mkdir_p(os.path.dirname(cache_path))
                     scraper.urlretrieve(url, cache_path, **urlopen_kwargs)
                     return True
-
+                logger.info(f'Making a GET request to the url: "{url}", params: {urlopen_kwargs}.')
                 response = scraper.get(url, **urlopen_kwargs)
+                a = 10
 
             if not is_binary:
                 body = response.text  # a subclass of a 'unicode' instance
@@ -330,6 +352,9 @@ def download(url, destination=None, options={}):
             logger.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
             if options.get("return_status_code_on_error"):
                 return e.response.status_code
+            return None
+        except requests.exceptions.SSLError as e:
+            logger.error("Error downloading %s:\n\n%s" % (url, format_exception(e)))
             return None
 
         # don't allow 0-byte files

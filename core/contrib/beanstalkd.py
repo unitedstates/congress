@@ -34,7 +34,7 @@ import beanstalkc
 
 # The patch module is loaded after the task module is loaded, so all task
 # modules are on the import path.
-from congress.tasks import bills, amendment_info, vote_info
+from core.tasks import bills, amendment_info, vote_info
 
 
 __all__ = [

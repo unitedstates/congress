@@ -1,7 +1,7 @@
-from congress.tasks import utils
+from core.tasks import utils
 import logging
 import re
-import json
+
 from lxml import etree
 import copy
 import datetime
@@ -172,17 +172,25 @@ def sponsor_for(sponsor_dict):
         sponsor_dict['fullName'])
 
     if not m:
-        raise ValueError(sponsor_dict)
-
-    return {
-        'title': m.group("title"),
-        'name': m.group("name"), # the firstName, middleName, lastName fields have inconsistent capitalization - some are all uppercase
+        logger.error("Could not parse sponsor name: " + sponsor_dict['fullName'])
+        # return {}
+        # raise ValueError(sponsor_dict)
+        title = sponsor_dict['fullName'].split(' ')[0]
+        name = ' '.join(sponsor_dict['fullName'].split(' ')[1:-1])
+    else:
+        title = m.group("title")
+        name = m.group("name")
+    result = {
+        'title': title,
+        'name': name, # the firstName, middleName, lastName fields have inconsistent capitalization - some are all uppercase
         'state': sponsor_dict["state"],
         'district': sponsor_dict.get("district"), # missing for senators
         #'party': m.group('party'),
         'bioguide_id': sponsor_dict['bioguideId'],
         'type': 'person'
     }
+    logger.debug(f'sponsor info: "{result}"')
+    return result
 
 def summary_for(summaries):
     # Some bills are missing the summaries entirely?
@@ -237,7 +245,7 @@ def committees_for(committee_list):
             name)
 
     def get_activitiy_list(item):
-        if not item['activities']:
+        if not item.get('activities'):
             return []
         return sum([activity_text_map.get(i['name'], [i['name']]) for i in item['activities']['item']], [])
 
@@ -400,7 +408,14 @@ def actions_for(action_list, bill_id, title):
 
         keep = True
         if closure['prev']:
-            if item['sourceSystem'].get('code') == "9":
+            # try:
+            #     code = item['sourceSystem']['code']
+            # except KeyError:
+            #     code = closure['prev']['sourceSystem'].get('code')
+            code = item.get('sourceSystem', {}).get('code')
+            if not code:
+                code = closure.get('prev', {}).get('sourceSystem', {}).get('code')
+            if code == "9":
                 # Date must match previous action..
                 # If both this and previous have a time, the times must match.
                 # The text must approximately match. Sometimes the LOC text has a prefix
@@ -536,6 +551,7 @@ def cosponsors_for(cosponsors_list):
 
     def build_dict(item):
         cosponsor_dict = sponsor_for(item)
+        # if cosponsor_dict:
         del cosponsor_dict["type"] # always 'person'
         cosponsor_dict.update({
             'sponsored_at': item['sponsorshipDate'],
@@ -866,7 +882,9 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             bill_item = bill_item.lower().replace(".", "").replace(" ", "").split(",")
             if bill_item[0] == (bill_type + number):
                 as_amended = len(bill_item) > 1
-        if as_amended is None: raise ValueError("Did not find bill in list: " + line)
+        if as_amended is None: 
+            # raise ValueError("Did not find bill in list: " + line)
+            logger.error("Did not find bill in list: " + line)
 
         vote_type = "vote" if (bill_type[0] == "h") else "vote2"
         pass_fail = "pass"

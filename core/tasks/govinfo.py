@@ -46,12 +46,14 @@ import logging
 import os
 import os.path
 import zipfile
-from congress.tasks import utils
+from core.tasks import utils
 from congress.common.constants.congress import CongressConstants
-
+import multiprocessing
 import rtyaml
+import pathlib
 
 logger = logging.getLogger(CongressConstants.CONGRESS_DEFAULT_LOGGER_NAME.value)
+
 
 # globals
 GOVINFO_BASE_URL = "https://www.govinfo.gov/"
@@ -76,6 +78,7 @@ def run(options):
     for collection in sorted(options.get("bulkdata", "").split(",")):
         if collection != "":
             update_sitemap(BULKDATA_SITEMAPINDEX_PATTERN.format(collection=collection), None, [], options)
+
 
 def update_sitemap(url, current_lastmod, how_we_got_here, options):
     """Updates the local cache of a sitemap file."""
@@ -166,7 +169,10 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
         # This is a regular sitemap with content items listed.
 
         # Process the items.
-        for node in sitemap.xpath("x:url", namespaces=ns):
+        mirror_package_tasks = []
+        mirror_bulkdata_file_tasks = []
+        nodes = sitemap.xpath("x:url", namespaces=ns)
+        for node in nodes:
             url = str(node.xpath("string(x:loc)", namespaces=ns))
             lastmod = str(node.xpath("string(x:lastmod)", namespaces=ns))
 
@@ -175,13 +181,9 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
                 collection = m.group(1)
                 package_name = m.group(2)
                 if options.get("filter") and not re.search(options["filter"], package_name): continue
-                try:
-                    mirror_results = mirror_package(collection, package_name, lastmod, lastmod_cache.setdefault("packages", {}), options)
-                except:
-                    logger.exception("Error fetching package {} in collection {} from {}.".format(package_name, collection, url))
-                    mirror_results = []
-                results.extend(mirror_results)
-
+                mirror_package_tasks.append([collection, package_name, lastmod, lastmod_cache.setdefault(
+                    "packages", {}), options]
+                )
             else:
                 # This is a bulk data item. Extract components of the URL.
                 m = re.match(BULKDATA_BASE_URL + r"([^/]+)/(.*)", url)
@@ -190,18 +192,26 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
                 collection = m.group(1)
                 item_path = m.group(2)
                 if options.get("filter") and not re.search(options["filter"], item_path): continue
-                try:
-                    mirror_results = mirror_bulkdata_file(collection, url, item_path, lastmod, options)
-                except:
-                    logger.exception("Error fetching file {} in collection {} from {}.".format(item_path, collection, url))
-                    mirror_results = None
-                if mirror_results is not None and len(mirror_results) > 0:
-                    results = results + mirror_results
+                mirror_bulkdata_file_tasks.append([collection, url, item_path, lastmod, options])
 
-    else:
-        raise Exception("Unknown sitemap type (%s) at the root sitemap of %s." % (sitemap.tag, url))
-
+        PROCESSES_TO_CREATE = CongressConstants.CONRESS_PROCESSES_TO_CREATE.value
+        logger.info(
+            f'Processing mirror_package_tasks: "{len(mirror_package_tasks)}" in "{PROCESSES_TO_CREATE}" subprocesses.'
+        )
+        logger.info(
+            f'Processing mirror_bulkdata_file_tasks: "{len(mirror_bulkdata_file_tasks)}" in "{PROCESSES_TO_CREATE}" subprocesses.'
+        )
+        with multiprocessing.Pool(processes=PROCESSES_TO_CREATE) as pool:
+            if mirror_bulkdata_file_tasks:
+                result = pool.starmap(mirror_bulkdata_file, mirror_bulkdata_file_tasks)
+                if isinstance(result, list):
+                    results.extend(result)
+            if mirror_package_tasks:
+                result = pool.starmap(mirror_package, mirror_package_tasks)
+                if isinstance(result, list):
+                    results.extend(result)
     return results
+
 
 def should_skip_sitemap(url, options):
     # Don't skip sitemap indexes.
@@ -305,11 +315,21 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
     # package.
     file_path = os.path.join(path, "package.zip")
 
+    lastmod_cache_file = os.path.splitext(file_path)[0] + "-lastmod.txt"
+
     # If the file was supposedly downloaded before (i.e. lastmod_cache is
     # not empty) but it is missing, force a re-download by clearing the lastmod cache.
     if lastmod_cache and not os.path.exists(file_path):
-        logger.error("Missing: " + file_path + " (previously: " + repr(lastmod_cache) + ")")
+        # logger.error("Missing: " + file_path + " (previously: " + repr(lastmod_cache) + ")")
         lastmod_cache.clear()
+
+    if os.path.exists(lastmod_cache_file) and not options.get("force", False):
+        lastmod_cache_file_value = utils.read(lastmod_cache_file)
+        if lastmod == lastmod_cache_file_value:
+            logger.info(f'Skipping filepath: "{file_path}" its lastmod: "{lastmod}" is the same as lastmod_cache_file_value: "{lastmod_cache_file_value}".')
+            # results.append(path)
+            # return results
+            return True
 
     # Download the package ZIP file if it's updated.
     downloaded_files = []
@@ -329,6 +349,12 @@ def mirror_package(collection, package_name, lastmod, lastmod_cache, options):
         # corrupt, log the error and delete the file.
         logger.error(str(e) + ". Deleting: " + file_path, exc_info=True)
         os.unlink(file_path)
+        lastmod = None
+        lastmod_cache_file = None
+        return []
+
+    if lastmod and lastmod_cache_file:
+        utils.write(lastmod, lastmod_cache_file)
 
     return downloaded_files
 
@@ -344,7 +370,7 @@ def mirror_package_zipfile(collection, package_name, file_path, lastmod, lastmod
 
     # Download.
     file_url = GOVINFO_BASE_URL + "content/pkg/{}-{}.zip".format(collection, package_name)
-    logger.info("Downloading: " + file_path)
+    logger.info("Downloading: " + file_url)
     data = utils.download(file_url, file_path, utils.merge(options, {
         'binary': True,
         'force': True, # decision to cache was made above
@@ -360,6 +386,9 @@ def extract_package_files(collection, package_name, package_file, lastmod_cache,
     # Extract files from the package ZIP file depending on the --extract
     # command-line argument. When extracting a file, mark the extracted
     # file's lastmod as the same as the package's lastmod.
+    if not pathlib.Path(package_file).exists():
+        logger.error(f'Package file: "{package_file}" does not exist.')
+        return []
 
     # Get the formats that the user wants to extract.
     extract_formats = set(format for format in options.get("extract", "").split(",") if format.strip())
@@ -455,7 +484,7 @@ def get_output_path(collection, package_name, options):
         bill_and_ver = get_bill_id_for_package(package_name, with_version=False, restrict_to_congress=options.get("congress"))
         if not bill_and_ver:
             return None  # congress number does not match options["congress"]
-        from congress.tasks.bills import output_for_bill
+        from core.tasks.bills import output_for_bill
         bill_id, version_code = bill_and_ver
         return output_for_bill(bill_id, "text-versions/" + version_code, is_data_dot=False)
 
@@ -493,7 +522,7 @@ def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
     # For BILLSTATUS, store this along with where we store the rest of bill
     # status data.
     if collection == "BILLSTATUS":
-        from congress.tasks.bills import output_for_bill
+        from core.tasks.bills import output_for_bill
         bill_id, version_code = get_bill_id_for_package(os.path.splitext(os.path.basename(item_path.replace("BILLSTATUS-", "")))[0], with_version=False)
         path = output_for_bill(bill_id, FDSYS_BILLSTATUS_FILENAME, is_data_dot=False)
 
@@ -504,14 +533,15 @@ def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
     # Do we already have this file up to date?
     if os.path.exists(lastmod_cache_file) and not options.get("force", False):
         if lastmod == utils.read(lastmod_cache_file):
-            return
+            results.append(path)
+            return results
 
     # With --cached, skip if the file is already downloaded.
     if os.path.exists(path) and options.get("cached", False):
         return
 
     # Download.
-    logger.info("Downloading: " + path)
+    logger.info(f'Downloading: "{path}".')
     data = utils.download(url, path, utils.merge(options, {
         'binary': True,
         'force': True, # decision to cache was made above

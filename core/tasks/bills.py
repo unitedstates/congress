@@ -4,7 +4,7 @@ import os
 import re
 import xmltodict
 
-from congress.tasks import bill_info, amendment_info, govinfo, utils
+from core.tasks import bill_info, amendment_info, govinfo, utils
 
 from congress.common.constants.congress import CongressConstants
 
@@ -145,7 +145,7 @@ def process_bill(bill_id, options):
             "diff": options.get("diff")
         })
 
-    from congress.tasks.bill_info import create_govtrack_xml
+    from core.tasks.bill_info import create_govtrack_xml
     data_xml_filepath = f'{os.path.dirname(fdsys_xml_path)}/data.xml'
     logger.info(f'Saving "data.xml" file with filepath: "{data_xml_filepath}".')
     with open(data_xml_filepath, 'wb') as xml_file:
@@ -208,14 +208,18 @@ def form_bill_json_dict(xml_as_dict):
     actions = bill_info.actions_for(bill_dict['actions']['item'], bill_id, bill_info.current_title_for(titles, 'official'))
     status, status_date = bill_info.latest_status(actions, bill_dict.get('introducedDate', ''))
 
-    if bill_dict['sponsors'] is None and bill_dict['titles']['item'][0]['title'].startswith("Reserved "):
+    sponsors = bill_dict.get('sponsors')
+
+    if sponsors is None and bill_dict['titles']['item'][0]['title'].startswith("Reserved "):
         logger.info("[%s] Skipping reserved bill number with no sponsor (%s)" % (bill_id, bill_dict['titles']['item'][0]['title']))
         return bill_dict['titles']['item'][0]['title'] # becomes the 'reason'
-
-    if schema_version >= parse_version('3.0.0'):
-        by_request = bill_dict['sponsors']['item'][0]['isByRequest'] == 'Y'
+    if sponsors:
+        if schema_version >= parse_version('3.0.0'):
+            by_request = bill_dict['sponsors']['item'][0]['isByRequest'] == 'Y'
+        else:
+            by_request = bill_dict['sponsors']['item'][0]['byRequestType'] is not None
     else:
-        by_request = bill_dict['sponsors']['item'][0]['byRequestType'] is not None
+        by_request = None
 
     billCommittees = bill_dict.get('committees')
     if schema_version < parse_version('3.0.0'):
@@ -232,6 +236,11 @@ def form_bill_json_dict(xml_as_dict):
         billSummaries = bill_dict['summaries']['billSummaries']['item']
     if billSummaries and not isinstance(billSummaries, list): billSummaries = [billSummaries]
 
+    try:
+        sponsor = bill_info.sponsor_for(bill_dict['sponsors']['item'][0])
+    except KeyError:
+        sponsor = None
+
     bill_data = {
         'bill_id': bill_id,
         'bill_type': bill_dict.get('type' if schema_version >= parse_version('3.0.0') else 'billType').lower(),
@@ -242,7 +251,7 @@ def form_bill_json_dict(xml_as_dict):
 
         'introduced_at': bill_dict.get('introducedDate', ''),
         'by_request': by_request,
-        'sponsor': bill_info.sponsor_for(bill_dict['sponsors']['item'][0]),
+        'sponsor': sponsor,
         'cosponsors': bill_info.cosponsors_for(bill_dict.get('cosponsors')),
 
         'actions': actions,
@@ -319,7 +328,7 @@ def reparse_actions(bill_id, options):
     bill_data = json.loads(source)
 
     # Munge data.
-    from congress.tasks.bill_info import parse_bill_action
+    from core.tasks.bill_info import parse_bill_action
     title = bill_info.current_title_for(bill_data['titles'], 'official')
     old_status = "INTRODUCED"
     for action in bill_data['actions']:
@@ -357,7 +366,7 @@ def reparse_actions(bill_id, options):
       wrote_any = True
 
     # Write new data.xml file.
-    from congress.tasks.bill_info import create_govtrack_xml
+    from core.tasks.bill_info import create_govtrack_xml
     data_xml_fn = data_json_fn.replace(".json", ".xml")
     with open(data_xml_fn, 'r') as xml_file:
         source = xml_file.read()

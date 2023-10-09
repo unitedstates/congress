@@ -1,11 +1,11 @@
-from congress.tasks import utils
+from core.tasks import utils
 import os
 import os.path
 import re
 from lxml import html, etree
 import logging
 
-from congress.tasks import nomination_info
+from core.tasks import nomination_info
 
 
 def run(options):

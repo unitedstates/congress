@@ -7,6 +7,7 @@ from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 from congress.common.constants.congress import CongressConstants
+from common.constants.billml import BillMLConstants
 
 
 class CompressingTimedRotatingFileHandler(TimedRotatingFileHandler):

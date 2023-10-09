@@ -56,7 +56,7 @@ def main():
 
 
     sys.path.append(os.path.join(CONGRESS_ROOT, "tasks"))
-    import congress.tasks.utils as utils
+    import core.tasks.utils as utils
 
     try:
         task_mod = __import__(task_name)

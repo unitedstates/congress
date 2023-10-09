@@ -1,4 +1,4 @@
-from congress.tasks import utils
+from core.tasks import utils
 import logging
 import sys
 import os
@@ -13,7 +13,7 @@ import subprocess
 
 from bs4 import BeautifulSoup
 
-from congress.tasks.bills import output_for_bill
+from core.tasks.bills import output_for_bill
 
 # Parsing data from the House' upcoming floor feed, at
 # https://docs.house.gov/floor/
