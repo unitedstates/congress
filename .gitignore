@@ -57,3 +57,7 @@ docs/_build/
 
 # Local things
 /dev/
+
+# IDE settings
+.vscode/
+/.idea
