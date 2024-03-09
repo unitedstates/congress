@@ -47,6 +47,7 @@ import os
 import os.path
 import zipfile
 from congress.tasks import utils
+from tqdm import tqdm
 
 import rtyaml
 
@@ -110,6 +111,9 @@ def update_sitemap(url, current_lastmod, how_we_got_here, options):
                 rtyaml.dump(lastmod_cache, f)
 
 
+import concurrent.futures
+import time
+
 def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cache, cache_file):
     # Return a list of files we downloaded.
     results = []
@@ -121,7 +125,7 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
     # files the user wants.
     download = should_download_sitemap(lastmod_cache.get("lastmod"), current_lastmod, options)
 
-    # Download, or just retreive from cache.
+    # Download, or just retrieve from cache.
     if download:
         logging.warn("Downloading: %s" % url)
     body = utils.download(
@@ -147,7 +151,6 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
 
     # Process the entries.
     if sitemap.tag == "{http://www.sitemaps.org/schemas/sitemap/0.9}sitemapindex":
-
         # This is a sitemap index. Process the sitemaps listed in this
         # sitemapindex recursively.
         for node in sitemap.xpath("x:sitemap", namespaces=ns):
@@ -159,41 +162,64 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
                 results = results + sitemap_results
 
     elif sitemap.tag == "{http://www.sitemaps.org/schemas/sitemap/0.9}urlset":
-
         # This is a regular sitemap with content items listed.
 
-        # Process the items.
-        for node in sitemap.xpath("x:url", namespaces=ns):
-            url = str(node.xpath("string(x:loc)", namespaces=ns))
-            lastmod = str(node.xpath("string(x:lastmod)", namespaces=ns))
+        # Get the total number of items in the sitemap
+        total_items = len(sitemap.xpath("x:url", namespaces=ns))
 
-            m = re.match(COLLECTION_BASE_URL + r"([^-]+)-(.*)", url)
-            if m:
-                collection = m.group(1)
-                package_name = m.group(2)
-                if options.get("filter") and not re.search(options["filter"], package_name): continue
-                try:
-                    mirror_results = mirror_package(collection, package_name, lastmod, lastmod_cache.setdefault("packages", {}), options)
-                except:
-                    logging.exception("Error fetching package {} in collection {} from {}.".format(package_name, collection, url))
-                    mirror_results = []
-                results.extend(mirror_results)
+        # Create a tqdm progress bar
+        progress_bar = tqdm(total=total_items, desc="Downloading bills", unit="bill")
 
-            else:
-                # This is a bulk data item. Extract components of the URL.
-                m = re.match(BULKDATA_BASE_URL + r"([^/]+)/(.*)", url)
-                if not m:
-                    raise Exception("Unmatched bulk data file URL (%s) at %s." % (url, "->".join(how_we_got_here)))
-                collection = m.group(1)
-                item_path = m.group(2)
-                if options.get("filter") and not re.search(options["filter"], item_path): continue
+        # Use a ThreadPoolExecutor to download packages concurrently
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+            # Create a list to store the future objects
+            futures = []
+
+            # Process the items
+            for node in sitemap.xpath("x:url", namespaces=ns):
+                url = str(node.xpath("string(x:loc)", namespaces=ns))
+                lastmod = str(node.xpath("string(x:lastmod)", namespaces=ns))
+
+                m = re.match(COLLECTION_BASE_URL + r"([^-]+)-(.*)", url)
+                if m:
+                    collection = m.group(1)
+                    package_name = m.group(2)
+                    if options.get("filter") and not re.search(options["filter"], package_name):
+                        progress_bar.update(1)  # Update progress bar for skipped items
+                        continue
+
+                    # Submit the mirror_package function to the executor
+                    future = executor.submit(mirror_package, collection, package_name, lastmod,
+                                             lastmod_cache.setdefault("packages", {}), options)
+                    future.add_done_callback(lambda _: progress_bar.update(1))  # Update progress bar when done
+                    futures.append(future)
+                else:
+                    # This is a bulk data item. Extract components of the URL.
+                    m = re.match(BULKDATA_BASE_URL + r"([^/]+)/(.*)", url)
+                    if not m:
+                        raise Exception("Unmatched bulk data file URL (%s) at %s." % (url, "->".join(how_we_got_here)))
+                    collection = m.group(1)
+                    item_path = m.group(2)
+                    if options.get("filter") and not re.search(options["filter"], item_path):
+                        progress_bar.update(1)  # Update progress bar for skipped items
+                        continue
+
+                    # Submit the mirror_bulkdata_file function to the executor
+                    future = executor.submit(mirror_bulkdata_file, collection, url, item_path, lastmod, options)
+                    future.add_done_callback(lambda _: progress_bar.update(1))  # Update progress bar when done
+                    futures.append(future)
+
+            # Retrieve the results from the futures and extend the results list
+            for future in concurrent.futures.as_completed(futures):
                 try:
-                    mirror_results = mirror_bulkdata_file(collection, url, item_path, lastmod, options)
-                except:
-                    logging.exception("Error fetching file {} in collection {} from {}.".format(item_path, collection, url))
-                    mirror_results = None
-                if mirror_results is not None and len(mirror_results) > 0:
-                    results = results + mirror_results
+                    mirror_results = future.result()
+                    if mirror_results is not None:
+                        results.extend(mirror_results)
+                except Exception as e:
+                    tqdm.write("Error fetching package/file: %s" % str(e))
+
+        # Close the progress bar
+        progress_bar.close()
 
     else:
         raise Exception("Unknown sitemap type (%s) at the root sitemap of %s." % (sitemap.tag, url))
