@@ -30,7 +30,7 @@
 #  One good pattern is to write this out to the /srv/ tree, for example,
 #  /srv/pault.ag/congress/ or /srv/io.unitedstates/congress/
 
-FROM        debian:jessie
+FROM        debian:buster
 MAINTAINER  Paul R. Tagliamonte <paultag@sunlightfoundation.com>
 
 RUN apt-get update && apt-get install -y \
@@ -40,9 +40,9 @@ RUN mkdir -p /opt/theunitedstates.io/
 ADD . /opt/theunitedstates.io/congress/
 WORKDIR /opt/theunitedstates.io/congress/
 
-RUN pip install .
+RUN pip3 install .
 
-RUN echo "/opt/theunitedstates.io/congress/" > /usr/lib/python3.6/dist-packages/congress.pth
+RUN echo "/opt/theunitedstates.io/congress/" > /usr/local/lib/python3.7/dist-packages/congress.pth
 
 RUN mkdir -p /congress
 WORKDIR /congress
