@@ -25,6 +25,10 @@
 #   Comma-separated list of congresses to download from. Applies to bulk
 #   data collections like BILLSTATUS that are grouped by Congress + Bill Type.
 #
+#   --type=hr[,s,sres]
+#   Comma-separated list of bill types to download. Applies to bulk
+#   data collections like BILLSTATUS that are grouped by Congress + Bill Type.
+#
 #   --extract=mods,pdf,text,xml,premis
 #   Extract the MODS, PDF, text, XML, or PREMIS file associated
 #   with each package from the downloaded package ZIP file.
@@ -211,6 +215,7 @@ def should_skip_sitemap(url, options):
 
     year_filter = options.get("years", "").strip()
     congress_filter = options.get("congress", "").strip()
+    type_filter = options.get("type", "").strip()
 
     # Regular collections are grouped by publication year.
     # Which years should we download? All if none is specified.
@@ -226,9 +231,12 @@ def should_skip_sitemap(url, options):
     m = re.match(re.escape(GOVINFO_BASE_URL) + r"sitemap/bulkdata/(\w+)/(\d+)(.*)/sitemap.xml", url)
     if m:
         numeric_grouping = m.group(2)
+        sitemap_type_grouping = m.group(3) # E.g. 'hr' or 's'
         if year_filter != "" and numeric_grouping not in year_filter.split(","):
             return True
         if congress_filter != "" and numeric_grouping not in congress_filter.split(","):
+            return True
+        if type_filter != "" and sitemap_type_grouping not in type_filter.split(","):
             return True
 
     return False
