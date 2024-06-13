@@ -234,7 +234,7 @@ def committees_for(committee_list):
             name)
 
     def get_activitiy_list(item):
-        if not item['activities']:
+        if not item.get('activities'):
             return []
         return sum([activity_text_map.get(i['name'], [i['name']]) for i in item['activities']['item']], [])
 

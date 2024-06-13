@@ -68,7 +68,7 @@ def build_amendment_json_dict(amdt_dict, options):
         if type(amdt_dict['description']) is list:
             amdt['description'] = amdt['description'][0]
 
-    if amdt_dict['type'][0].lower() == 's':
+    if amdt_dict['type'][0].lower() == 's' and "proposedDate" in amdt_dict:
         amdt['proposed_at'] = amdt_dict['proposedDate']
 
     # needs to come *after* the setting of introduced_at
@@ -113,8 +113,8 @@ def create_govtrack_xml(amdt, options):
 
     make_node(root, "offered", None, datetime=amdt['introduced_at'])
 
-    make_node(root, "description", amdt["description"] if amdt["description"] else amdt["purpose"])
-    if amdt["description"]:
+    make_node(root, "description", amdt["description"] if amdt.get("description") else amdt["purpose"])
+    if amdt.get("description"):
         make_node(root, "purpose", amdt["purpose"])
 
     actions = make_node(root, "actions", None)
