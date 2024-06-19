@@ -165,7 +165,7 @@ def sponsor_for(sponsor_dict):
         return None
 
     # TODO: Don't do regex matching here. Find another way.
-    m = re.match(r'(?P<title>(Rep\.|Sen\.|Del\.|Resident Commissioner)) (?P<name>.*?) +\[(?P<party>[DRIL])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large|None))?\]$',
+    m = re.match(r'(?P<title>(Rep\.|Sen\.|Del\.|Resident Commissioner|Rescom\.)) (?P<name>.*?) +\[(?P<party>[DRIL])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large|None))?\]$',
         sponsor_dict['fullName'])
 
     if not m:
