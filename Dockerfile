@@ -30,22 +30,33 @@
 #  One good pattern is to write this out to the /srv/ tree, for example,
 #  /srv/pault.ag/congress/ or /srv/io.unitedstates/congress/
 
-FROM        debian:jessie
-MAINTAINER  Paul R. Tagliamonte <paultag@sunlightfoundation.com>
+FROM debian:bullseye
+LABEL maintainer="Paul R. Tagliamonte <paultag@sunlightfoundation.com>"
 
 RUN apt-get update && apt-get install -y \
-    git python3-dev libxml2-dev libxslt1-dev libz-dev python3-pip wget
+    git \
+    python3 \
+    python3-dev \
+    python3-pip \
+    libxml2-dev \
+    libxslt1-dev \
+    libz-dev \
+    wget \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --upgrade pip setuptools wheel
 
 RUN mkdir -p /opt/theunitedstates.io/
 ADD . /opt/theunitedstates.io/congress/
 WORKDIR /opt/theunitedstates.io/congress/
 
-RUN pip install .
+RUN pip3 install .
 
-RUN echo "/opt/theunitedstates.io/congress/" > /usr/lib/python3.6/dist-packages/congress.pth
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+RUN echo "/opt/theunitedstates.io/congress/" > /usr/local/lib/python3.9/dist-packages/congress.pth
 
 RUN mkdir -p /congress
 WORKDIR /congress
 
-CMD []
-ENTRYPOINT ["/opt/theunitedstates.io/congress/congress/run.py"]
+CMD ["/bin/bash"]
