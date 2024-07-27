@@ -6,10 +6,7 @@ import boto3
 from botocore.errorfactory import ClientError
 import smart_open
 
-session = boto3.Session(
-    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-)
+session = boto3.Session(profile_name="Democrasee")
 client = session.client("s3")
 transport_params = {"client": client}
 bucket = "democrasee-storage"
