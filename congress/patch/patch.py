@@ -5,7 +5,6 @@ import bills
 import boto3
 from botocore.errorfactory import ClientError
 import smart_open
-from _typeshed import FileDescriptorOrPath
 
 session = boto3.Session(
     aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
@@ -19,7 +18,7 @@ original_open = open
 original_exists = os.path.exists
 
 
-def open_wrapper(uri: FileDescriptorOrPath, mode: str = "r", *args):
+def open_wrapper(uri: Any, mode: str = "r", *args):
     if isinstance(uri, str) and uri.startswith("raw"):
         s3_url = f"s3://{bucket}/{uri}"
         file = smart_open.open(uri=s3_url, mode=mode, transport_params=transport_params)
