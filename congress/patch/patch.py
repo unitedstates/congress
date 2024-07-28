@@ -8,7 +8,7 @@ from functools import wraps
 
 # The patch module is loaded after the task module is loaded, so all task
 # modules are on the import path.
-from congress.tasks import utils
+from congress.tasks import utils, govinfo, bills, votes
 
 session = boto3.Session(profile_name="Democrasee")
 client = session.client("s3")
@@ -79,9 +79,29 @@ def mkdir_p_wrapper(original_mkdir_p):
 
 
 def patch(task_name):
-    utils.data_dir = data_dir_wrapper
-    utils.cache_dir = cache_dir_wrapper
-    utils.mkdir_p = mkdir_p_wrapper(utils.mkdir_p)
+    try:
+        logging.info(f"Patching task {task_name}")
+        
+        utils.data_dir = data_dir_wrapper
+        utils.cache_dir = cache_dir_wrapper
+        utils.mkdir_p = mkdir_p_wrapper(utils.mkdir_p)
 
-    os.path.exists = exists_wrapper(os.path.exists)
-    __builtins__["open"] = open_wrapper(open)
+        govinfo.utils.data_dir = utils.data_dir
+        govinfo.utils.cache_dir = utils.cache_dir
+        govinfo.utils.mkdir_p = utils.mkdir_p
+        govinfo.os.path.exists = exists_wrapper(os.path.exists)
+        
+        bills.utils.data_dir = utils.data_dir
+        bills.utils.cache_dir = utils.cache_dir
+        bills.utils.mkdir_p = utils.mkdir_p
+        bills.os.path.exists = exists_wrapper(os.path.exists)
+        
+        votes.utils.data_dir = utils.data_dir
+        votes.utils.cache_dir = utils.cache_dir
+        votes.utils.mkdir_p = utils.mkdir_p
+        votes.os.path.exists = exists_wrapper(os.path.exists)
+        
+        __builtins__["open"] = open_wrapper(open)
+    except Exception as e:
+        print(e)
+    
