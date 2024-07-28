@@ -32,9 +32,9 @@ def open_wrapper(original_open):
 
         if uri_as_string.startswith("raw"):
             s3_url = f"s3://{bucket}/{uri_as_string}"
-            
+
             logging.warn(s3_url)
-            
+
             file = smart_open.open(
                 uri=s3_url, mode=mode, transport_params=transport_params
             )
@@ -46,19 +46,65 @@ def open_wrapper(original_open):
     return _open
 
 
+def listdir_wrapper(original_listdir):
+    @wraps(original_listdir)
+    def _listdir(path):
+        try:
+            uri_as_string = str(path)
+            directory, extension = os.path.splitext(path)
+
+            if uri_as_string.startswith("raw"):
+                if extension == "":
+                    prefix = f"{uri_as_string.rstrip('/')}/"
+                    paginator = client.get_paginator("list_objects_v2")
+                    pages = paginator.paginate(
+                        Bucket=bucket,
+                        Prefix=prefix,
+                        Delimiter="/",
+                    )
+
+                    dirs = []
+
+                    for page in pages:
+                        page_dirs = list(
+                            map(
+                                lambda n: n.get("Prefix")
+                                .replace(prefix, "")
+                                .rstrip("/"),
+                                page.get("CommonPrefixes"),
+                            )
+                        )
+
+                        dirs.extend(page_dirs)
+
+                    return dirs
+
+            return original_listdir(path)
+        except ClientError as e:
+            logging.warn(e)
+            return False
+
+    return _listdir
+
+
 def exists_wrapper(original_exists):
     @wraps(original_exists)
     def _exists(path):
         try:
             uri_as_string = str(path)
+            directory, extension = os.path.splitext(path)
 
             if uri_as_string.startswith("raw"):
+                if extension == "":
+                    return True
+
                 client.get_object(Bucket=bucket, Key=uri_as_string)
 
                 return True
 
             return original_exists(path)
         except ClientError as e:
+            logging.warn(e)
             return False
 
     return _exists
@@ -83,7 +129,7 @@ def mkdir_p_wrapper(original_mkdir_p):
 def patch(task_name):
     try:
         logging.warn(f"Patching task {task_name}")
-        
+
         utils.data_dir = data_dir_wrapper
         utils.cache_dir = cache_dir_wrapper
         utils.mkdir_p = mkdir_p_wrapper(utils.mkdir_p)
@@ -92,20 +138,22 @@ def patch(task_name):
         govinfo.utils.cache_dir = utils.cache_dir
         govinfo.utils.mkdir_p = utils.mkdir_p
         govinfo.os.path.exists = exists_wrapper(os.path.exists)
-        
+        govinfo.os.listdir = listdir_wrapper(os.listdir)
+
         bills.utils.data_dir = utils.data_dir
         bills.utils.cache_dir = utils.cache_dir
         bills.utils.mkdir_p = utils.mkdir_p
         bills.os.path.exists = exists_wrapper(os.path.exists)
-        
+        bills.os.listdir = listdir_wrapper(os.listdir)
+
         votes.utils.data_dir = utils.data_dir
         votes.utils.cache_dir = utils.cache_dir
         votes.utils.mkdir_p = utils.mkdir_p
         votes.os.path.exists = exists_wrapper(os.path.exists)
-        
+        votes.os.listdir = listdir_wrapper(os.listdir)
+
         __builtins__["open"] = open_wrapper(open)
-        
+
         logging.warn(f"Patched task {task_name}")
     except Exception as e:
         print(e)
-    
