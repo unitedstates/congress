@@ -1,10 +1,10 @@
 from typing import Any
 import os
-import govinfo
-import bills
 import boto3
 from botocore.errorfactory import ClientError
 import smart_open
+from congress.tasks import bills, govinfo, utils
+import logging
 
 session = boto3.Session(profile_name="Democrasee")
 client = session.client("s3")
@@ -19,6 +19,7 @@ def open_wrapper(uri: Any, mode: str = "r", *args):
     if isinstance(uri, str) and uri.startswith("raw"):
         s3_url = f"s3://{bucket}/{uri}"
         file = smart_open.open(uri=s3_url, mode=mode, transport_params=transport_params)
+        logging.info(f"Fetching from S3 -> {s3_url}")
         return file
 
     return original_open(uri, mode, *args)
@@ -49,6 +50,11 @@ def mkdir_p(path):
 
 
 def patch(task_name):
+    utils.data_dir = data_dir_wrapper
+    utils.cache_dir = cache_dir_wrapper
+    utils.mkdir_p = mkdir_p
+    utils.os.path.exists = exists
+    
     govinfo.utils.mkdir_p = mkdir_p
     govinfo.utils.cache_dir = cache_dir_wrapper
     govinfo.utils.data_dir = data_dir_wrapper
