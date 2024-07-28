@@ -32,10 +32,12 @@ def open_wrapper(original_open):
 
         if uri_as_string.startswith("raw"):
             s3_url = f"s3://{bucket}/{uri_as_string}"
+            
+            logging.warn(s3_url)
+            
             file = smart_open.open(
                 uri=s3_url, mode=mode, transport_params=transport_params
             )
-            logging.info(f"Fetching from S3 -> {s3_url}")
 
             return file
 
@@ -80,7 +82,7 @@ def mkdir_p_wrapper(original_mkdir_p):
 
 def patch(task_name):
     try:
-        logging.info(f"Patching task {task_name}")
+        logging.warn(f"Patching task {task_name}")
         
         utils.data_dir = data_dir_wrapper
         utils.cache_dir = cache_dir_wrapper
@@ -102,6 +104,8 @@ def patch(task_name):
         votes.os.path.exists = exists_wrapper(os.path.exists)
         
         __builtins__["open"] = open_wrapper(open)
+        
+        logging.warn(f"Patched task {task_name}")
     except Exception as e:
         print(e)
     
