@@ -71,7 +71,7 @@ def listdir_wrapper(original_listdir):
                                 lambda n: n.get("Prefix")
                                 .replace(prefix, "")
                                 .rstrip("/"),
-                                page.get("CommonPrefixes"),
+                                page.get("CommonPrefixes", []),
                             )
                         )
 
@@ -82,6 +82,7 @@ def listdir_wrapper(original_listdir):
             return original_listdir(path)
         except ClientError as e:
             logging.warn(e)
+            logging.warn(str(path))
             return False
 
     return _listdir
