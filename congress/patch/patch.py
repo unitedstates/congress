@@ -24,7 +24,6 @@ __all__ = [
     "mkdir_p_wrapper",
 ]
 
-
 def open_wrapper(original_open):
     @wraps(original_open)
     def _open(uri: Any, mode: str = "r", *args):
@@ -33,7 +32,7 @@ def open_wrapper(original_open):
         if uri_as_string.startswith("raw"):
             s3_url = f"s3://{bucket}/{uri_as_string}"
 
-            logging.warn(s3_url)
+            logging.warn(f"opening: {s3_url}")
 
             file = smart_open.open(
                 uri=s3_url, mode=mode, transport_params=transport_params
@@ -65,6 +64,8 @@ def listdir_wrapper(original_listdir):
 
                     dirs = []
 
+                    logging.warn(f"listing dirs: {prefix}")
+
                     for page in pages:
                         page_dirs = list(
                             map(
@@ -93,15 +94,21 @@ def exists_wrapper(original_exists):
     def _exists(path):
         try:
             uri_as_string = str(path)
+
             directory, extension = os.path.splitext(path)
 
             if uri_as_string.startswith("raw"):
                 if extension == "":
+                    logging.warn(f"exists: {uri_as_string}")
                     return True
 
-                client.get_object(Bucket=bucket, Key=uri_as_string)
-
-                return True
+                try:
+                    client.get_object(Bucket=bucket, Key=uri_as_string)
+                    
+                    return True
+                except Exception as e:
+                    logging.warn(f"file does not exist: {uri_as_string}")
+                    return False
 
             return original_exists(path)
         except ClientError as e:
