@@ -44,6 +44,23 @@ def open_wrapper(original_open):
 
     return _open
 
+def etree_parse_wrapper(original_etree_parse):
+    @wraps(original_etree_parse)
+    def _etree_parse(source: Any, *args):
+        _open = open_wrapper(open)
+        
+        uri_as_string = str(source)
+
+        if uri_as_string.startswith("raw"):
+            logging.warn(f"opening xml file: {uri_as_string}")
+
+            file = _open(uri_as_string)
+
+            return original_etree_parse(file)
+
+        return original_etree_parse(source, *args)
+
+    return _etree_parse
 
 def listdir_wrapper(original_listdir):
     @wraps(original_listdir)
@@ -141,13 +158,16 @@ def patch(task_name):
         utils.data_dir = data_dir_wrapper
         utils.cache_dir = cache_dir_wrapper
         utils.mkdir_p = mkdir_p_wrapper(utils.mkdir_p)
-
+        utils.zipfile.io.open =  open_wrapper(open)
+        
         govinfo.utils.data_dir = utils.data_dir
         govinfo.utils.cache_dir = utils.cache_dir
         govinfo.utils.mkdir_p = utils.mkdir_p
         govinfo.os.path.exists = exists_wrapper(os.path.exists)
         govinfo.os.listdir = listdir_wrapper(os.listdir)
-
+        govinfo.zipfile.io.open =  open_wrapper(open)
+        govinfo.etree.parse = etree_parse_wrapper(govinfo.etree.parse)
+        
         bills.utils.data_dir = utils.data_dir
         bills.utils.cache_dir = utils.cache_dir
         bills.utils.mkdir_p = utils.mkdir_p
@@ -161,7 +181,7 @@ def patch(task_name):
         votes.os.listdir = listdir_wrapper(os.listdir)
 
         __builtins__["open"] = open_wrapper(open)
-
+        
         logging.warn(f"Patched task {task_name}")
     except Exception as e:
         print(e)
