@@ -32,7 +32,7 @@ def open_wrapper(original_open):
         if uri_as_string.startswith("raw"):
             s3_url = f"s3://{bucket}/{uri_as_string}"
 
-            logging.warn(f"opening: {s3_url}")
+            # logging.warn(f"opening: {s3_url}")
 
             file = smart_open.open(
                 uri=s3_url, mode=mode, transport_params=transport_params
@@ -52,7 +52,7 @@ def etree_parse_wrapper(original_etree_parse):
         uri_as_string = str(source)
 
         if uri_as_string.startswith("raw"):
-            logging.warn(f"opening xml file: {uri_as_string}")
+            # logging.warn(f"opening xml file: {uri_as_string}")
 
             file = _open(uri_as_string)
 
@@ -81,7 +81,7 @@ def listdir_wrapper(original_listdir):
 
                     dirs = []
 
-                    logging.warn(f"listing dirs: {prefix}")
+                    # logging.warn(f"listing dirs: {prefix}")
 
                     for page in pages:
                         page_dirs = list(
@@ -116,7 +116,7 @@ def exists_wrapper(original_exists):
 
             if uri_as_string.startswith("raw"):
                 if extension == "":
-                    logging.warn(f"exists: {uri_as_string}")
+                    # logging.warn(f"exists: {uri_as_string}")
                     return True
 
                 try:
@@ -124,7 +124,7 @@ def exists_wrapper(original_exists):
                     
                     return True
                 except Exception as e:
-                    logging.warn(f"file does not exist: {uri_as_string}")
+                    # logging.warn(f"file does not exist: {uri_as_string}")
                     return False
 
             return original_exists(path)
