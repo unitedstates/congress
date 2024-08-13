@@ -234,7 +234,7 @@ def committees_for(committee_list):
             name)
 
     def get_activitiy_list(item):
-        if not item['activities']:
+        if not item.get('activities'):
             return []
         return sum([activity_text_map.get(i['name'], [i['name']]) for i in item['activities']['item']], [])
 
@@ -392,7 +392,7 @@ def actions_for(action_list, bill_id, title):
         "prev": None,
     }
     def keep_action(item, closure):
-        if item['text'] in (None, ""):
+        if item.get('text') in (None, ""):
             return False
 
         keep = True
