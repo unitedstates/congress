@@ -392,7 +392,7 @@ def actions_for(action_list, bill_id, title):
         "prev": None,
     }
     def keep_action(item, closure):
-        if item.get('text') in (None, ""):
+        if not item.get('text'):
             return False
 
         keep = True
