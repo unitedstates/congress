@@ -165,7 +165,7 @@ def sponsor_for(sponsor_dict):
         return None
 
     # TODO: Don't do regex matching here. Find another way.
-    m = re.match(r'(?P<title>(Rep\.|Sen\.|Del\.|Resident Commissioner)) (?P<name>.*?) +\[(?P<party>[DRIL])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large|None))?\]$',
+    m = re.match(r'(?P<title>(Rep\.|Sen\.|Del\.|Resident Commissioner|Rescom\.)) (?P<name>.*?) +\[(?P<party>[DRIL])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large|None))?\]$',
         sponsor_dict['fullName'])
 
     if not m:
@@ -234,7 +234,7 @@ def committees_for(committee_list):
             name)
 
     def get_activitiy_list(item):
-        if not item['activities']:
+        if not item.get('activities'):
             return []
         return sum([activity_text_map.get(i['name'], [i['name']]) for i in item['activities']['item']], [])
 
@@ -392,7 +392,7 @@ def actions_for(action_list, bill_id, title):
         "prev": None,
     }
     def keep_action(item, closure):
-        if item['text'] in (None, ""):
+        if not item.get('text'):
             return False
 
         keep = True
