@@ -863,18 +863,17 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
             bill_item = bill_item.lower().replace(".", "").replace(" ", "").split(",")
             if bill_item[0] == (bill_type + number):
                 as_amended = len(bill_item) > 1
-        if as_amended is None: raise ValueError("Did not find bill in list: " + line)
-
-        vote_type = "vote" if (bill_type[0] == "h") else "vote2"
-        pass_fail = "pass"
-        action["type"] = "vote"
-        action["vote_type"] = vote_type
-        action["how"] = "by special rule"
-        action["where"] = "h"
-        action["result"] = pass_fail
-        new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, as_amended, title, prev_status)
-        if new_status:
-            status = new_status
+        if as_amended is not None: # found the bill in the list?
+            vote_type = "vote" if (bill_type[0] == "h") else "vote2"
+            pass_fail = "pass"
+            action["type"] = "vote"
+            action["vote_type"] = vote_type
+            action["how"] = "by special rule"
+            action["where"] = "h"
+            action["result"] = pass_fail
+            new_status = new_status_after_vote(vote_type, pass_fail == "pass", "h", bill_type, False, as_amended, title, prev_status)
+            if new_status:
+                status = new_status
 
     # House motions to table adversely dispose of a pending matter, if agreed to. An agreed-to "motion to table the measure",
     # which is very infrequent, kills the legislation. If not agreed to, nothing changes. So this regex only captures
