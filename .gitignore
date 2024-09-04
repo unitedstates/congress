@@ -8,6 +8,7 @@
 /todo*
 /congress-legislators
 *.bak
+.env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -19,6 +20,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
+venv/
 /.venv/
 build/
 develop-eggs/
@@ -57,3 +59,6 @@ docs/_build/
 
 # Local things
 /dev/
+.vscode/
+*.pkl
+*.parquet
