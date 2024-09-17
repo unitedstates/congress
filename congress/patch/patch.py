@@ -8,7 +8,7 @@ from functools import wraps
 
 # The patch module is loaded after the task module is loaded, so all task
 # modules are on the import path.
-from congress.tasks import utils, govinfo, bills, votes
+from congress.tasks import utils, govinfo, bills, votes, vote_info
 
 session = boto3.Session(profile_name="Democrasee")
 client = session.client("s3")
@@ -180,6 +180,12 @@ def patch(task_name):
         votes.os.path.exists = exists_wrapper(os.path.exists)
         votes.os.listdir = listdir_wrapper(os.listdir)
 
+        vote_info.utils.data_dir = utils.data_dir
+        vote_info.utils.cache_dir = utils.cache_dir
+        vote_info.utils.mkdir_p = utils.mkdir_p
+        vote_info.os.path.exists = exists_wrapper(os.path.exists)
+        vote_info.os.listdir = listdir_wrapper(os.listdir)
+        
         __builtins__["open"] = open_wrapper(open)
         
         logging.warn(f"Patched task {task_name}")
