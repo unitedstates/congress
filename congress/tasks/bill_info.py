@@ -189,7 +189,7 @@ def summary_for(summaries):
     # Take the most recent summary, by looking at the lexicographically last updateDate.
     summary = sorted(summaries, key = lambda s: s['updateDate'])[-1]
 
-    text = summary['text'] if 'text' in summary else ''
+    text = summary.get('text', '')
 
     # Build dict.
     return {
