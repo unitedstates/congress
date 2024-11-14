@@ -189,12 +189,14 @@ def summary_for(summaries):
     # Take the most recent summary, by looking at the lexicographically last updateDate.
     summary = sorted(summaries, key = lambda s: s['updateDate'])[-1]
 
+    text = summary.get('text', '')
+
     # Build dict.
     return {
         "date": summary['updateDate'],
         "as": summary['actionDesc'],
         "asOf": summary['actionDate'],
-        "text": strip_tags(summary['text']),
+        "text": strip_tags(text),
     }
 
 def strip_tags(text):
