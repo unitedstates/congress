@@ -227,7 +227,7 @@ def form_bill_json_dict(xml_as_dict):
 
         'introduced_at': bill_dict.get('introducedDate', ''),
         'by_request': by_request,
-        'sponsor': bill_info.sponsor_for(bill_dict['sponsors']['item'][0]),
+        'sponsor': bill_info.sponsor_for(bill_dict['sponsors']['item'][0]) if 'sponsors' in bill_dict else None,
         'cosponsors': bill_info.cosponsors_for(bill_dict.get('cosponsors')),
 
         'actions': actions,
