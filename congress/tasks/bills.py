@@ -193,11 +193,13 @@ def form_bill_json_dict(xml_as_dict):
     actions = bill_info.actions_for(bill_dict['actions']['item'], bill_id, bill_info.current_title_for(titles, 'official'))
     status, status_date = bill_info.latest_status(actions, bill_dict.get('introducedDate', ''))
 
-    if bill_dict['sponsors'] is None and bill_dict['titles']['item'][0]['title'].startswith("Reserved "):
+    if bill_dict.get('sponsors') is None and bill_dict['titles']['item'][0]['title'].startswith("Reserved "):
         logging.info("[%s] Skipping reserved bill number with no sponsor (%s)" % (bill_id, bill_dict['titles']['item'][0]['title']))
         return bill_dict['titles']['item'][0]['title'] # becomes the 'reason'
 
-    if schema_version >= parse_version('3.0.0'):
+    if bill_dict.get('sponsors') is None:
+        by_request = False
+    elif schema_version >= parse_version('3.0.0'):
         by_request = bill_dict['sponsors']['item'][0]['isByRequest'] == 'Y'
     else:
         by_request = bill_dict['sponsors']['item'][0]['byRequestType'] is not None
