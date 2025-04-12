@@ -88,14 +88,14 @@ def fetch_floor_week(for_the_week, options):
     upcoming = []
 
     for node in dom.xpath('//floorschedule/category/floor-items/floor-item'):
-        bill_number = node.xpath('legis-num//text()')[0]
+        description = node.xpath('string(floor-text)')
+
+        bill_number = node.xpath('string(legis-num)')
 
         # TODO: fetch non-bills too
         if not bill_number:
             logging.warn("Skipping item, not a bill: %s" % description)
             continue
-
-        description = node.xpath('floor-text//text()')[0]
 
         # how is this bill being considered?
         category = next(node.iterancestors("category")).get('type')
