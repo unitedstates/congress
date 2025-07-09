@@ -127,7 +127,7 @@ def update_sitemap2(url, current_lastmod, how_we_got_here, options, lastmod_cach
 
     # Download, or just retreive from cache.
     if download:
-        logging.warn("Downloading: %s" % url)
+        logging.info("Downloading: %s" % url)
     body = utils.download(
         url,
         cache_file,
@@ -349,7 +349,7 @@ def mirror_package_zipfile(collection, package_name, file_path, lastmod, lastmod
 
     # Download.
     file_url = GOVINFO_BASE_URL + "content/pkg/{}-{}.zip".format(collection, package_name)
-    logging.warn("Downloading: " + file_path)
+    logging.info("Downloading: " + file_path)
     data = utils.download(file_url, file_path, utils.merge(options, {
         'binary': True,
         'force': True, # decision to cache was made above
@@ -516,7 +516,7 @@ def mirror_bulkdata_file(collection, url, item_path, lastmod, options):
         return
 
     # Download.
-    logging.warn("Downloading: " + path)
+    logging.info("Downloading: " + path)
     data = utils.download(url, path, utils.merge(options, {
         'binary': True,
         'force': True, # decision to cache was made above

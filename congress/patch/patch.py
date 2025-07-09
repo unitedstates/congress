@@ -153,7 +153,7 @@ def mkdir_p_wrapper(original_mkdir_p):
 
 def patch(task_name):
     try:
-        logging.warn(f"Patching task {task_name}")
+        logging.info(f"Patching task {task_name}")
 
         utils.data_dir = data_dir_wrapper
         utils.cache_dir = cache_dir_wrapper
@@ -188,6 +188,6 @@ def patch(task_name):
         
         __builtins__["open"] = open_wrapper(open)
         
-        logging.warn(f"Patched task {task_name}")
+        logging.info(f"Patched task {task_name}")
     except Exception as e:
         print(e)
