@@ -41,6 +41,12 @@ def fetch_vote(vote_id, options):
                 os.unlink(f)
         return {'saved': False, 'ok': True, 'reason': "vote was vacated"}
 
+    if b"roll-call-vote-not-available.htm" in body:
+        # Vote showed up in the xml list of votes but no roll call file has been
+        # created yet, or script was given a completely invalid vote number.
+        # In the case of very recent votes, this error should be temporary.
+        return {"saved": False, "ok": True, "reason": "roll call vote not available"}
+
     dom = etree.fromstring(body)
 
     vote = {
