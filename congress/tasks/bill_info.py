@@ -189,7 +189,12 @@ def summary_for(summaries):
     # Take the most recent summary, by looking at the lexicographically last updateDate.
     summary = sorted(summaries, key = lambda s: s['updateDate'])[-1]
 
+    # Congress 118 and after wrap 'text' inside of a 'cdata' field
     text = summary.get('text', '')
+    if not text:
+        cdata = summary.get('cdata', '')
+        if isinstance(cdata, dict):
+            text = cdata.get('text', '')
 
     # Build dict.
     return {
