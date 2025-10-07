@@ -3,6 +3,7 @@
 import sys
 import unittest
 sys.path.append("congress/tasks")  # allow test classes to easily load tasks
+sys.path.append("congress/contrib/congressional_hearing_info") # allow test classes to load contrib files
 sys.path.append("test")  # allow fixtures.py to be loaded
 
 tests = unittest.TestLoader().discover("test")

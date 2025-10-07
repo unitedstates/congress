@@ -31,6 +31,9 @@ setuptools.setup(
         'scrapelib',
         'xmltodict',
         'packaging',
+        'python-dotenv',
+        'pandas',
+        'fastparquet',
     ],
     entry_points={
         'console_scripts': [
