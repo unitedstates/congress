@@ -47,7 +47,7 @@ Finally, with your virtual environment activated, install the package, which
 will automatically pull in the Python dependencies:
 
 ```bash
-pip install .
+pip install united-states-congress
 ```
 
 ### Collecting the data
