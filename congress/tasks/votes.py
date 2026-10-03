@@ -74,48 +74,32 @@ def run(options):
 def vote_ids_for_house(congress, session_year, options):
     vote_ids = []
 
-    index_page = "https://clerk.house.gov/evs/%s/index.asp" % session_year
-    group_page = r"ROLL_(\d+)\.asp"
-    link_pattern = r"http://clerk.house.gov/cgi-bin/vote.asp\?year=%s&rollnumber=(\d+)" % session_year
+    session_ordinal = "1st" if session_year == utils.get_congress_first_year(options.get('congress')) else "2nd"
 
-    # download index page, find the matching links to the paged listing of votes
-    page = utils.download(
-        index_page,
-        "%s/votes/%s/pages/house.html" % (congress, session_year),
-        options)
+    index_page = f"https://clerk.house.gov/Votes/MemberVotes?CongressNum={options.get('congress')}&Session={session_ordinal}"
+    link_pattern = r"/Votes/(\d\d\d\d)(\d+)"
 
-    if not page:
-        logging.error("Couldn't download House vote index page, skipping")
-        return None
-
-    # extract matching links
-    doc = html.document_fromstring(page)
-    links = doc.xpath(
-        "//a[re:match(@href, '%s')]" % group_page,
-        namespaces={"re": "http://exslt.org/regular-expressions"})
-
-    for link in links:
-        # get some identifier for this inside page for caching
-        grp = re.match(group_page, link.get("href")).group(1)
-
-        # download inside page, find the matching links
+    page_num = 0
+    while True:
+        # download index page
+        page_num += 1
         page = utils.download(
-            urllib.parse.urljoin(index_page, link.get("href")),
-            "%s/votes/%s/pages/house_%s.html" % (congress, session_year, grp),
+            index_page + ("" if page_num == 1 else f"&page={page_num}"),
+            "%s/votes/%s/pages/house_%d.html" % (congress, session_year, page_num),
             options)
-
         if not page:
-            logging.error("Couldn't download House vote group page (%s), aborting" % grp)
-            continue
+            logging.error("Couldn't download House vote index page, skipping")
+            return None
 
+        # extract matching links
         doc = html.document_fromstring(page)
-        votelinks = doc.xpath(
-            "//a[re:match(@href, '%s')]" % link_pattern,
-            namespaces={"re": "http://exslt.org/regular-expressions"})
-
-        for votelink in votelinks:
-            num = re.match(link_pattern, votelink.get("href")).group(1)
-            vote_id = "h" + num + "-" + str(congress) + "." + session_year
+        links = doc.xpath(
+          "//a[re:match(@href, '%s')]" % link_pattern,
+          namespaces={"re": "http://exslt.org/regular-expressions"})
+        if len(links) == 0: break # beyond last page
+        for link in links:
+            m = re.match(link_pattern, link.get("href"))
+            vote_id = "h" + m.group(2) + "-" + str(congress) + "." + session_year
             if not should_process(vote_id, options):
                 continue
             vote_ids.append(vote_id)
