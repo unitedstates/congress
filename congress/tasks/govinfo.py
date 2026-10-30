@@ -71,12 +71,23 @@ ns = {"x": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
 def run(options):
     # Process sitemaps.
-    for collection in sorted(options.get("collections", "").split(",")):
-        if collection != "":
-            update_sitemap(COLLECTION_SITEMAPINDEX_PATTERN.format(collection=collection), None, [], options)
-    for collection in sorted(options.get("bulkdata", "").split(",")):
-        if collection != "":
-            update_sitemap(BULKDATA_SITEMAPINDEX_PATTERN.format(collection=collection), None, [], options)
+    for collection in collection_list(options, "collections"):
+        update_sitemap(COLLECTION_SITEMAPINDEX_PATTERN.format(collection=collection), None, [], options)
+    for collection in collection_list(options, "bulkdata"):
+        update_sitemap(BULKDATA_SITEMAPINDEX_PATTERN.format(collection=collection), None, [], options)
+
+def collection_list(options, key):
+    """Returns the sorted collection names given in a comma-separated option.
+
+    run.py turns --key=False into False and a bare --key into True, so
+    accept False (no collections) and reject True with a clear message
+    instead of crashing on str.split."""
+    value = options.get(key, "")
+    if value is False or value is None:
+        return []
+    if value is True:
+        raise ValueError("--{0} needs a comma-separated list of collection names, e.g. --{0}=BILLS".format(key))
+    return sorted(collection for collection in value.split(",") if collection != "")
 
 def update_sitemap(url, current_lastmod, how_we_got_here, options):
     """Updates the local cache of a sitemap file."""
