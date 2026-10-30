@@ -82,7 +82,7 @@ def vote_ids_for_house(congress, session_year, options):
     page = utils.download(
         index_page,
         "%s/votes/%s/pages/house.html" % (congress, session_year),
-        options)
+        listing_options(session_year, options))
 
     if not page:
         logging.error("Couldn't download House vote index page, skipping")
@@ -102,7 +102,7 @@ def vote_ids_for_house(congress, session_year, options):
         page = utils.download(
             urllib.parse.urljoin(index_page, link.get("href")),
             "%s/votes/%s/pages/house_%s.html" % (congress, session_year, grp),
-            options)
+            listing_options(session_year, options))
 
         if not page:
             logging.error("Couldn't download House vote group page (%s), aborting" % grp)
@@ -132,7 +132,7 @@ def vote_ids_for_senate(congress, session_year, options):
     page = utils.download(
         url,
         "%s/votes/%s/pages/senate.xml" % (congress, session_year),
-        utils.merge(options, {'binary': True})
+        utils.merge(listing_options(session_year, options), {'binary': True})
     )
 
     if not page or b"Requested Page Not Found (404)" in page:
@@ -157,6 +157,18 @@ def vote_ids_for_senate(congress, session_year, options):
             continue
         vote_ids.append(vote_id)
     return vote_ids
+
+
+def listing_options(session_year, options):
+    # The vote listing pages for the current session change every time a
+    # new vote is taken, so a cached copy would hide all later votes. Always
+    # re-download them. Listings for past sessions are final and stay cached.
+    # --cache keeps the old fully offline behavior.
+    if options.get('cache', False):
+        return options
+    if int(session_year) >= utils.current_legislative_year():
+        return utils.merge(options, {'force': True})
+    return options
 
 
 def should_process(vote_id, options):
